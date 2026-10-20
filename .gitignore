@@ -1,0 +1,65 @@
+# Gradle
+.gradle
+build/
+
+# Local configuration
+local.properties
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build outputs
+*.apk
+*.aar
+*.ap_
+*.dex
+
+# Mise
+.mise.toml
+# Synced from upstream KoLmafia by tools/sync-upstream.sh (run it after cloning)
+kolmafia-core/src/
+kolmafia-core/build/
+compat/build/
+
+# Creds to test login - do not share
+auth
+core-tests/src/
+core-tests/root/
+core-tests/build/
+engine/build/
+compat-gen/build/
+
+# Release signing (never commit)
+keystore.properties
+*.jks
+*.keystore
+
+# Personal / local files: never commit
+tmp/
+__pycache__/
+*.pyc
+auth
+keystore.properties
+*.jks
+*.keystore
+*.p12
+.env
+.env.*
+local.properties
+*.hprof
+captures/
+.claude/
+.opencode/
+.kotlin/
+/screenshots/
+*.png.bak

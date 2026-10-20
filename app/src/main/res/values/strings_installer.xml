@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Script Installer -->
+    <string name="installer_title">Install Scripts</string>
+    <string name="installer_repo_url">Repository URL</string>
+    <string name="installer_repo_url_hint">https://github.com/... or https://svn.code.sf.net/...</string>
+    <string name="installer_install">Install</string>
+    <string name="installer_installing">Installing…</string>
+    <string name="installer_error_unsupported">Only GitHub and SourceForge SVN repositories are supported</string>
+    <string name="installer_error_empty_url">Please enter a repository URL</string>
+    <string name="installer_success">Installed successfully</string>
+    <string name="installer_error">Installation failed: %s</string>
+
+    <string name="installer_popular">Popular</string>
+    <string name="installer_popular_autoscend">autoscend</string>
+    <string name="installer_popular_autoscend_desc">Automated ascension script</string>
+    <string name="installer_popular_zlib">zlib</string>
+    <string name="installer_popular_zlib_desc">Shared library for KoLmafia scripts</string>
+
+    <string name="installer_installed">Installed Projects</string>
+    <string name="installer_installed_empty">No projects installed</string>
+    <string name="installer_update_all">Update All</string>
+    <string name="installer_updating_all">Updating all projects…</string>
+    <string name="installer_update_all_done">All projects updated</string>
+    <string name="installer_source_git">Git</string>
+    <string name="installer_source_svn">SVN</string>
+    <string name="installer_branch">Branch: %s</string>
+    <string name="installer_commit">Commit: %s</string>
+    <string name="installer_revision">Revision: %s</string>
+    <string name="installer_update">Update</string>
+    <string name="installer_delete">Delete</string>
+    <string name="installer_confirm_delete">Delete %s?\n\nThis will remove all script files.</string>
+    <string name="installer_deleting">Deleting…</string>
+    <string name="installer_deleted">Deleted successfully</string>
+    <string name="installer_error_delete">Failed to delete: %s</string>
+    <string name="installer_error_update">Failed to update: %s</string>
+    <string name="installer_updating">Updating…</string>
+</resources>

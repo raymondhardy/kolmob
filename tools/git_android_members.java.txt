@@ -1,0 +1,321 @@
+
+  // ===================== Android replacement for the JGit-backed operations =====================
+  // JGit is not practical on Android, so projects are downloaded as GitHub zip archives (codeload)
+  // and the GitHub REST API supplies commit info. Everything else in this class (sync, conflict
+  // handling, dependencies) is unchanged upstream code. Only github.com repositories are supported.
+  // Generated into GitManager.java by tools/gen_git_override.py.
+
+  private static final String KOLMOB_META = ".kolmob-git.json";
+  private static final String KOLMOB_UA = "KoLmafia (Kolmob for Android)";
+
+  private static String readUtf8(Path p) throws IOException {
+    return new String(Files.readAllBytes(p), java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  private static void writeUtf8(Path p, String text) throws IOException {
+    Files.write(p, text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+  }
+
+  private static String[] parseGithub(String repoUrl) {
+    String u = repoUrl.trim();
+    if (u.endsWith(".git")) u = u.substring(0, u.length() - 4);
+    while (u.endsWith("/")) u = u.substring(0, u.length() - 1);
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("^(?:https?://)?(?:www\\.)?github\\.com/([^/]+)/([^/]+)").matcher(u);
+    return m.find() ? new String[] {m.group(1), m.group(2)} : null;
+  }
+
+  private static java.net.HttpURLConnection openUrl(String url) throws IOException {
+    // Mobile networks fail transiently: retry with a fresh connection and backoff.
+    IOException last = null;
+    for (int attempt = 0; attempt < 4; attempt++) {
+      try {
+        java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+        c.setInstanceFollowRedirects(true);
+        c.setConnectTimeout(10000);
+        c.setReadTimeout(120000);
+        c.setRequestProperty("User-Agent", KOLMOB_UA);
+        c.setRequestProperty("Accept", "application/vnd.github+json");
+        int code = c.getResponseCode();
+        if (code >= 400 && code < 500) throw new IOException("HTTP " + code + " for " + url);
+        if (code >= 500) throw new java.net.ConnectException("HTTP " + code + " for " + url);
+        return c;
+      } catch (java.net.ConnectException | java.net.SocketTimeoutException | java.net.UnknownHostException e) {
+        last = e;
+        try {
+          Thread.sleep(1000L << attempt);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new IOException("Interrupted", ie);
+        }
+      }
+    }
+    throw last;
+  }
+
+  private static JSONObject githubJson(String url) throws IOException {
+    try (var in = openUrl(url).getInputStream()) {
+      return JSON.parseObject(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+    }
+  }
+
+  private static void deleteTree(Path p) throws IOException {
+    if (!Files.exists(p)) return;
+    List<Path> all;
+    try (var w = Files.walk(p)) {
+      all = w.sorted(Comparator.reverseOrder()).toList();
+    }
+    for (Path x : all) Files.delete(x);
+  }
+
+  private static void downloadAndExtract(String owner, String repo, String branch, Path dest)
+      throws IOException {
+    Path tmp = Files.createTempFile("kolmob-git", ".zip");
+    try {
+      String url = "https://codeload.github.com/" + owner + "/" + repo + "/zip/refs/heads/" + branch;
+      try (var in = openUrl(url).getInputStream()) {
+        Files.copy(in, tmp, REPLACE_EXISTING);
+      }
+      Files.createDirectories(dest);
+      Path base = dest.toAbsolutePath().normalize();
+      try (var zip = new java.util.zip.ZipInputStream(Files.newInputStream(tmp))) {
+        java.util.zip.ZipEntry e;
+        while ((e = zip.getNextEntry()) != null) {
+          String name = e.getName();
+          int slash = name.indexOf('/');
+          if (slash < 0) continue; // the archive's top-level folder is stripped
+          String rel = name.substring(slash + 1);
+          if (rel.isEmpty()) continue;
+          Path out = base.resolve(rel).normalize();
+          if (!out.startsWith(base)) throw new IOException("Unsafe path in archive: " + name);
+          if (e.isDirectory()) {
+            Files.createDirectories(out);
+          } else {
+            Files.createDirectories(out.getParent());
+            Files.copy(zip, out, REPLACE_EXISTING);
+          }
+        }
+      }
+    } finally {
+      Files.deleteIfExists(tmp);
+    }
+  }
+
+  private static void writeMeta(Path projectPath, String url, String branch, JSONObject commit)
+      throws IOException {
+    JSONObject m = new JSONObject();
+    m.put("url", url);
+    m.put("branch", branch);
+    m.put("commit", commit == null ? "" : commit.getString("sha"));
+    JSONObject c = commit == null ? null : commit.getJSONObject("commit");
+    JSONObject a = c == null ? null : c.getJSONObject("author");
+    m.put("author", a == null || a.getString("name") == null ? "" : a.getString("name"));
+    m.put("date", a == null || a.getString("date") == null ? "" : a.getString("date"));
+    writeUtf8(projectPath.resolve(KOLMOB_META), m.toJSONString());
+  }
+
+  private static Optional<JSONObject> readMeta(Path projectPath) {
+    return readManifest(projectPath.resolve(KOLMOB_META));
+  }
+
+  private static String resolveBranch(String apiBase, String requested) {
+    if (requested != null && !requested.isEmpty()) return requested;
+    try {
+      String b = githubJson(apiBase).getString("default_branch");
+      if (b != null && !b.isEmpty()) return b;
+    } catch (IOException ignored) {
+      // fall through to the usual names
+    }
+    return "main";
+  }
+
+  private static JSONObject latestCommit(String apiBase, String branch) {
+    try {
+      return githubJson(apiBase + "/commits/" + branch);
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
+  public static boolean clone(String repoUrl, String branch) {
+    String[] gh = parseGithub(repoUrl);
+    if (gh == null) {
+      KoLmafia.updateDisplay(
+          MafiaState.ERROR, "Only github.com repositories can be installed on Android: " + repoUrl);
+      return false;
+    }
+    String id = getRepoId(repoUrl, branch);
+    Path projectPath = KoLConstants.GIT_LOCATION.toPath().resolve(id);
+    if (Files.exists(projectPath)) {
+      KoLmafia.updateDisplay(
+          MafiaState.ERROR,
+          "Cannot clone project to " + id + ", folder already exists. Please delete to checkout.");
+      return false;
+    }
+    String apiBase = "https://api.github.com/repos/" + gh[0] + "/" + gh[1];
+    try {
+      String useBranch = resolveBranch(apiBase, branch);
+      KoLmafia.updateDisplay("Downloading " + gh[0] + "/" + gh[1] + " (" + useBranch + ")...");
+      JSONObject commit = latestCommit(apiBase, useBranch);
+      downloadAndExtract(gh[0], gh[1], useBranch, projectPath);
+      writeMeta(projectPath, "https://github.com/" + gh[0] + "/" + gh[1], useBranch, commit);
+      invalidateProjectsSyncPaths();
+      if (!sync(projectPath)) return false;
+    } catch (IOException e) {
+      KoLmafia.updateDisplay(MafiaState.ERROR, "Could not download project " + repoUrl + ": " + e);
+      try {
+        deleteTree(projectPath);
+      } catch (IOException ignored) {
+        // best effort
+      }
+      return false;
+    }
+    KoLmafia.updateDisplay("Cloned project " + id);
+    return true;
+  }
+
+  private static Set<Path> syncedFiles(Path root) throws IOException {
+    Set<Path> rel = new HashSet<>();
+    for (Path p : getPermissibleFiles(root, false)) {
+      if (Files.isRegularFile(p)) rel.add(root.relativize(p));
+    }
+    return rel;
+  }
+
+  /** Update a project to the latest commit of its branch, replacing, adding and deleting files. */
+  public static boolean update(String project) {
+    var folderOpt = getRequiredProject(project);
+    if (folderOpt.isEmpty()) {
+      KoLmafia.updateDisplay(MafiaState.ERROR, "Cannot find unique match for " + project);
+      return false;
+    }
+    var folder = folderOpt.get();
+    Path projectPath = KoLConstants.GIT_LOCATION.toPath().resolve(folder);
+    var meta = readMeta(projectPath);
+    if (meta.isEmpty()) {
+      KoLmafia.updateDisplay(
+          MafiaState.ERROR, "Project " + folder + " has no Kolmob metadata; delete and re-install it");
+      return false;
+    }
+    String url = meta.get().getString("url");
+    String branch = meta.get().getString("branch");
+    String[] gh = parseGithub(url);
+    if (gh == null) {
+      KoLmafia.updateDisplay(MafiaState.ERROR, "Unsupported project URL: " + url);
+      return false;
+    }
+    String apiBase = "https://api.github.com/repos/" + gh[0] + "/" + gh[1];
+    try {
+      JSONObject commit = latestCommit(apiBase, branch);
+      String latest = commit == null ? null : commit.getString("sha");
+      if (latest != null && latest.equals(meta.get().getString("commit"))) {
+        RequestLogger.printLine("No changes");
+        return false;
+      }
+      RequestLogger.printLine("Updating project " + folder);
+      Set<Path> before = syncedFiles(getRoot(projectPath));
+      Path staging = KoLConstants.GIT_LOCATION.toPath().resolve(folder + ".updating");
+      deleteTree(staging);
+      downloadAndExtract(gh[0], gh[1], branch, staging);
+      deleteTree(projectPath);
+      Files.move(staging, projectPath);
+      writeMeta(projectPath, url, branch, commit);
+      Set<Path> after = syncedFiles(getRoot(projectPath));
+      for (Path gone : before) {
+        if (!after.contains(gone)) deleteOldFile(gone);
+      }
+      invalidateProjectsSyncPaths();
+      return sync(projectPath);
+    } catch (IOException e) {
+      KoLmafia.updateDisplay(MafiaState.ERROR, "Failed to update project " + folder + ": " + e);
+      return false;
+    }
+  }
+
+  /** Get info from specific project */
+  public static Optional<GitInfo> getInfo(String project) {
+    var folderOpt = getRequiredProject(project);
+    if (folderOpt.isEmpty()) return Optional.empty();
+    var meta = readMeta(KoLConstants.GIT_LOCATION.toPath().resolve(folderOpt.get()));
+    if (meta.isEmpty()) return Optional.empty();
+    ZonedDateTime when;
+    try {
+      when = ZonedDateTime.parse(meta.get().getString("date"));
+    } catch (RuntimeException e) {
+      when = ZonedDateTime.now();
+    }
+    return Optional.of(
+        new GitInfo(
+            meta.get().getString("url"),
+            meta.get().getString("branch"),
+            meta.get().getString("commit"),
+            meta.get().getString("author"),
+            when));
+  }
+
+  /** Return whether project is a valid (Kolmob-installed) git project */
+  public static boolean isValidRepo(String project) {
+    var projectPath = KoLConstants.GIT_LOCATION.toPath().resolve(project);
+    return Files.isDirectory(projectPath) && readMeta(projectPath).isPresent();
+  }
+
+  /** Return whether project is up-to-date with remote */
+  public static boolean isUpToDate(String project) {
+    var projectPath = KoLConstants.GIT_LOCATION.toPath().resolve(project);
+    var meta = readMeta(projectPath);
+    if (meta.isEmpty()) return false;
+    String[] gh = parseGithub(meta.get().getString("url"));
+    if (gh == null) return false;
+    var commit = latestCommit("https://api.github.com/repos/" + gh[0] + "/" + gh[1], meta.get().getString("branch"));
+    return commit != null && commit.getString("sha") != null && commit.getString("sha").equals(meta.get().getString("commit"));
+  }
+
+  public static RepoDetails getRepoDetails(Path p) {
+    var meta = readMeta(p);
+    if (meta.isEmpty()) return null;
+    return new RepoDetails(meta.get().getString("url"), meta.get().getString("branch"));
+  }
+
+  // ---- helpers shared with the Android SVNManager (it installs into the same sync machinery) ----
+
+  /** Swap freshly downloaded files (in staging) into projectPath, remove vanished files, then sync. */
+  public static boolean replaceProject(Path projectPath, Path staging) throws IOException {
+    Set<Path> before = Files.isDirectory(projectPath) ? syncedFiles(getRoot(projectPath)) : Set.of();
+    deleteTree(projectPath);
+    Files.createDirectories(projectPath.getParent());
+    Files.move(staging, projectPath);
+    Set<Path> after = syncedFiles(getRoot(projectPath));
+    for (Path gone : before) {
+      if (!after.contains(gone)) deleteOldFile(gone);
+    }
+    invalidateProjectsSyncPaths();
+    return sync(projectPath);
+  }
+
+  /** Delete a project's synced files from the data root, then the project folder itself. */
+  public static void removeProject(Path projectPath) throws IOException {
+    if (Files.isDirectory(projectPath)) {
+      for (Path rel : syncedFiles(getRoot(projectPath))) deleteOldFile(rel);
+    }
+    deleteTree(projectPath);
+    invalidateProjectsSyncPaths();
+  }
+
+  public static void deleteProjectTree(Path p) throws IOException {
+    deleteTree(p);
+  }
+
+  // ---- per-user project support (Kolmob): remove a project's files from the data root, keep the project ----
+
+  /** Remove the files this project installed into the data root, but keep the project folder itself. */
+  public static void unsyncProject(Path projectPath) throws IOException {
+    if (!Files.isDirectory(projectPath)) return;
+    for (Path rel : syncedFiles(getRoot(projectPath))) deleteOldFile(rel);
+    invalidateProjectsSyncPaths();
+  }
+
+  /** The data-root-relative paths a project provides when synced. */
+  public static Set<Path> projectFiles(Path projectPath) throws IOException {
+    return Files.isDirectory(projectPath) ? syncedFiles(getRoot(projectPath)) : Set.of();
+  }
+

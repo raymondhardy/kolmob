@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Main navigation (icon-only; titles are for TalkBack and the long-press tooltip). Sub-navigation lives at the
+     top of each screen; Chat, Quests, Tools, Settings and logout are in the "More" sheet. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_dashboard" android:contentDescription="Character" android:icon="@drawable/nav_character" android:title="Character" android:tooltipText="Character" />
+    <item android:id="@+id/nav_adventure" android:contentDescription="Adventure" android:icon="@drawable/nav_adventure" android:title="Adventure" android:tooltipText="Adventure" />
+    <item android:id="@+id/nav_combat" android:contentDescription="Game" android:icon="@drawable/nav_game" android:title="Game" android:tooltipText="Game" />
+    <item android:id="@+id/nav_scripts" android:contentDescription="Scripts" android:icon="@drawable/nav_console" android:title="Scripts" android:tooltipText="Scripts" />
+    <item android:id="@+id/nav_menu" android:contentDescription="More" android:icon="@drawable/nav_menu" android:title="More" android:tooltipText="More" />
+</menu>

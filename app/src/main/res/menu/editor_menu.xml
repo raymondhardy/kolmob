@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_save"
+        android:icon="@drawable/ic_save"
+        android:title="@string/scripts_save"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_run"
+        android:icon="@drawable/ic_play"
+        android:title="Run"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_find"
+        android:icon="@drawable/ic_search"
+        android:title="Find"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_open_import"
+        android:title="Open an import…"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_run_args"
+        android:title="Run with arguments…"
+        app:showAsAction="never" />
+
+</menu>

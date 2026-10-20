@@ -1,0 +1,20 @@
+<resources>
+    <color name="colorPrimary">#4CAF50</color>
+    <color name="colorPrimaryVariant">#388E3C</color>
+    <color name="colorSecondary">#FF9800</color>
+    <color name="colorSecondaryVariant">#F57C00</color>
+    <color name="colorBackground">#F2F2F2</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorOnBackground">#1B1B1B</color>
+    <color name="colorOnSurface">#1B1B1B</color>
+    <color name="colorOnPrimary">#000000</color>
+    <color name="colorError">#D32F2F</color>
+    <color name="divider">#33000000</color>
+    <!-- Bottom Navigation colors -->
+    <color name="bottom_nav_inactive">#99000000</color>
+    <color name="colorOnSurfaceMuted">#B31B1B1B</color>
+    <color name="colorTile">#E6E6E6</color>
+    <color name="cardStroke">#1F000000</color>
+    <color name="overlayFill">#14000000</color>
+    <color name="overlayStroke">#4D000000</color>
+</resources>

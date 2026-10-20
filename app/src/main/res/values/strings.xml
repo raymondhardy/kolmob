@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">Kolmob</string>
+    <string name="tab_dashboard">Dashboard</string>
+    <string name="tab_inventory">Inventory</string>
+    <string name="tab_combat">Combat</string>
+    <string name="tab_shop">Shop</string>
+    <string name="tab_more">More</string>
+    <string name="tab_console">Console</string>
+    <string name="tab_scripts">Scripts</string>
+    <string name="tab_settings">Settings</string>
+    <string name="login_title">Login</string>
+    <string name="login_username">Username</string>
+    <string name="login_password">Password</string>
+    <string name="login_button">Login</string>
+    <string name="login_error">Login failed</string>
+    <string name="logout">Logout</string>
+    <string name="char_pane">Character Pane</string>
+    <string name="no_data">No data</string>
+    <string name="refresh">Refresh</string>
+    <string name="extra">Extra</string>
+    <string name="not_logged_in">Not logged in</string>
+    <string name="logged_in">Logged in as</string>
+
+    <!-- Script Manager -->
+    <string name="scripts_title">Scripts</string>
+    <string name="scripts_empty">No scripts found</string>
+    <string name="scripts_new">New Script</string>
+    <string name="scripts_import">Import</string>
+    <string name="scripts_run">Run</string>
+    <string name="scripts_edit">Edit</string>
+    <string name="scripts_delete">Delete</string>
+    <string name="scripts_save">Save</string>
+    <string name="scripts_cancel">Cancel</string>
+    <string name="scripts_confirm_delete">Delete this script?</string>
+    <string name="scripts_file_name">File name</string>
+    <string name="scripts_file_name_hint">e.g., myscript.ash</string>
+    <string name="scripts_import_url">Import from URL</string>
+    <string name="scripts_import_url_hint">https://example.com/script.ash</string>
+    <string name="scripts_import_success">Script imported successfully</string>
+    <string name="scripts_import_error">Failed to import script</string>
+    <string name="scripts_invalid_name">Invalid file name</string>
+    <string name="scripts_invalid_url">Invalid URL (must be HTTPS)</string>
+    <string name="scripts_file_exists">File already exists</string>
+    <string name="scripts_saved">Script saved</string>
+    <string name="scripts_deleted">Script deleted</string>
+    <string name="scripts_error">Error: %s</string>
+</resources>

@@ -425,6 +425,7 @@ object KolEngineHost {
 
     fun setHighlights(list: String) { executor.execute { try { KolEngine.setHighlights(list) } catch (t: Throwable) { lines.tryEmit("ERROR: $t") } } }
 
+    fun itemId(name: String): Int = try { KolEngine.itemId(name) } catch (t: Throwable) { 0 }
     fun getPref(name: String): String = try { KolEngine.getPref(name) } catch (t: Throwable) { "" }
 
     /** Sets a KoLmafia preference right now (not queued behind a running script). */

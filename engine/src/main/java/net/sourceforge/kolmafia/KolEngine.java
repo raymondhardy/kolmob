@@ -539,6 +539,10 @@ public final class KolEngine {
   }
 
   /** Closet, storage, display case items and meat as JSON. */
+  public static int itemId(String name) {
+    return net.sourceforge.kolmafia.persistence.ItemDatabase.getItemId(name == null ? "" : name.trim());
+  }
+
   public static synchronized String items() {
     StringBuilder sb = new StringBuilder("{");
     try {

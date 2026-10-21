@@ -267,9 +267,6 @@ class DashboardFragment : Fragment() {
         if (familiars.isNotEmpty()) {
             more.addView(row(ctx, "Familiar: " + o.optString("familiar").ifEmpty { "none" }, "${familiars.size} owned", { chooseFamiliar(familiars) }, green))
         }
-        if (o.optString("familiar").isNotEmpty()) {
-            more.addView(row(ctx, "Familiar costume", "mumming trunk", { chooseCostume() }, green))
-        }
     }
 
     /** Castable skills, buffs first. */
@@ -414,34 +411,6 @@ class DashboardFragment : Fragment() {
                         act(pre + "ash visit_url(\"inv_equip.php?action=equip&whichitem=${it.optInt("id")}&ajax=1\"); refresh equipment")
                     } else act(pre + "equip $cli $name")
                 }
-            }
-        }
-    }
-
-    /** Mumming trunk: one costume of each kind per day, applied to the familiar you have out now (KoLmafia's `mummery`). */
-    private fun chooseCostume() {
-        val costumes = listOf(
-            "Meat drops" to 1, "MP after combat" to 2, "Muscle stats after combat" to 3, "Item drops" to 4,
-            "Mysticality stats after combat" to 5, "HP after combat" to 6, "Moxie stats after combat" to 7)
-        KolEngineHost.items { json ->
-            if (!json.contains("mumming trunk")) {
-                activity?.runOnUiThread { if (isAdded) android.widget.Toast.makeText(requireContext(), "You don't have a mumming trunk in your inventory", android.widget.Toast.LENGTH_SHORT).show() }
-                return@items
-            }
-            val used = KolEngineHost.getPref("_mummeryUses").split(",").filter { it.isNotEmpty() }
-            activity?.runOnUiThread {
-                if (!isAdded) return@runOnUiThread
-                val labels = costumes.map { (name, n) -> if (n.toString() in used) "$name  (used today)" else name }.toTypedArray()
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Familiar costume")
-                    .setItems(labels) { _, i ->
-                        val (name, n) = costumes[i]
-                        if (n.toString() in used) {
-                            android.widget.Toast.makeText(requireContext(), "You already used that costume today", android.widget.Toast.LENGTH_SHORT).show()
-                        } else act("mummery $n")
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
             }
         }
     }

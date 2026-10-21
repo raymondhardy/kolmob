@@ -221,6 +221,26 @@ class KolWebFragment : Fragment() {
                     return true
                 }
 
+                override fun onJsPrompt(view: WebView, url: String?, message: String?, defaultValue: String?, result: android.webkit.JsPromptResult): Boolean {
+                    if (!isAdded) { result.cancel(); return true }
+                    val input = android.widget.EditText(requireContext()).apply {
+                        setText(defaultValue ?: "")
+                        setSelectAllOnFocus(true)
+                        if (defaultValue?.toIntOrNull() != null) inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    }
+                    val box = android.widget.FrameLayout(requireContext()).apply {
+                        val pad = (20 * resources.displayMetrics.density).toInt()
+                        setPadding(pad, 0, pad, 0)
+                        addView(input)
+                    }
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                        .setMessage(message).setView(box)
+                        .setPositiveButton("OK") { _, _ -> result.confirm(input.text.toString()) }
+                        .setNegativeButton("Cancel") { _, _ -> result.cancel() }
+                        .setOnCancelListener { result.cancel() }.show()
+                    return true
+                }
+
                 override fun onJsConfirm(view: WebView, url: String?, message: String?, result: android.webkit.JsResult): Boolean {
                     if (!isAdded) { result.cancel(); return true }
                     com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
@@ -263,6 +283,10 @@ class KolWebFragment : Fragment() {
 
                 override fun onPageFinished(view: WebView, url: String) {
                     view.evaluateJavascript(SELECT_JS, null)
+                    if (url.contains("game.php")) resumePath?.let { p ->
+                        resumePath = null
+                        view.postDelayed({ view.evaluateJavascript("try{top.frames['mainpane'].location='/" + p.replace("'", "%27") + "';}catch(e){}", null) }, 1500)
+                    }
                     refreshStatus()
                     if (url.contains("choice.php")) autoChoose(view)
                     if (phoneLayout) {
@@ -340,8 +364,18 @@ class KolWebFragment : Fragment() {
         phoneLayout = phone
         requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE).edit().putBoolean("phone_layout", phone).apply()
         applyModeUi()
-        if (port > 0) loadStart()
+        if (port <= 0) return
+        // Stay on the page you were on: ask the game which page is showing (inside the frames in full-site mode), then reopen it.
+        web?.evaluateJavascript("(function(){try{var f=top.frames['mainpane'];return (f&&f.location&&f.location.href)||location.href}catch(e){return location.href}})()") { raw ->
+            val href = try { org.json.JSONTokener(raw ?: "").nextValue() as? String ?: "" } catch (_: Exception) { "" }
+            var path = href.removePrefix("http://127.0.0.1:$port/")
+            if (path == href || path.startsWith("game.php") || path.startsWith("main.php") || path.startsWith("topmenu") || path.startsWith("charpane")) path = ""
+            if (phone) go(path.ifEmpty { "main.php" })
+            else { resumePath = path.ifEmpty { null }; go("game.php") }
+        }
     }
+
+    private var resumePath: String? = null
 
     private fun applyTextZoom(percent: Int) {
         web?.settings?.textZoom = percent
@@ -408,6 +442,8 @@ class KolWebFragment : Fragment() {
         /** Intercepts taps on <select> and hands them to KolSelect.open; window.__kolSelSet writes the choice back. */
         const val SELECT_JS = """(function(){
 var T=window.top;
+if(T===window&&!window.mainpane){var stub={location:{reload:function(){}},document:document};
+ try{window.mainpane=window;window.charpane=window.charpane||stub;window.menupane=window.menupane||stub;window.chatpane=window.chatpane||stub;}catch(x){}}
 if(!T.__kolSelSet){T.__kolSelSet=function(idx){var s=T.__kolSelEl;if(!s)return;
  for(var i=0;i<s.options.length;i++){s.options[i].selected=idx.indexOf(i)>=0;}
  s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));};}

@@ -4,7 +4,8 @@
 set -u
 A=${ADB:-$HOME/Android/Sdk/platform-tools/adb}
 cd "$(dirname "$0")/.."
-user=$(grep -i -m1 '^user=' auth | cut -d= -f2- | tr -d '\r\n'); pass=$(grep -i -m1 '^pass=' auth | cut -d= -f2- | tr -d '\r\n')
+S=${ACCT:-}  # ACCT=2 uses the User2/Pass2 pair
+user=$(grep -i -m1 "^user$S=" auth | cut -d= -f2- | tr -d '\r\n'); pass=$(grep -i -m1 "^pass$S=" auth | cut -d= -f2- | tr -d '\r\n')
 [ -n "$user" ] && [ -n "$pass" ] || { echo "auth file needs user=... and pass=... lines"; exit 2; }
 "$A" logcat -c
 q=$(printf %q "$user:$pass")

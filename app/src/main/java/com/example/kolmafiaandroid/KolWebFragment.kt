@@ -212,6 +212,24 @@ class KolWebFragment : Fragment() {
                 }
             }, "KolSelect")
             webChromeClient = object : WebChromeClient() {
+                // KoL pages use alert()/confirm(); the stock WebView dialogs are blank or missing here, so show our own.
+                override fun onJsAlert(view: WebView, url: String?, message: String?, result: android.webkit.JsResult): Boolean {
+                    if (!isAdded) { result.cancel(); return true }
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                        .setMessage(message).setPositiveButton("OK") { _, _ -> result.confirm() }
+                        .setOnCancelListener { result.cancel() }.show()
+                    return true
+                }
+
+                override fun onJsConfirm(view: WebView, url: String?, message: String?, result: android.webkit.JsResult): Boolean {
+                    if (!isAdded) { result.cancel(); return true }
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                        .setMessage(message).setPositiveButton("OK") { _, _ -> result.confirm() }
+                        .setNegativeButton("Cancel") { _, _ -> result.cancel() }
+                        .setOnCancelListener { result.cancel() }.show()
+                    return true
+                }
+
                 override fun onShowFileChooser(view: WebView, callback: android.webkit.ValueCallback<Array<android.net.Uri>>, params: FileChooserParams): Boolean {
                     fileCallback?.onReceiveValue(null)
                     fileCallback = callback
@@ -389,17 +407,22 @@ class KolWebFragment : Fragment() {
     private companion object {
         /** Intercepts taps on <select> and hands them to KolSelect.open; window.__kolSelSet writes the choice back. */
         const val SELECT_JS = """(function(){
-if(window.__kolSelHooked)return;window.__kolSelHooked=true;
-function find(e){var t=e.target;return t&&t.closest?t.closest('select'):null;}
-function open(e){var s=find(e);if(!s||s.disabled)return;e.preventDefault();e.stopPropagation();
- var labels=[],sel=[];for(var i=0;i<s.options.length;i++){labels.push(s.options[i].text);sel.push(s.options[i].selected);}
- var t=(s.getAttribute('aria-label')||s.name||'').replace(/[_-]/g,' ');
- window.__kolSelEl=s;KolSelect.open(JSON.stringify({title:t,labels:labels,selected:sel,multiple:s.multiple}));}
-document.addEventListener('mousedown',open,true);
-document.addEventListener('click',function(e){if(find(e)){e.preventDefault();}},true);
-window.__kolSelSet=function(idx){var s=window.__kolSelEl;if(!s)return;
+var T=window.top;
+if(!T.__kolSelSet){T.__kolSelSet=function(idx){var s=T.__kolSelEl;if(!s)return;
  for(var i=0;i<s.options.length;i++){s.options[i].selected=idx.indexOf(i)>=0;}
- s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));};
+ s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));};}
+function hook(w){
+ try{var d=w.document;if(!d||d.__kolSelHooked)return;d.__kolSelHooked=true;
+ function find(e){var t=e.target;return t&&t.closest?t.closest('select'):null;}
+ function open(e){var s=find(e);if(!s||s.disabled)return;e.preventDefault();e.stopPropagation();
+  var labels=[],sel=[];for(var i=0;i<s.options.length;i++){labels.push(s.options[i].text);sel.push(s.options[i].selected);}
+  var t=(s.getAttribute('aria-label')||s.name||'').replace(/[_-]/g,' ');
+  T.__kolSelEl=s;KolSelect.open(JSON.stringify({title:t,labels:labels,selected:sel,multiple:s.multiple}));}
+ d.addEventListener('mousedown',open,true);
+ d.addEventListener('click',function(e){if(find(e)){e.preventDefault();}},true);}catch(x){}}
+function walk(w){hook(w);try{for(var i=0;i<w.frames.length;i++){walk(w.frames[i]);}}catch(x){}}
+walk(T);
+if(!T.__kolSelTimer){T.__kolSelTimer=setInterval(function(){walk(T);},400);}
 })();"""
         /** Banner with a 2-second countdown, then KoLmafia's own "auto" button for the choice (choice.php?action=auto). */
         private const val AUTO_CHOICE_JS = """(function(v){if(window.__kolmobAuto)return;window.__kolmobAuto=true;

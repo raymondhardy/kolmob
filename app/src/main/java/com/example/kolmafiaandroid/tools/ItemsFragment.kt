@@ -33,7 +33,7 @@ import org.json.JSONObject
  */
 class ItemsFragment : DialogFragment() {
 
-    private data class ItemEntry(val name: String, val count: Int, val img: String = "")
+    private data class ItemEntry(val name: String, val count: Int, val img: String = "", val tier: com.example.kolmafiaandroid.ui.ItemTier.Tier? = null)
 
     private enum class Tab { INVENTORY, CLOSET, STORAGE, DISPLAY }
 
@@ -97,6 +97,18 @@ class ItemsFragment : DialogFragment() {
 
         // List
         listView = ListView(ctx)
+        view.addView(TextView(ctx).apply {
+            textSize = 11f
+            setPadding(com.example.kolmafiaandroid.ui.dp(ctx, 12), 0, com.example.kolmafiaandroid.ui.dp(ctx, 12), com.example.kolmafiaandroid.ui.dp(ctx, 4))
+            val sp = android.text.SpannableStringBuilder()
+            com.example.kolmafiaandroid.ui.ItemTier.Tier.values().forEach { t ->
+                if (sp.isNotEmpty()) sp.append("  ")
+                val st = sp.length
+                sp.append("● ${t.label}")
+                sp.setSpan(android.text.style.ForegroundColorSpan(t.color()), st, sp.length, 0)
+            }
+            text = sp
+        })
         view.addView(listView, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
@@ -123,7 +135,7 @@ class ItemsFragment : DialogFragment() {
                 val o = JSONObject(json)
                 val arr = o.optJSONArray("inventory") ?: JSONArray()
                 inventoryItems = (0 until arr.length()).map { arr.getJSONObject(it) }
-                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")).let { e -> e.copy(tier = com.example.kolmafiaandroid.ui.ItemTier.of(e.name)) } }
                     .sortedBy { it.name.lowercase() }
             } catch (e: Exception) {
                 inventoryItems = emptyList()
@@ -140,17 +152,17 @@ class ItemsFragment : DialogFragment() {
 
                 val closetArr = o.optJSONArray("closet") ?: JSONArray()
                 closetItems = (0 until closetArr.length()).map { closetArr.getJSONObject(it) }
-                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")).let { e -> e.copy(tier = com.example.kolmafiaandroid.ui.ItemTier.of(e.name)) } }
                     .sortedBy { it.name.lowercase() }
 
                 val storageArr = o.optJSONArray("storage") ?: JSONArray()
                 storageItems = (0 until storageArr.length()).map { storageArr.getJSONObject(it) }
-                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")).let { e -> e.copy(tier = com.example.kolmafiaandroid.ui.ItemTier.of(e.name)) } }
                     .sortedBy { it.name.lowercase() }
 
                 val displayArr = o.optJSONArray("display") ?: JSONArray()
                 displayItems = (0 until displayArr.length()).map { displayArr.getJSONObject(it) }
-                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")).let { e -> e.copy(tier = com.example.kolmafiaandroid.ui.ItemTier.of(e.name)) } }
                     .sortedBy { it.name.lowercase() }
             } catch (e: Exception) {
                 closetItems = emptyList()
@@ -200,7 +212,7 @@ class ItemsFragment : DialogFragment() {
                 }
                 val it = shownItems[i]
                 com.example.kolmafiaandroid.ui.KolImages.load(row.getChildAt(0) as android.widget.ImageView, it.img)
-                (row.getChildAt(1) as TextView).text = it.name
+                (row.getChildAt(1) as TextView).apply { text = it.name; setTextColor(it.tier?.color() ?: KC.text) }
                 (row.getChildAt(2) as TextView).text = "×${it.count}"
                 return row
             }

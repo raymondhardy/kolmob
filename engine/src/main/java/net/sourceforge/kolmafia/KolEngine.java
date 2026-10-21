@@ -752,6 +752,23 @@ public final class KolEngine {
       kv(sb, "id", net.sourceforge.kolmafia.session.ClanManager.getClanId());
       kv(sb, "name", net.sourceforge.kolmafia.session.ClanManager.getClanName(true));
       var stash = net.sourceforge.kolmafia.session.ClanManager.getStash();
+      // Karma lives only on KoL's stash page: your balance, the daily limit, and each item's cost in the "take" list
+      java.util.Map<Integer, Integer> cost = new java.util.HashMap<>();
+      try {
+        var page = new net.sourceforge.kolmafia.request.GenericRequest("clan_stash.php");
+        page.run();
+        String html = page.responseText == null ? "" : page.responseText;
+        var m1 = java.util.regex.Pattern.compile("You currently have ([\\d,]+) Clan Karma").matcher(html);
+        if (m1.find()) kv(sb, "karma", Integer.parseInt(m1.group(1).replace(",", "")));
+        var m2 = java.util.regex.Pattern.compile("spend up to ([\\d,]+) Karma per day").matcher(html);
+        if (m2.find()) kv(sb, "karmaDaily", Integer.parseInt(m2.group(1).replace(",", "")));
+        int take = html.indexOf("name=whichitem");
+        if (take >= 0) {
+          var m3 = java.util.regex.Pattern.compile("<option value=(\\d+) [^>]*>[^<]*\\((\\d+)\\) \\(-(\\d+)\\)</option>").matcher(html.substring(take));
+          while (m3.find()) cost.put(Integer.parseInt(m3.group(1)), Integer.parseInt(m3.group(3)));
+        }
+      } catch (Throwable ignored) {
+      }
       sb.append(",\"stash\":[");
       boolean first = true;
       for (var r : new java.util.ArrayList<>(stash)) {
@@ -761,6 +778,8 @@ public final class KolEngine {
         kv(sb, "name", r.getName());
         kv(sb, "img", itemImg(r.getItemId()));
         kv(sb, "count", r.getCount());
+        Integer c = cost.get(r.getItemId());
+        if (c != null) kv(sb, "cost", c);
         sb.append('}');
       }
       sb.append(']');
@@ -775,21 +794,35 @@ public final class KolEngine {
     StringBuilder sb = new StringBuilder("{\"monsters\":[");
     try {
       net.sourceforge.kolmafia.persistence.FaxBotDatabase.configure();
-      java.util.Set<String> seen = new java.util.HashSet<>();
-      boolean first = true;
+      // one row per monster command, remembering every bot that serves it
+      java.util.Map<String, net.sourceforge.kolmafia.persistence.FaxBotDatabase.Monster> rows = new java.util.LinkedHashMap<>();
+      java.util.Map<String, java.util.List<String>> bots = new java.util.HashMap<>();
       for (var bot : net.sourceforge.kolmafia.persistence.FaxBotDatabase.getSortedFaxbots()) {
         if (bot == null || bot.getName() == null) continue;
         for (var m : new java.util.ArrayList<>(bot.monsters)) {
-          if (!seen.add(m.getCommand())) continue;
-          if (!first) sb.append(',');
-          first = false;
-          sb.append('{');
-          kv(sb, "name", m.getName());
-          kv(sb, "command", m.getCommand());
-          kv(sb, "category", m.getCategory() == null ? "" : m.getCategory());
-          kv(sb, "bot", bot.getName());
-          sb.append('}');
+          rows.putIfAbsent(m.getCommand(), m);
+          bots.computeIfAbsent(m.getCommand(), k -> new java.util.ArrayList<>()).add(bot.getName());
         }
+      }
+      boolean first = true;
+      for (var e : rows.entrySet()) {
+        var m = e.getValue();
+        if (!first) sb.append(',');
+        first = false;
+        sb.append('{');
+        kv(sb, "name", m.getName());
+        kv(sb, "command", m.getCommand());
+        kv(sb, "category", m.getCategory() == null ? "" : m.getCategory());
+        kv(sb, "id", m.getMonster() == null ? 0 : m.getMonster().getId());
+        kv(sb, "bot", bots.get(e.getKey()).get(0));
+        sb.append(",\"bots\":[");
+        boolean f2 = true;
+        for (String n : bots.get(e.getKey())) {
+          if (!f2) sb.append(',');
+          f2 = false;
+          sb.append(quote(n));
+        }
+        sb.append("]}");
       }
       sb.append(']');
     } catch (Throwable t) {

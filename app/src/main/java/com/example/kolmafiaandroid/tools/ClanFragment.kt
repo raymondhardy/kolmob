@@ -31,6 +31,9 @@ class ClanFragment : DialogFragment() {
     private lateinit var title: TextView
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
+    private var karma = -1
+    private var karmaDaily = 0
+    private var filter = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +50,17 @@ class ClanFragment : DialogFragment() {
         root.addView(title)
         status = label(ctx, "Opening the clan stash…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
+        val search = android.widget.EditText(ctx).apply {
+            hint = "Filter the stash"
+            setSingleLine()
+            setTextColor(KC.text); setHintTextColor(KC.muted)
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun afterTextChanged(e: android.text.Editable?) { filter = e?.toString()?.trim()?.lowercase() ?: ""; render() }
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            })
+        }
+        root.addView(search)
         val put = label(ctx, "+ Put an item in the stash", 15f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 12)) }
         clickable(put) { putItem() }
         root.addView(put)
@@ -65,13 +79,16 @@ class ClanFragment : DialogFragment() {
             val list = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getJSONObject(it) }
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
+                karma = o.optInt("karma", -1)
+                karmaDaily = o.optInt("karmaDaily", 0)
                 stash = list.sortedBy { it.getString("name").lowercase() }
                 val name = clean(o.optString("name"))
                 if (name.isNotEmpty()) title.text = name
                 status.text = when {
                     o.has("error") -> "Could not open the stash. Are you in a clan with stash access?"
                     stash.isEmpty() -> "The stash is empty."
-                    else -> "${stash.size} items · tap one to take it"
+                    else -> "${stash.size} items · tap one to take it" +
+                        (if (karma >= 0) "\n$karma clan karma" + (if (karmaDaily > 0) " · limit $karmaDaily/day" else "") else "")
                 }
                 render()
             }
@@ -81,12 +98,14 @@ class ClanFragment : DialogFragment() {
     private fun render() {
         val ctx = context ?: return
         body.removeAllViews()
-        for (it in stash) {
+        for (it in stash.filter { filter.isEmpty() || clean(it.getString("name")).lowercase().contains(filter) }) {
             val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(ctx, 4), dp(ctx, 8), dp(ctx, 4), dp(ctx, 8)) }
             val icon = ImageView(ctx)
             KolImages.load(icon, it.optString("img"))
             row.addView(icon, LinearLayout.LayoutParams(dp(ctx, 36), dp(ctx, 36)).apply { marginEnd = dp(ctx, 12) })
             row.addView(label(ctx, clean(it.getString("name")), 16f, KC.text), LinearLayout.LayoutParams(0, -2, 1f))
+            val cost = it.optInt("cost", -1)
+            if (cost > 0) row.addView(label(ctx, "$cost karma  ", 13f, if (karma in 0 until cost) 0xFFE57373.toInt() else KC.muted))
             row.addView(label(ctx, "×${it.getInt("count")}", 14f, KC.muted))
             clickable(row) { take(it) }
             body.addView(row)
@@ -100,7 +119,22 @@ class ClanFragment : DialogFragment() {
 
     private fun take(it: JSONObject) {
         val name = clean(it.getString("name"))
-        askQuantity("Take $name", "The stash has ${it.getInt("count")}.", it.getInt("count"), "Take") { n -> run("stash take $n $name") }
+        val cost = it.optInt("cost", -1)
+        var max = it.getInt("count")
+        var note = "The stash has $max."
+        if (cost > 0 && karma >= 0) {
+            val afford = karma / cost
+            note += " Each costs $cost karma; you have $karma."
+            if (afford < 1) {
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Not enough karma")
+                    .setMessage("$name costs $cost clan karma each and you have $karma. Contribute meat or items to the stash to earn more.")
+                    .setPositiveButton("OK", null).show()
+                return
+            }
+            max = minOf(max, afford)
+        }
+        askQuantity("Take $name", note, max, "Take") { n -> run("stash take $n $name") }
     }
 
     private fun putItem() {

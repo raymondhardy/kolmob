@@ -104,7 +104,7 @@ class KolWebFragment : Fragment() {
     }
     private lateinit var modeButton: android.widget.ImageButton
     private var port = -1
-    private var phoneLayout = true
+    private var phoneLayout = false
     private var fileCallback: android.webkit.ValueCallback<Array<android.net.Uri>>? = null
     private val filePicker = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
         fileCallback?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.resultCode, r.data))
@@ -135,7 +135,7 @@ class KolWebFragment : Fragment() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
         val ctx = requireContext()
-        phoneLayout = ctx.getSharedPreferences("kolmob", Context.MODE_PRIVATE).getBoolean("phone_layout", true)
+        phoneLayout = ctx.getSharedPreferences("kolmob", Context.MODE_PRIVATE).getBoolean("phone_layout_v2", false)
         val dp = resources.displayMetrics.density
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
 
@@ -345,11 +345,25 @@ class KolWebFragment : Fragment() {
             KolEngineHost.webRequests.collect { req ->
                 if (req.startsWith("zoom:")) applyTextZoom(req.removePrefix("zoom:").toInt())
                 else if (req.startsWith("js:")) web?.evaluateJavascript(req.removePrefix("js:")) { Log.i("KolWeb", "js -> $it") }
-                else if (port > 0) { KolEngineHost.pendingWeb = null; web?.loadUrl("http://127.0.0.1:$port/${req.removePrefix("/")}") }
+                else if (port > 0) { KolEngineHost.pendingWeb = null; openInGame(req.removePrefix("/")) }
             }
         }
         viewLifecycleOwner.lifecycleScope.launch {
             KolEngineHost.loginState.collect { loggedIn -> if (loggedIn) openGame() else showLoggedOut() }
+        }
+    }
+
+    /**
+     * Open a game page from outside the browser (a relay script such as the Guide, a tool). In the full-site layout it goes into the
+     * main pane, so the character pane, menu and chat stay and the page finds its frames; loaded on its own, every link it opens
+     * (an adventure, a fight) would run without frames and break the layout.
+     */
+    private fun openInGame(path: String) {
+        if (phoneLayout || path.startsWith("game.php") || path.startsWith("lchat")) { go(path); return }
+        val js = "(function(){try{var f=null;for(var i=0;i<top.frames.length;i++){try{if(top.frames[i].name==='mainpane')f=top.frames[i];}catch(e){}}" +
+            "if(f){f.location='/" + path.replace("\\", "\\\\").replace("'", "%27") + "';return 1;}}catch(e){}return 0;})()"
+        web?.evaluateJavascript(js) { r ->
+            if (r != "1") { resumePath = path; go("game.php") }
         }
     }
 
@@ -368,20 +382,36 @@ class KolWebFragment : Fragment() {
 
     private fun setPhoneLayout(phone: Boolean) {
         phoneLayout = phone
-        requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE).edit().putBoolean("phone_layout", phone).apply()
+        requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE).edit().putBoolean("phone_layout_v2", phone).apply()
         applyModeUi()
         if (port <= 0) return
         // Stay on the page you were on: ask the game which page is showing (inside the frames in full-site mode), then reopen it.
-        web?.evaluateJavascript("(function(){try{var f=top.frames['mainpane'];return (f&&f.location&&f.location.href)||location.href}catch(e){return location.href}})()") { raw ->
+        web?.evaluateJavascript("(function(){try{var f=null;for(var i=0;i<top.frames.length;i++){try{if(top.frames[i].name==='mainpane')f=top.frames[i];}catch(x){}}return (f&&f.location&&f.location.href)||location.href}catch(e){return location.href}})()") { raw ->
             val href = try { org.json.JSONTokener(raw ?: "").nextValue() as? String ?: "" } catch (_: Exception) { "" }
             var path = href.removePrefix("http://127.0.0.1:$port/")
             if (path == href || path.startsWith("game.php") || path.startsWith("main.php") || path.startsWith("topmenu") || path.startsWith("charpane")) path = ""
+            // Reopening a page must never repeat an action: an adventure link spends a turn again, a choice link picks again, an item link uses it again.
+            // Those pages go to main.php instead, which the game itself redirects to the fight or choice you are in.
+            if (!safeToReopen(path)) path = ""
             if (phone) go(path.ifEmpty { "main.php" })
             else { resumePath = path.ifEmpty { null }; go("game.php") }
         }
     }
 
     private var resumePath: String? = null
+
+    /** True for plain pages that only show something; false for any link that does something when it is loaded. */
+    private fun safeToReopen(path: String): Boolean {
+        if (path.isEmpty()) return true
+        val p = path.lowercase()
+        if (p.contains("pwd=") || p.contains("pwd&") || p.contains("action=") || p.contains("snarfblat=") ||
+            p.contains("option=") || p.contains("whichitem=") || p.contains("whichskill=") || p.contains("quantity=")) return false
+        val page = p.substringBefore('?')
+        if (page == "adventure.php" || page == "choice.php" || page == "fight.php" || page == "inv_use.php" || page == "inv_eat.php" ||
+            page == "inv_booze.php" || page == "inv_spleen.php" || page == "inv_equip.php" || page == "runskillz.php" ||
+            page == "submitnewchat.php" || page == "shop.php" || page == "mall.php" || page == "sellstuff.php") return false
+        return true
+    }
 
     private fun applyTextZoom(percent: Int) {
         web?.settings?.textZoom = percent
@@ -448,7 +478,7 @@ class KolWebFragment : Fragment() {
         /** Intercepts taps on <select> and hands them to KolSelect.open; window.__kolSelSet writes the choice back. */
         const val SELECT_JS = """(function(){
 var T=window.top;
-if(T===window&&!window.mainpane){var stub={location:{reload:function(){}},document:document};
+if(T===window&&window.frames.length===0&&!/game\.php$/.test(location.pathname)&&!window.mainpane){var stub={location:{reload:function(){}},document:document};
  try{window.mainpane=window;window.charpane=window.charpane||stub;window.menupane=window.menupane||stub;window.chatpane=window.chatpane||stub;}catch(x){}}
 if(!T.__kolSelSet){T.__kolSelSet=function(idx){var s=T.__kolSelEl;if(!s)return;
  for(var i=0;i<s.options.length;i++){s.options[i].selected=idx.indexOf(i)>=0;}

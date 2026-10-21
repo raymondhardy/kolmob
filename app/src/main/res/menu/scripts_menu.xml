@@ -10,7 +10,7 @@
 
     <item
         android:id="@+id/action_install"
-        android:icon="@drawable/ic_import"
+        android:icon="@drawable/ic_install"
         android:title="@string/installer_title"
         app:showAsAction="ifRoom" />
 

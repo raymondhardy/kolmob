@@ -125,13 +125,20 @@ class ScriptsFragment : DialogFragment() {
         val files = scriptsDir.listFiles { _, name ->
             name.lowercase(Locale.ROOT).endsWith(".ash") || name.lowercase(Locale.ROOT).endsWith(".txt")
         } ?: emptyArray()
-        
-        files.sortByDescending { it.lastModified() }
-        adapter.submitList(files.toList())
-        emptyText.visibility = if (files.isEmpty()) View.VISIBLE else View.GONE
+        // relay scripts (installed to the relay folder, e.g. the Guide) are listed too; they open in the Game tab
+        val relayFiles = File(requireContext().filesDir, "kolmafia/relay").listFiles { _, name ->
+            name.startsWith("relay_") && name.lowercase(Locale.ROOT).endsWith(".ash")
+        } ?: emptyArray()
+        val all = (files.toList().sortedByDescending { it.lastModified() }) + relayFiles.sortedBy { it.name }
+        adapter.submitList(all)
+        emptyText.visibility = if (all.isEmpty()) View.VISIBLE else View.GONE
     }
 
     private fun runScript(file: File) {
+        if (file.parentFile?.name == "relay") {
+            (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage(file.name)
+            return
+        }
         // live output in a window right here instead of jumping to the Console tab
         com.example.kolmafiaandroid.tools.ScriptRunSheet.run(requireActivity(), file.name, "call ${file.name}")
     }
@@ -302,7 +309,7 @@ class ScriptsFragment : DialogFragment() {
             holder.name.text = file.name
             val size = file.length()
             val date = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(file.lastModified())
-            holder.info.text = "${formatSize(size)} • $date"
+            holder.info.text = (if (file.parentFile?.name == "relay") "relay script, opens in the Game tab • " else "") + "${formatSize(size)} • $date"
 
             holder.itemView.setOnClickListener {
                 showActionSheet(file)

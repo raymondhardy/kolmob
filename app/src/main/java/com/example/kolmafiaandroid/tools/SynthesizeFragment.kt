@@ -27,7 +27,7 @@ class SynthesizeFragment : Fragment() {
         )
         pickList("Synthesize", effects.map { PickRow("Synthesis: ${it.first}", it.second, tag = it.first) }) { r ->
             val name = "Synthesis: ${r.tag}"
-            AlertDialog.Builder(requireContext())
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                 .setTitle(name)
                 .setMessage("${r.subtitle}\n\nKoLmafia picks the candies for you and may buy them. Preview shows what it would use in the Console tab.")
                 .setPositiveButton("Synthesize") { _, _ ->

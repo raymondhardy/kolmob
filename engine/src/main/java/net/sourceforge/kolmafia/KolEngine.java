@@ -1125,6 +1125,23 @@ public final class KolEngine {
     }
   }
 
+  /** What resting would do: JSON {free,camp,hp,maxHp,mp,maxMp,adv}. */
+  public static synchronized String restInfo() {
+    StringBuilder sb = new StringBuilder("{");
+    try {
+      kv(sb, "free", net.sourceforge.kolmafia.KoLCharacter.freeRestsRemaining());
+      kv(sb, "camp", net.sourceforge.kolmafia.request.CampgroundRequest.haveCampground());
+      kv(sb, "hp", net.sourceforge.kolmafia.KoLCharacter.getCurrentHP());
+      kv(sb, "maxHp", net.sourceforge.kolmafia.KoLCharacter.getMaximumHP());
+      kv(sb, "mp", net.sourceforge.kolmafia.KoLCharacter.getCurrentMP());
+      kv(sb, "maxMp", net.sourceforge.kolmafia.KoLCharacter.getMaximumMP());
+      kv(sb, "adv", net.sourceforge.kolmafia.KoLCharacter.getAdventuresLeft());
+    } catch (Throwable t) {
+      sb.append("\"error\":").append(quote(String.valueOf(t)));
+    }
+    return sb.append('}').toString();
+  }
+
   public static synchronized String buffRequestBots() {
     StringBuilder sb = new StringBuilder("{\"bots\":[");
     try {

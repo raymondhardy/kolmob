@@ -269,6 +269,10 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.conditionsLeft().toInt() } catch (t: Throwable) { -1 }) }
     }
 
+    fun restInfo(done: (String) -> Unit) {
+        reader.execute { done(try { KolEngine.restInfo() } catch (t: Throwable) { "{}" }) }
+    }
+
     fun combatSkills(done: (String) -> Unit) {
         reader.execute { done(try { KolEngine.combatSkills() } catch (t: Throwable) { "[]" }) }
     }

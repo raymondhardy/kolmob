@@ -65,7 +65,7 @@ class DietFragment : Fragment() {
         }
         col.addView(black)
 
-        AlertDialog.Builder(ctx)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
             .setTitle("Diet planner")
             .setView(ScrollView(ctx).apply { addView(col) })
             .setPositiveButton("Plan") { _, _ ->
@@ -93,7 +93,7 @@ class DietFragment : Fragment() {
         val ctx = context ?: return
         val o = try { JSONObject(json) } catch (e: Exception) { null }
         if (o == null || !o.optBoolean("ok")) {
-            AlertDialog.Builder(ctx).setTitle("Diet planner").setMessage("Could not plan: ${o?.optString("error") ?: json}")
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Diet planner").setMessage("Could not plan: ${o?.optString("error") ?: json}")
                 .setPositiveButton("OK", null).show()
             return
         }
@@ -129,7 +129,7 @@ class DietFragment : Fragment() {
         val dp = ctx.resources.displayMetrics.density
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), 0) }
         col.addView(TextView(ctx).apply { text = sb.toString(); textSize = 14f })
-        lateinit var dlg: AlertDialog
+        lateinit var dlg: androidx.appcompat.app.AlertDialog
         fun btn(text: String, run: List<String>) {
             col.addView(android.widget.Button(ctx).apply {
                 this.text = text
@@ -142,7 +142,7 @@ class DietFragment : Fragment() {
                     // Overdrinking: the nightcap, or any drink when the liver has no room left.
                     val over = run.any { c -> c.startsWith("drink ") && (c == night?.optString("command") || o.optInt("boozeSpace") <= 0) }
                     if (over) {
-                        AlertDialog.Builder(ctx).setTitle("Overdrink?")
+                        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Overdrink?")
                             .setMessage("This takes you past your liver limit, so you end the day drunk and cannot adventure until rollover. Are you sure?")
                             .setPositiveButton("Yes, overdrink") { _, _ -> go() }
                             .setNegativeButton("Cancel", null).show()
@@ -167,7 +167,7 @@ class DietFragment : Fragment() {
             if (boozeList.isNotEmpty()) btn("Drink all booze", boozeList)
         }
         col.addView(android.widget.Button(ctx).apply { text = "Change options"; setOnClickListener { dlg.dismiss(); showOptions() } })
-        dlg = AlertDialog.Builder(ctx).setTitle("Diet plan").setView(ScrollView(ctx).apply { addView(col) })
+        dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Diet plan").setView(ScrollView(ctx).apply { addView(col) })
             .setNegativeButton("Close", null).create()
         dlg.show()
         (activity as? com.example.kolmafiaandroid.MainActivity)?.fitDialogAboveNav(dlg)

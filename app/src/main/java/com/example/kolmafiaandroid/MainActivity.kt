@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch { KolEngineHost.webRequests.collect { dismissOpenDialogs(); openTab(2) } }
     }
 
-    private var promptDialog: AlertDialog? = null
+    private var promptDialog: androidx.appcompat.app.AlertDialog? = null
 
     /** A running script asked something (user_confirm / user_prompt / ...): there is no keyboard to type at, so ask here. */
     private fun showScriptPrompt(text: String) {
@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity() {
             .filter { it.isNotBlank() && !it.startsWith("Preference ") && !it.contains(" => ") && !it.startsWith("(Y/N") && !it.startsWith("(type your") && !it.startsWith("(leave blank") && !it.startsWith("Press enter") && !it.startsWith("Returned:") }
             .takeLast(3).joinToString("\n")
         val dp = resources.displayMetrics.density
-        val b = AlertDialog.Builder(this).setTitle("A script is asking").setMessage(shown).setCancelable(false)
+        val b = com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("A script is asking").setMessage(shown).setCancelable(false)
         when (kind) {
             "confirm" -> b.setPositiveButton("Yes") { _, _ -> KolEngineHost.answerPrompt("y") }
                 .setNegativeButton("No") { _, _ -> KolEngineHost.answerPrompt("n") }
@@ -286,7 +286,7 @@ class MainActivity : AppCompatActivity() {
         box.addView(note("KoL display options (these are your KoL account settings, so they also change the desktop site)", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
         val loading = note("Loading from KoL...")
         box.addView(loading)
-        val dialog = AlertDialog.Builder(this)
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Settings")
             .setView(android.widget.ScrollView(this).apply { addView(box) })
             .setPositiveButton("Open console") { _, _ -> openTab(3) }
@@ -431,7 +431,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         setOnLongClickListener {
                             val options = (if (a.remembered) arrayOf("Forget the saved password", "Remove this account") else arrayOf("Remove this account"))
-                            android.app.AlertDialog.Builder(this@MainActivity)
+                            com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MainActivity)
                                 .setTitle(a.name)
                                 .setItems(options) { _, i ->
                                     if (options[i].startsWith("Forget")) accounts.forgetPassword(a.name) else accounts.remove(a.name)

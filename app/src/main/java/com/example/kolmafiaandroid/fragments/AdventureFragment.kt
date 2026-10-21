@@ -169,7 +169,7 @@ class AdventureFragment : Fragment() {
         if (java.io.File(ctx.filesDir, "kolmafia/scripts/autoscend.ash").exists()) {
             val asc = card(prepBox, "Ascension  ·  autoscend")
             asc.addView(uiRow(ctx, "Run autoscend", "plays your whole run", {
-                AlertDialog.Builder(ctx).setTitle("Run autoscend?")
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Run autoscend?")
                     .setMessage("It will spend adventures, meat and items on its own until the run is done or you stop it. A notification keeps it running in the background, with a Stop button.")
                     .setPositiveButton("Run") { _, _ -> KolEngineHost.execute("autoscend") }
                     .setNegativeButton("Cancel", null).show()
@@ -372,7 +372,7 @@ class AdventureFragment : Fragment() {
     private fun fightItem() {
         val ctx = requireContext()
         val input = android.widget.EditText(ctx).apply { hint = "Item name"; maxLines = 1 }
-        android.app.AlertDialog.Builder(ctx).setTitle("Throw an item").setView(input)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Throw an item").setView(input)
             .setPositiveButton("Use") { _, _ ->
                 val n = input.text.toString().trim().replace("\"", "")
                 if (n.isNotEmpty()) fightDo("ash throw_item(to_item(\"$n\"))")
@@ -528,7 +528,7 @@ class AdventureFragment : Fragment() {
 
     private fun chooseLocation(initial: String = "") {
         if (locations.isEmpty()) {
-            AlertDialog.Builder(requireContext()).setMessage("Loading locations… try again in a moment.").setPositiveButton("OK", null).show()
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setMessage("Loading locations… try again in a moment.").setPositiveButton("OK", null).show()
             return
         }
         val prefs = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
@@ -587,7 +587,7 @@ class AdventureFragment : Fragment() {
         sources.adapter = ArrayAdapter(ctx, android.R.layout.simple_list_item_multiple_choice, names.map { it.optString("name") })
         chosen.forEachIndexed { i, c -> sources.setItemChecked(i, c) }
         box.addView(sources, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260)))
-        AlertDialog.Builder(ctx).setTitle("Auto-restore " + if (hp) "HP" else "MP").setView(box)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Auto-restore " + if (hp) "HP" else "MP").setView(box)
             .setPositiveButton("Save") { _, _ ->
                 KolEngineHost.setPref(base, if (th == 0) "-0.05" else (th / 100.0).toString())
                 KolEngineHost.setPref(base + "Target", (tg / 100.0).toString())
@@ -697,7 +697,7 @@ class AdventureFragment : Fragment() {
         val entries = listOf("default") + files.filter { it != "default" }
         val current = state.optString("ccs").ifEmpty { "default" }
         val labels = entries + listOfNotNull(if (current != "default") "✎  Edit “$current”" else null, "＋  New script…")
-        AlertDialog.Builder(requireContext())
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle("Combat script")
             .setItems(labels.toTypedArray()) { _, i ->
                 when {

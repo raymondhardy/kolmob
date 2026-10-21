@@ -86,7 +86,7 @@ class ConsoleFragment : Fragment() {
                 setSingleLine()
             }.also { col.addView(it) }
         }
-        android.app.AlertDialog.Builder(ctx).setTitle("Arguments for ${f.name}").setView(col)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Arguments for ${f.name}").setView(col)
             .setPositiveButton("Save") { _, _ ->
                 argValues = boxes.map { it.text.toString() }
                 prefs?.edit()?.putString("args_" + f.name, argValues.joinToString("\u001f"))?.apply()
@@ -441,7 +441,7 @@ class ConsoleFragment : Fragment() {
             return
         }
         val labels = history.reversed().toTypedArray()
-        android.app.AlertDialog.Builder(requireContext())
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle("Command History")
             .setItems(labels) { _, which ->
                 val cmd = history[history.size - 1 - which]

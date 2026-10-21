@@ -103,6 +103,49 @@ class DashboardFragment : Fragment() {
         }
     }
 
+    /** Like [act], but tells you how it went: the last thing KoLmafia printed while the command ran. */
+    private fun actReport(command: String, done: String) {
+        val seen = mutableListOf<String>()
+        val job = viewLifecycleOwner.lifecycleScope.launch {
+            KolEngineHost.lines.collect { l -> android.text.Html.fromHtml(l, android.text.Html.FROM_HTML_MODE_COMPACT).toString().trim().takeIf { it.isNotEmpty() }?.let { seen.add(it) } }
+        }
+        android.widget.Toast.makeText(requireContext(), "Working…", android.widget.Toast.LENGTH_SHORT).show()
+        KolEngineHost.execute(command) {
+            activity?.runOnUiThread {
+                job.cancel()
+                if (!isAdded) return@runOnUiThread
+                refresh()
+                val last = seen.lastOrNull()
+                android.widget.Toast.makeText(requireContext(), if (last != null) "$done\n$last" else done, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** Resting costs an adventure unless you have free rests left, so say so and ask first. */
+    private fun restDialog() {
+        KolEngineHost.restInfo { json ->
+            val o = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                val ctx = requireContext()
+                if (!o.optBoolean("camp", true)) {
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("No campground")
+                        .setMessage("KoLmafia says you don't have a campground to rest at right now.").setPositiveButton("OK", null).show()
+                    return@runOnUiThread
+                }
+                val free = o.optInt("free")
+                val full = o.optLong("hp") >= o.optLong("maxHp") && o.optLong("mp") >= o.optLong("maxMp")
+                val msg = "HP ${o.optLong("hp")}/${o.optLong("maxHp")}, MP ${o.optLong("mp")}/${o.optLong("maxMp")}.\n\n" +
+                    (if (free > 0) "You have $free free rest${if (free == 1) "" else "s"} left today, so this should cost no adventure."
+                     else "You have no free rests left, so resting will spend 1 of your ${o.optInt("adv")} adventures.") +
+                    (if (full) "\n\nYou are already at full HP and MP." else "")
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Rest at your campsite?").setMessage(msg)
+                    .setPositiveButton("Rest") { _, _ -> actReport("rest", "Rested") }
+                    .setNegativeButton("Cancel", null).show()
+            }
+        }
+    }
+
     /** Run a KoLmafia command, then redraw with the new state. */
     private fun act(command: String) {
         KolEngineHost.execute(command) { activity?.runOnUiThread { if (isAdded) refresh() } }
@@ -181,11 +224,11 @@ class DashboardFragment : Fragment() {
         val ctx = requireContext()
         val daily = card(ctx, body, "Today")
         daily.addView(row(ctx, "Run breakfast", "KoLmafia's daily free actions", {
-            android.app.AlertDialog.Builder(ctx).setTitle("Run breakfast?")
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Run breakfast?")
                 .setMessage("Runs KoLmafia's breakfast: the daily free actions you have turned on in its settings (this can use items and spend turns of free effects).")
-                .setPositiveButton("Run") { _, _ -> act("breakfast") }.setNegativeButton("Cancel", null).show()
+                .setPositiveButton("Run") { _, _ -> actReport("breakfast", "Breakfast finished") }.setNegativeButton("Cancel", null).show()
         }, green))
-        daily.addView(row(ctx, "Rest at your campsite", null, { act("rest") }, green))
+        daily.addView(row(ctx, "Rest at your campsite", "restores HP and MP; asks first", { restDialog() }, green))
         daily.addView(row(ctx, "Refresh everything from KoL", null, { act("refresh all") }, green))
         val facts = card(ctx, body, "Right now")
         val familiars = familiarList(o)
@@ -210,7 +253,7 @@ class DashboardFragment : Fragment() {
         more.addView(row(ctx, "Manage saved outfits", "Rename or delete, in KoL's outfit page", { (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage("account_manageoutfits.php") }, green))
         more.addView(row(ctx, "Save current gear as an outfit", "Name it and wear it again later", {
             val input = android.widget.EditText(ctx).apply { hint = "Outfit name"; maxLines = 1 }
-            AlertDialog.Builder(ctx)
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                 .setTitle("Save outfit")
                 .setView(input)
                 .setPositiveButton("Save") { _, _ ->
@@ -241,7 +284,7 @@ class DashboardFragment : Fragment() {
                 val sid = s.optInt("id")
                 if (sid > 0) v.setOnLongClickListener {
                     KolEngineHost.describe("skill", sid) { text ->
-                        activity?.runOnUiThread { if (isAdded) AlertDialog.Builder(ctx).setTitle(name).setMessage(text).setPositiveButton("Close", null).show() }
+                        activity?.runOnUiThread { if (isAdded) com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(name).setMessage(text).setPositiveButton("Close", null).show() }
                     }
                     true
                 }
@@ -375,17 +418,33 @@ class DashboardFragment : Fragment() {
     private fun chooseFamiliar(familiars: List<JSONObject>) {
         val prefs = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
         val byWeight = prefs.getString("fam_sort", "name") == "weight"
-        val entries = if (byWeight) familiars.sortedWith(compareByDescending<JSONObject> { it.optInt("weight") }.thenBy { it.getString("race") })
+        val favs = (prefs.getString("fam_favs", "") ?: "").split("|").filter { it.isNotEmpty() }.toSet()
+        val sorted = if (byWeight) familiars.sortedWith(compareByDescending<JSONObject> { it.optInt("weight") }.thenBy { it.getString("race") })
             else familiars.sortedBy { it.getString("race") }
-        val labels = listOf("⇅ Sorted by " + (if (byWeight) "weight (tap for A–Z)" else "name (tap for weight)")) + entries.map {
-            val name = it.optString("name")
-            "${it.getString("race")}" + (if (name.isNotEmpty()) " — $name" else "") + "  (${it.optInt("weight")} lb)" + if (it.optBoolean("current")) "  ✓" else ""
+        fun rowFor(f: JSONObject, group: String): com.example.kolmafiaandroid.ui.PickRow {
+            val name = f.optString("name")
+            return com.example.kolmafiaandroid.ui.PickRow(
+                f.getString("race") + (if (f.optBoolean("current")) "  ✓" else ""),
+                (if (name.isNotEmpty()) "$name · " else "") + "${f.optInt("weight")} lb",
+                group = group, tag = f.getString("race"), img = f.optString("img"))
         }
-        pick("Choose a familiar", labels, images = listOf("") + entries.map { it.optString("img") }) { i ->
-            if (i == 0) {
+        val rows = mutableListOf(com.example.kolmafiaandroid.ui.PickRow("⇅ Sorted by " + (if (byWeight) "weight (tap for A–Z)" else "name (tap for weight)"),
+            "Long-press a familiar to star it as a favorite", tag = "\u0000sort"))
+        sorted.filter { it.getString("race") in favs }.forEach { rows += rowFor(it, "★ Favorites") }
+        sorted.forEach { rows += rowFor(it, "All familiars") }
+        pickList("Choose a familiar", rows, onLongPick = { r ->
+            val race = r.tag as? String ?: return@pickList
+            if (race == "\u0000sort") return@pickList
+            val now = (prefs.getString("fam_favs", "") ?: "").split("|").filter { it.isNotEmpty() }
+            val next = if (race in now) now - race else now + race
+            prefs.edit().putString("fam_favs", next.joinToString("|")).apply()
+            android.widget.Toast.makeText(requireContext(), if (race in now) "Removed $race from favorites" else "Starred $race (shows under Favorites next time)", android.widget.Toast.LENGTH_SHORT).show()
+        }) { r ->
+            val race = r.tag as String
+            if (race == "\u0000sort") {
                 prefs.edit().putString("fam_sort", if (byWeight) "name" else "weight").apply()
                 chooseFamiliar(familiars)
-            } else act("familiar ${entries[i - 1].getString("race")}")
+            } else act("familiar $race")
         }
     }
 
@@ -393,7 +452,7 @@ class DashboardFragment : Fragment() {
     private fun chooseConsumable(verb: String, cmd: String, items: JSONArray?, used: Int, limit: Int, unit: String) {
         val list = (0 until (items?.length() ?: 0)).map { items!!.getJSONObject(it) }.sortedBy { it.getString("name").lowercase() }
         if (list.isEmpty()) {
-            AlertDialog.Builder(requireContext()).setTitle(verb).setMessage("Nothing in your inventory to $cmd.").setPositiveButton("OK", null).show()
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(verb).setMessage("Nothing in your inventory to $cmd.").setPositiveButton("OK", null).show()
             return
         }
         val labels = list.map {
@@ -427,12 +486,12 @@ class DashboardFragment : Fragment() {
     /** Buff skills can be cast on yourself or on another player (`cast N skill on player`). */
     private fun chooseBuffTarget(name: String, n: Int) {
         val ctx = requireContext()
-        AlertDialog.Builder(ctx)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
             .setTitle("Cast $name")
             .setItems(arrayOf("On myself", "On another player…")) { _, which ->
                 if (which == 0) { act("cast $n $name"); return@setItems }
                 val input = android.widget.EditText(ctx).apply { hint = "Player name"; maxLines = 1 }
-                AlertDialog.Builder(ctx)
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                     .setTitle("Cast on whom?")
                     .setView(input)
                     .setPositiveButton("Cast") { _, _ ->

@@ -86,6 +86,22 @@ class LogsFragment : DialogFragment() {
         })
         view.addView(searchEdit)
 
+        // Clean-up
+        val cleanRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        fun cleanBtn(text: String, onClick: () -> Unit) = com.google.android.material.button.MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            this.text = text
+            setOnClickListener { onClick() }
+        }
+        cleanRow.addView(cleanBtn("Delete shown…") { confirmDelete(filteredFiles, "the ${filteredFiles.size} files shown") },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(ctx, 8) })
+        cleanRow.addView(cleanBtn("Keep only today…") {
+            val start = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0) }.timeInMillis
+            val old = logFiles.filter { it.lastModified < start }
+            confirmDelete(old, "${old.size} files from before today")
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        view.addView(cleanRow)
+        view.addView(label(ctx, "Tap a file to read it. Long-press to delete it.", 12f, KC.muted).apply { setPadding(0, dp(ctx, 6), 0, dp(ctx, 6)) })
+
         // List
         listView = ListView(ctx)
         view.addView(listView, LinearLayout.LayoutParams(
@@ -170,12 +186,35 @@ class LogsFragment : DialogFragment() {
                 labels.toMutableList()
             )
             listView.adapter = adapter
+            listView.setOnItemLongClickListener { _, _, position, _ ->
+                if (position < filteredFiles.size) confirmDelete(listOf(filteredFiles[position]), filteredFiles[position].name)
+                true
+            }
             listView.setOnItemClickListener { _, _, position, _ ->
                 if (position < filteredFiles.size) {
                     openLogFile(filteredFiles[position])
                 }
             }
         }
+    }
+
+    /** Deleting a log cannot be undone, so confirm; empty lists just say so. */
+    private fun confirmDelete(files: List<LogFile>, what: String) {
+        val ctx = requireContext()
+        if (files.isEmpty()) { Toast.makeText(ctx, "Nothing to delete", Toast.LENGTH_SHORT).show(); return }
+        val bytes = files.sumOf { it.size }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle("Delete logs?")
+            .setMessage("Delete $what (${formatSize(bytes)})? This cannot be undone.")
+            .setPositiveButton("Delete") { _, _ ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val n = files.count { try { it.file.delete() } catch (_: Exception) { false } }
+                    withContext(Dispatchers.Main) {
+                        if (isAdded) { Toast.makeText(requireContext(), "Deleted $n file${if (n == 1) "" else "s"}", Toast.LENGTH_SHORT).show(); refreshFileList() }
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null).show()
     }
 
     private fun openLogFile(logFile: LogFile) {

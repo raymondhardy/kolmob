@@ -158,7 +158,7 @@ fun Fragment.askQuantity(
         selectAll()
         setPadding(dp(ctx, 24), dp(ctx, 16), dp(ctx, 24), dp(ctx, 8))
     }
-    AlertDialog.Builder(ctx)
+    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
         .setTitle(title)
         .setMessage(message)
         .setView(input)

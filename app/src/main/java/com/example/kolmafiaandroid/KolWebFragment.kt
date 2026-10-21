@@ -333,7 +333,7 @@ class KolWebFragment : Fragment() {
     private fun chooseTextSize() {
         val sizes = listOf("Small (90%)" to 90, "Normal (100%)" to 100, "Large (115%)" to 115, "Larger (135%)" to 135, "Huge (160%)" to 160, "Giant (200%)" to 200)
         val current = web?.settings?.textZoom ?: 100
-        android.app.AlertDialog.Builder(requireContext())
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle("Text size in the game")
             .setSingleChoiceItems(sizes.map { it.first }.toTypedArray(), sizes.indexOfFirst { it.second == current }) { d, i ->
                 applyTextZoom(sizes[i].second)

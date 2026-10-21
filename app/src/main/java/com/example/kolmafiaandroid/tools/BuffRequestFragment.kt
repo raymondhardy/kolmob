@@ -51,7 +51,7 @@ class BuffRequestFragment : Fragment() {
                 val m = meat.text.toString().toIntOrNull() ?: 0
                 if (n.isEmpty() || m <= 0) { Toast.makeText(ctx, "Enter a name and a meat amount.", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
                 val note = msg.text.toString().trim()
-                AlertDialog.Builder(ctx).setTitle("Send $m meat to $n?")
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Send $m meat to $n?")
                     .setMessage("This sends real meat. The bot should cast on you shortly after.")
                     .setPositiveButton("Send") { _, _ ->
                         KolEngineHost.execute("send $m meat to $n" + if (note.isNotEmpty()) " || $note" else "")
@@ -71,7 +71,7 @@ class BuffRequestFragment : Fragment() {
                 pickList("$bot sells", offers.map { PickRow(it.optString("text"), "${it.optInt("price")} meat" + (if (it.optBoolean("free")) " (free/charity)" else ""), tag = it) }) { r ->
                     val offer = r.tag as JSONObject
                     val price = offer.optInt("price")
-                    AlertDialog.Builder(requireContext())
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                         .setTitle("Send $price meat to $bot?")
                         .setMessage(offer.optString("text") + "\n\nThis sends real meat. The bot should cast on you shortly after.")
                         .setPositiveButton("Send") { _, _ ->

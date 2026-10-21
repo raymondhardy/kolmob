@@ -29,24 +29,13 @@ import kotlinx.coroutines.launch
  * The in-game browser: Kingdom of Loathing served through KoLmafia's own relay server, so the
  * engine keeps tracking everything (and relay scripts keep working) while you play.
  *
- * KoL has no mobile site, so "Phone layout" loads only the main pane (`main.php`) at device width
- * and replaces the desktop top menu with a scrolling shortcut bar; the character pane is the
- * native Dashboard tab. "Full site" shows the original frameset.
+ * It always shows the full site (the game.php frameset: character pane, menu, main pane, chat); there is no phone layout.
  */
 class KolWebFragment : Fragment() {
     private var web: WebView? = null
     private lateinit var box: LinearLayout
     private lateinit var message: TextView
     private lateinit var shortcuts: HorizontalScrollView
-    /** HP / MP / Meat / Adventures, because the phone layout shows only the main pane (no KoL character pane). */
-    private var statusStrip: TextView? = null
-    private val statusTick = object : Runnable {
-        override fun run() {
-            refreshStatus()
-            statusStrip?.postDelayed(this, 3000)
-        }
-    }
-
     /** Optional: on a choice page, take the option set in Choice adventures after a 2-second countdown (tap the banner to cancel). */
     /** Native replacement for a web <select>: [json] is {title, labels[], selected[], multiple}. */
     private fun showSelectDialog(json: String) {
@@ -89,22 +78,7 @@ class KolWebFragment : Fragment() {
         }.start()
     }
 
-    private fun refreshStatus() {
-        KolEngineHost.snapshot { json ->
-            val o = try { org.json.JSONObject(json) } catch (_: Exception) { return@snapshot }
-            if (!o.has("hp")) return@snapshot
-            val text = "HP %d/%d   MP %d/%d   Meat %,d   Adv %d".format(
-                o.optLong("hp"), o.optLong("maxHp"), o.optLong("mp"), o.optLong("maxMp"), o.optLong("meat"), o.optLong("adventures"))
-            val low = o.optLong("maxHp") > 0 && o.optLong("hp") * 3 < o.optLong("maxHp")
-            activity?.runOnUiThread {
-                statusStrip?.text = text
-                statusStrip?.setTextColor(if (low) 0xFFFF6E6E.toInt() else KC.soft)
-            }
-        }
-    }
-    private lateinit var modeButton: android.widget.ImageButton
     private var port = -1
-    private var phoneLayout = false
     private var fileCallback: android.webkit.ValueCallback<Array<android.net.Uri>>? = null
     private val filePicker = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
         fileCallback?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.resultCode, r.data))
@@ -135,7 +109,6 @@ class KolWebFragment : Fragment() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
         val ctx = requireContext()
-        phoneLayout = ctx.getSharedPreferences("kolmob", Context.MODE_PRIVATE).getBoolean("phone_layout_v2", false)
         val dp = resources.displayMetrics.density
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
 
@@ -155,8 +128,6 @@ class KolWebFragment : Fragment() {
                 setOnClickListener { onClick() }
             }
         }
-        modeButton = icon(R.drawable.web_phone, "Phone layout") { setPhoneLayout(!phoneLayout) }
-        row.addView(modeButton)
         row.addView(icon(R.drawable.web_back, "Back") { if (web?.canGoBack() == true) web?.goBack() })
         row.addView(icon(R.drawable.web_forward, "Forward") { if (web?.canGoForward() == true) web?.goForward() })
         row.addView(icon(R.drawable.web_reload, "Reload") { web?.reload() })
@@ -165,7 +136,7 @@ class KolWebFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams((1 * dp).toInt(), (26 * dp).toInt()).apply { marginStart = (6 * dp).toInt(); marginEnd = (6 * dp).toInt() }
         })
         // the three most-used pages stay on the bar; everything else lives in the hamburger menu
-        menu.take(3).forEach { sc -> row.addView(icon(sc.icon, sc.desc) { go(sc.path) }) }
+        menu.take(3).forEach { sc -> row.addView(icon(sc.icon, sc.desc) { openInGame(sc.path) }) }
         row.addView(View(ctx), LinearLayout.LayoutParams(0, 1, 1f)) // pushes the hamburger to the right edge
         val more = icon(R.drawable.web_menu, "More pages") { }
         more.setOnClickListener { anchor ->
@@ -174,7 +145,7 @@ class KolWebFragment : Fragment() {
             popup.menu.add(0, 100, 100, "Text size…").setIcon(R.drawable.web_text_size)
             popup.setForceShowIcon(true)
             popup.setOnMenuItemClickListener { item ->
-                if (item.itemId == 100) chooseTextSize() else go(menu.drop(3)[item.itemId].path)
+                if (item.itemId == 100) chooseTextSize() else openInGame(menu.drop(3)[item.itemId].path)
                 true
             }
             popup.show()
@@ -182,15 +153,6 @@ class KolWebFragment : Fragment() {
         row.addView(more)
         shortcuts = HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; isFillViewport = true; addView(row) }
         root.addView(shortcuts)
-        statusStrip = TextView(ctx).apply {
-            textSize = 13f
-            typeface = android.graphics.Typeface.MONOSPACE
-            setTextColor(KC.soft)
-            setPadding((8 * dp).toInt(), (3 * dp).toInt(), (8 * dp).toInt(), (3 * dp).toInt())
-            setBackgroundColor(0x22FFFFFF)
-            contentDescription = "Health, mana, meat and adventures"
-        }
-        root.addView(statusStrip)
 
         val frame = FrameLayout(ctx)
         val wv = WebView(ctx).apply {
@@ -284,27 +246,16 @@ class KolWebFragment : Fragment() {
                 override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                     view.evaluateJavascript(SELECT_JS, null)
                     if (url.contains("lchat.php")) view.evaluateJavascript("window.__kolmobNoWiden=true;", null)
-                    if (phoneLayout || url.contains("lchat.php")) view.evaluateJavascript(PHONE_JS, null)
+                    if (url.contains("lchat.php")) view.evaluateJavascript(PHONE_JS, null)
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
                     view.evaluateJavascript(SELECT_JS, null)
                     if (url.contains("game.php")) resumePath?.let { p ->
                         resumePath = null
-                        view.postDelayed({ view.evaluateJavascript("try{top.frames['mainpane'].location='/" + p.replace("'", "%27") + "';}catch(e){}", null) }, 1500)
+                        view.postDelayed({ view.evaluateJavascript("try{for(var i=0;i<top.frames.length;i++){if(top.frames[i].name==='mainpane'){top.frames[i].location='/" + p.replace("'", "%27") + "';}}}catch(e){}", null) }, 1500)
                     }
-                    refreshStatus()
                     if (url.contains("choice.php")) autoChoose(view)
-                    if (phoneLayout) {
-                        view.evaluateJavascript(PHONE_JS, null)
-                        if (java.lang.Boolean.getBoolean("kolmob.http.debug")) {
-                            view.postDelayed({
-                                view.evaluateJavascript("(function(){var v=window.visualViewport;return 'content '+document.documentElement.scrollWidth+'px, layout '+window.innerWidth+'px, scale '+(v?v.scale.toFixed(2):'?')})()") {
-                                    Log.i("KolWeb", "$url -> ${it}")
-                                }
-                            }, 2500)
-                        }
-                    }
                 }
             }
             visibility = View.GONE
@@ -321,20 +272,16 @@ class KolWebFragment : Fragment() {
         box.addView(message)
         frame.addView(box, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         root.addView(frame, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        applyModeUi()
         return root
     }
 
     override fun onResume() {
         super.onResume()
         backCallback.isEnabled = web?.canGoBack() == true
-        statusStrip?.removeCallbacks(statusTick)
-        statusStrip?.post(statusTick)
     }
 
     override fun onPause() {
         backCallback.isEnabled = false
-        statusStrip?.removeCallbacks(statusTick)
         super.onPause()
     }
 
@@ -359,7 +306,7 @@ class KolWebFragment : Fragment() {
      * (an adventure, a fight) would run without frames and break the layout.
      */
     private fun openInGame(path: String) {
-        if (phoneLayout || path.startsWith("game.php") || path.startsWith("lchat")) { go(path); return }
+        if (path.startsWith("game.php") || path.startsWith("lchat")) { go(path); return }
         val js = "(function(){try{var f=null;for(var i=0;i<top.frames.length;i++){try{if(top.frames[i].name==='mainpane')f=top.frames[i];}catch(e){}}" +
             "if(f){f.location='/" + path.replace("\\", "\\\\").replace("'", "%27") + "';return 1;}}catch(e){}return 0;})()"
         web?.evaluateJavascript(js) { r ->
@@ -367,51 +314,7 @@ class KolWebFragment : Fragment() {
         }
     }
 
-    private fun applyModeUi() {
-        modeButton.setImageResource(if (phoneLayout) R.drawable.web_phone else R.drawable.web_desktop)
-        val modeDesc = if (phoneLayout) "Phone layout (tap for the full site)" else "Full site (tap for phone layout)"
-        modeButton.contentDescription = modeDesc
-        modeButton.tooltipText = modeDesc
-        shortcuts.visibility = if (phoneLayout) View.VISIBLE else View.GONE
-        statusStrip?.visibility = if (phoneLayout) View.VISIBLE else View.GONE // full site has KoL's own character pane
-        if (!phoneLayout) {
-            // In full-site mode keep the toggle reachable: show only the mode button.
-            shortcuts.visibility = View.VISIBLE
-        }
-    }
-
-    private fun setPhoneLayout(phone: Boolean) {
-        phoneLayout = phone
-        requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE).edit().putBoolean("phone_layout_v2", phone).apply()
-        applyModeUi()
-        if (port <= 0) return
-        // Stay on the page you were on: ask the game which page is showing (inside the frames in full-site mode), then reopen it.
-        web?.evaluateJavascript("(function(){try{var f=null;for(var i=0;i<top.frames.length;i++){try{if(top.frames[i].name==='mainpane')f=top.frames[i];}catch(x){}}return (f&&f.location&&f.location.href)||location.href}catch(e){return location.href}})()") { raw ->
-            val href = try { org.json.JSONTokener(raw ?: "").nextValue() as? String ?: "" } catch (_: Exception) { "" }
-            var path = href.removePrefix("http://127.0.0.1:$port/")
-            if (path == href || path.startsWith("game.php") || path.startsWith("main.php") || path.startsWith("topmenu") || path.startsWith("charpane")) path = ""
-            // Reopening a page must never repeat an action: an adventure link spends a turn again, a choice link picks again, an item link uses it again.
-            // Those pages go to main.php instead, which the game itself redirects to the fight or choice you are in.
-            if (!safeToReopen(path)) path = ""
-            if (phone) go(path.ifEmpty { "main.php" })
-            else { resumePath = path.ifEmpty { null }; go("game.php") }
-        }
-    }
-
     private var resumePath: String? = null
-
-    /** True for plain pages that only show something; false for any link that does something when it is loaded. */
-    private fun safeToReopen(path: String): Boolean {
-        if (path.isEmpty()) return true
-        val p = path.lowercase()
-        if (p.contains("pwd=") || p.contains("pwd&") || p.contains("action=") || p.contains("snarfblat=") ||
-            p.contains("option=") || p.contains("whichitem=") || p.contains("whichskill=") || p.contains("quantity=")) return false
-        val page = p.substringBefore('?')
-        if (page == "adventure.php" || page == "choice.php" || page == "fight.php" || page == "inv_use.php" || page == "inv_eat.php" ||
-            page == "inv_booze.php" || page == "inv_spleen.php" || page == "inv_equip.php" || page == "runskillz.php" ||
-            page == "submitnewchat.php" || page == "shop.php" || page == "mall.php" || page == "sellstuff.php") return false
-        return true
-    }
 
     private fun applyTextZoom(percent: Int) {
         web?.settings?.textZoom = percent
@@ -438,7 +341,7 @@ class KolWebFragment : Fragment() {
     private fun loadStart() {
         val pending = KolEngineHost.pendingWeb
         if (pending != null) { KolEngineHost.pendingWeb = null; go(pending); return }
-        go(if (phoneLayout) "main.php" else "game.php")
+        go("game.php")
     }
 
     private fun showLoggedOut() {

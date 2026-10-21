@@ -103,23 +103,44 @@ class FaxFragment : DialogFragment() {
         }
     }
 
-    /** Faxbots come and go: let the player pick which one to ask, or let KoLmafia try each online bot in turn. */
+    /** Faxbots come and go, so each one is listed with whether KoL says it is online right now; you choose which to ask. */
     private fun chooseBot(monster: String, command: String, id: Int, bots: List<String>) {
         val ctx = requireContext()
+        if (bots.isEmpty()) { status.text = "No faxbot carries $monster."; status.setTextColor(0xFFE57373.toInt()); return }
+        status.text = "Checking which faxbots are online…"; status.setTextColor(KC.muted)
+        KolEngineHost.setPref("kolmobBotOnline", "")
+        val names = bots.joinToString(",") { it.replace("\"", "") }
+        KolEngineHost.execute("ash string r = \"\"; foreach i,n in split_string(\"$names\", \",\") { r += n + \":\" + (is_online(n) ? \"1\" : \"0\") + \",\"; } set_property(\"kolmobBotOnline\", r);") {
+            val online = KolEngineHost.getPref("kolmobBotOnline").split(",").filter { it.contains(":") }
+                .associate { it.substringBefore(":").lowercase() to (it.substringAfter(":") == "1") }
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                status.text = ""
+                showBotChoice(ctx, monster, id, bots, online)
+            }
+        }
+    }
+
+    private fun showBotChoice(ctx: android.content.Context, monster: String, id: Int, bots: List<String>, online: Map<String, Boolean>) {
         val prefs = ctx.getSharedPreferences("kolmob", android.content.Context.MODE_PRIVATE)
         val last = prefs.getString("fax_bot", "") ?: ""
-        val labels = (listOf("Any bot that answers (tries each in turn)") + bots.map { it + (if (it == last) "  (last used)" else "") }).toTypedArray()
+        val sorted = bots.sortedWith(compareByDescending<String> { online[it.lowercase()] == true }.thenBy { it.lowercase() })
+        val labels = sorted.map {
+            val on = online[it.lowercase()]
+            it + (if (on == true) "  ·  online" else if (on == false) "  ·  offline (probably won't answer)" else "") + (if (it == last) "  ·  last used" else "")
+        }.toTypedArray()
         com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
             .setTitle("Ask which faxbot for $monster?")
             .setItems(labels) { _, which ->
-                if (which == 0 || id <= 0) {
-                    runFax("ok = faxbot(to_monster($id));", "Got the $monster fax — it's in your inventory.", "No faxbot delivered $monster. Try another bot.")
+                val bot = sorted[which]
+                prefs.edit().putString("fax_bot", bot).apply()
+                if (online[bot.lowercase()] == false) {
+                    status.text = "$bot is offline right now, so it can't deliver $monster. Try again when it is back, or pick another bot."
+                    status.setTextColor(0xFFE57373.toInt())
                 } else {
-                    val bot = bots[which - 1]
-                    prefs.edit().putString("fax_bot", bot).apply()
-                    runFax("ok = faxbot(to_monster($id), \"$bot\");", "Got the $monster fax from $bot — it's in your inventory.", "$bot didn't deliver $monster. Try another bot.")
+                    runFax("ok = faxbot(to_monster($id), \"${bot.replace("\"", "")}\");", "Got the $monster fax from $bot: it's in your inventory.", "$bot didn't deliver $monster. Try again in a minute, or pick another bot.")
+                    Toast.makeText(ctx, "Asking $bot for $monster…", Toast.LENGTH_SHORT).show()
                 }
-                Toast.makeText(ctx, "Requesting $monster…", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()

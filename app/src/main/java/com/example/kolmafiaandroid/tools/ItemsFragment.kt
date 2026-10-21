@@ -78,6 +78,10 @@ class ItemsFragment : DialogFragment() {
         val tabs = listOf(Tab.INVENTORY, Tab.CLOSET, Tab.STORAGE, Tab.DISPLAY)
         view.addView(com.example.kolmafiaandroid.ui.textTabs(ctx, listOf("Inventory", "Closet", "Storage", "Display"), tabs.indexOf(currentTab)) { switchTab(tabs[it]) })
 
+        // Crafting and shopping live with the items they use
+        view.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "items",
+            listOf("Craft items" to { CraftFragment.show(requireActivity().supportFragmentManager, "items") })))
+
         // Search box
         searchEdit = EditText(ctx).apply {
             hint = "Search items..."
@@ -119,7 +123,7 @@ class ItemsFragment : DialogFragment() {
                 val o = JSONObject(json)
                 val arr = o.optJSONArray("inventory") ?: JSONArray()
                 inventoryItems = (0 until arr.length()).map { arr.getJSONObject(it) }
-                    .map { ItemEntry(it.getString("name"), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
                     .sortedBy { it.name.lowercase() }
             } catch (e: Exception) {
                 inventoryItems = emptyList()
@@ -136,17 +140,17 @@ class ItemsFragment : DialogFragment() {
 
                 val closetArr = o.optJSONArray("closet") ?: JSONArray()
                 closetItems = (0 until closetArr.length()).map { closetArr.getJSONObject(it) }
-                    .map { ItemEntry(it.getString("name"), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
                     .sortedBy { it.name.lowercase() }
 
                 val storageArr = o.optJSONArray("storage") ?: JSONArray()
                 storageItems = (0 until storageArr.length()).map { storageArr.getJSONObject(it) }
-                    .map { ItemEntry(it.getString("name"), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
                     .sortedBy { it.name.lowercase() }
 
                 val displayArr = o.optJSONArray("display") ?: JSONArray()
                 displayItems = (0 until displayArr.length()).map { displayArr.getJSONObject(it) }
-                    .map { ItemEntry(it.getString("name"), it.getInt("count"), it.optString("img")) }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")) }
                     .sortedBy { it.name.lowercase() }
             } catch (e: Exception) {
                 closetItems = emptyList()

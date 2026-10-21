@@ -52,7 +52,7 @@ class ToolsFragment : DialogFragment() {
         // RecyclerView for tools list
         val recyclerView = RecyclerView(requireContext()).apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = ToolsAdapter(requireContext(), ToolRegistry.tools) { tool ->
+            adapter = ToolsAdapter(requireContext(), ToolRegistry.tools.filter { it.home == null }) { tool ->
                 dismiss()
                 if (tool.page != null) (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage(tool.page) else tool.open(parentFragmentManager!!)
             }

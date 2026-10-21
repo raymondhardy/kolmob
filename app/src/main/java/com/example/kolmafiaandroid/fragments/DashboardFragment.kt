@@ -267,6 +267,7 @@ class DashboardFragment : Fragment() {
         if (familiars.isNotEmpty()) {
             more.addView(row(ctx, "Familiar: " + o.optString("familiar").ifEmpty { "none" }, "${familiars.size} owned", { chooseFamiliar(familiars) }, green))
         }
+        body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "gear"))
     }
 
     /** Castable skills, buffs first. */
@@ -309,6 +310,8 @@ class DashboardFragment : Fragment() {
     private fun effectsTab(o: JSONObject) {
         val ctx = requireContext()
         val fx = (o.optJSONArray("effects") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        val fm = requireActivity().supportFragmentManager
+        body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, fm, "effects", listOf("Moods" to { com.example.kolmafiaandroid.tools.MoodFragment.show(fm) })))
         if (fx.isEmpty()) { body.addView(label(ctx, "No active effects.", 15f, muted)); return }
         val fxCard = card(ctx, body, "Active effects  ·  tap one to extend or remove it")
         for (e in fx) {
@@ -331,6 +334,17 @@ class DashboardFragment : Fragment() {
         app.addView(bar(ctx, "Spleen", organs.optLong("spleen"), organs.optLong("spleenLimit"), 0xFF00897B.toInt(), "tap to chew") {
             chooseConsumable("Chew", "chew", o.optJSONArray("spleenItems"), organs.optInt("spleen"), organs.optInt("spleenLimit"), "spleen")
         })
+        val fm = requireActivity().supportFragmentManager
+        val plan = card(ctx, body, "Plan and make")
+        fun link(title: String, sub: String, go: () -> Unit) {
+            val r = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(ctx, 8), 0, dp(ctx, 8)) }
+            r.addView(label(ctx, title, 16f, KC.text)); r.addView(label(ctx, sub, 12f, muted))
+            clickable(r) { go() }
+            plan.addView(r)
+        }
+        link("Diet planner", "Best food, drink and spleen for the turns you want") { com.example.kolmafiaandroid.tools.DietFragment.show(fm) }
+        link("Craft food and drinks", "Cook and mix what you can make from what you have") { com.example.kolmafiaandroid.tools.CraftFragment.show(fm, "food") }
+        link("Sweet Synthesis", "Pick an effect, preview, do it") { com.example.kolmafiaandroid.tools.SynthesizeFragment.show(fm) }
     }
 
     private companion object {

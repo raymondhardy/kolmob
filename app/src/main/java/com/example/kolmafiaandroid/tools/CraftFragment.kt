@@ -30,6 +30,13 @@ class CraftFragment : DialogFragment() {
 
     private var all = listOf<Recipe>()
     private var filter = ""
+    /** "food" = cooking and cocktail crafting; "items" = everything else (smithing, jewelry, meat paste...); "all" = no split. */
+    private val mode: String get() = arguments?.getString("mode") ?: "all"
+    private fun inMode(m: String): Boolean {
+        if (m == "CLIPART") return false // the Summon Clip Art skill's results are not crafting and would bury the real recipes
+        val foody = m in setOf("COOK", "COOK_FANCY", "MIX", "MIX_FANCY", "STILL")
+        return when (mode) { "food" -> foody; "items" -> !foody; else -> true }
+    }
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
 
@@ -44,7 +51,7 @@ class CraftFragment : DialogFragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, "Craft", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(label(ctx, when (mode) { "food" -> "Craft food & drinks"; "items" -> "Craft items"; else -> "Craft" }, 20f, 0xFF4CAF50.toInt(), true))
         val search = EditText(ctx).apply {
             hint = "Filter what you can make"
             maxLines = 1
@@ -73,7 +80,7 @@ class CraftFragment : DialogFragment() {
             }
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
-                all = list.sortedWith(compareBy({ prettyMethod(it.method) }, { it.name.lowercase() }))
+                all = list.filter { inMode(it.method) }.sortedWith(compareBy({ prettyMethod(it.method) }, { it.name.lowercase() }))
                 status.text = if (o.has("error")) "Could not load recipes. Are you logged in?" else "${all.size} things you can make · tap one"
                 render()
             }
@@ -133,6 +140,6 @@ class CraftFragment : DialogFragment() {
     }
 
     companion object {
-        fun show(fm: FragmentManager) = CraftFragment().show(fm, "craft")
+        fun show(fm: FragmentManager, mode: String = "all") = CraftFragment().apply { arguments = Bundle().apply { putString("mode", mode) } }.show(fm, "craft")
     }
 }

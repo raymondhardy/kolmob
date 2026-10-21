@@ -288,3 +288,29 @@ fun textTabs(context: Context, labels: List<String>, selected: Int = 0, onSelect
     row.tag = { i: Int -> paint(i); onSelect(i) }
     return row
 }
+
+
+/** A horizontally scrolling row of small link buttons: each opens a screen that belongs with the tab it sits in. */
+fun linkRow(context: Context, links: List<Pair<String, () -> Unit>>): View {
+    val d = context.resources.displayMetrics.density
+    val row = android.widget.LinearLayout(context).apply { orientation = android.widget.LinearLayout.HORIZONTAL; setPadding((2 * d).toInt(), (6 * d).toInt(), (2 * d).toInt(), (6 * d).toInt()) }
+    for ((title, go) in links) {
+        val tv = android.widget.TextView(context).apply {
+            text = title
+            textSize = 14f
+            setTextColor(0xFF4CAF50.toInt())
+            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
+            background = android.graphics.drawable.GradientDrawable().apply { setStroke((1 * d).toInt(), 0xFF4CAF50.toInt()); cornerRadius = 18 * d }
+            layoutParams = android.widget.LinearLayout.LayoutParams(-2, -2).apply { marginEnd = (8 * d).toInt() }
+        }
+        clickable(tv) { go() }
+        row.addView(tv)
+    }
+    return android.widget.HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(row) }
+}
+
+/** The tools registered for a Character tab, as link buttons (see [com.example.kolmafiaandroid.tools.ToolRegistry]). */
+fun toolLinks(context: Context, fm: androidx.fragment.app.FragmentManager, home: String, extra: List<Pair<String, () -> Unit>> = emptyList()): View =
+    linkRow(context, extra + com.example.kolmafiaandroid.tools.ToolRegistry.inTab(home).map { t ->
+        t.title to { if (t.page != null) Unit else t.open(fm) }
+    })

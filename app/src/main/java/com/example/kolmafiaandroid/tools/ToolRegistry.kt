@@ -22,12 +22,23 @@ data class Tool(
     /** If set, the tool opens this KoL page on the Game tab instead of a native screen. */
     val page: String? = null,
     /** Section heading in the Tools list. */
-    val group: String = "More"
+    val group: String = "More",
+    /** If set, the tool lives inside that Character tab (items, gear, effects) and is not listed here. */
+    val home: String? = null
 )
 
 object ToolRegistry {
+    /** Which Character tab each tool is reached from. Everything else stays in the Tools list. */
+    private val homes = mapOf(
+        "mall" to "items", "npcshops" to "items", "coinmasters" to "items", "store" to "items", "items" to "hidden", "meat" to "items",
+        "maximizer" to "gear", "modifiers" to "gear",
+        "buffrequest" to "effects", "buffbot" to "effects",
+    )
+    fun inTab(home: String): List<Tool> = tools.filter { it.home == home }
+    fun find(id: String): Tool? = tools.firstOrNull { it.id == id }
+
     /** Order of the section headings in the Tools list. */
-    val groupOrder = listOf("Shopping", "Social", "Character", "Info and scripts", "Mazes", "More")
+    val groupOrder = listOf("Social", "Character", "Info and scripts", "Mazes", "More")
 
     val tools = mutableListOf<Tool>().apply {
         add(Tool(
@@ -42,13 +53,6 @@ object ToolRegistry {
             title = "Mall",
             subtitle = "Search the player mall and buy",
             open = { fm -> MallFragment.show(fm) },
-            group = "Shopping"
-        ))
-        add(Tool(
-            id = "craft",
-            title = "Craft",
-            subtitle = "Cook, mix, smith and combine what you can make",
-            open = { fm -> CraftFragment.show(fm) },
             group = "Shopping"
         ))
         add(Tool(
@@ -129,20 +133,6 @@ object ToolRegistry {
             group = "Character"
         ))
         add(Tool(
-            id = "synthesize",
-            title = "Synthesize",
-            subtitle = "Sweet Synthesis: pick an effect, preview, do it",
-            open = { fm -> SynthesizeFragment.show(fm) },
-            group = "Character"
-        ))
-        add(Tool(
-            id = "diet",
-            title = "Food & drink",
-            subtitle = "Diet planner: best food, drink and spleen for your turns, with next-item buttons",
-            open = { fm -> DietFragment.show(fm) },
-            group = "Character"
-        ))
-        add(Tool(
             id = "train",
             title = "Train familiar",
             subtitle = "Cake-Shaped Arena: train the familiar you have out",
@@ -207,5 +197,6 @@ object ToolRegistry {
         ))
                 page("hedge", "Hedge maze", "Sorceress' Tower hedge maze solver", "hedgepuzzle.php")
         page("volcano", "Volcano maze", "Nemesis volcano cave maze solver", "volcanomaze.php")
+        replaceAll { t -> homes[t.id]?.let { t.copy(home = it) } ?: t }
     }
 }

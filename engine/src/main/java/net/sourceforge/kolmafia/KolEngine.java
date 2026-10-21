@@ -1060,7 +1060,14 @@ public final class KolEngine {
           kv(sb, "name", r.getName());
           kv(sb, "where", where[w]);
           kv(sb, "count", r.getCount());
-          kv(sb, "can", net.sourceforge.kolmafia.session.EquipmentManager.canEquip(r.getItemId()));
+          kv(sb, "id", r.getItemId());
+          boolean can;
+          if (want == net.sourceforge.kolmafia.equipment.Slot.FAMILIAR) {
+            can = net.sourceforge.kolmafia.KoLCharacter.getFamiliar().canEquip(r);
+          } else {
+            can = net.sourceforge.kolmafia.session.EquipmentManager.canEquip(r.getItemId());
+          }
+          kv(sb, "can", can);
           String req = "";
           int power = 0;
           try {

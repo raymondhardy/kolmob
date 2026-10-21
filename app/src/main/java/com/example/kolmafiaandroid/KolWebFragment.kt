@@ -48,6 +48,29 @@ class KolWebFragment : Fragment() {
     }
 
     /** Optional: on a choice page, take the option set in Choice adventures after a 2-second countdown (tap the banner to cancel). */
+    /** Native replacement for a web <select>: [json] is {title, labels[], selected[], multiple}. */
+    private fun showSelectDialog(json: String) {
+        val ctx = context ?: return
+        val o = try { org.json.JSONObject(json) } catch (_: Exception) { return }
+        val la = o.optJSONArray("labels") ?: return
+        val sa = o.optJSONArray("selected")
+        val labels = Array(la.length()) { la.optString(it).ifBlank { "(blank)" } }
+        val checked = BooleanArray(labels.size) { sa?.optBoolean(it) ?: false }
+        val title = o.optString("title").ifBlank { "Choose" }
+        fun apply(idx: List<Int>) {
+            web?.evaluateJavascript("window.__kolSelSet&&window.__kolSelSet([${idx.joinToString(",")}])", null)
+        }
+        val b = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(title)
+        if (o.optBoolean("multiple")) {
+            b.setMultiChoiceItems(labels, checked) { _, i, c -> checked[i] = c }
+                .setPositiveButton("OK") { _, _ -> apply(checked.indices.filter { checked[it] }) }
+        } else {
+            b.setSingleChoiceItems(labels, checked.indexOfFirst { it }) { d, i -> d.dismiss(); apply(listOf(i)) }
+        }
+        val d = b.setNegativeButton("Cancel", null).show()
+        (activity as? com.example.kolmafiaandroid.MainActivity)?.fitDialogAboveNav(d)
+    }
+
     private fun autoChoose(view: WebView) {
         Thread {
             if (KolEngineHost.getPref("kolmobBrowserAutoChoice") != "true") return@Thread
@@ -180,6 +203,14 @@ class KolWebFragment : Fragment() {
             settings.setSupportZoom(true)
             settings.builtInZoomControls = true
             settings.displayZoomControls = false
+            // KoL's drop-downs and multi-selects: Android's own popup is blank on some phones and ignores our nav bar,
+            // so every <select> tap is handed to a native list dialog that sits above the navigation.
+            addJavascriptInterface(object {
+                @android.webkit.JavascriptInterface
+                fun open(json: String) {
+                    activity?.runOnUiThread { if (isAdded) showSelectDialog(json) }
+                }
+            }, "KolSelect")
             webChromeClient = object : WebChromeClient() {
                 override fun onShowFileChooser(view: WebView, callback: android.webkit.ValueCallback<Array<android.net.Uri>>, params: FileChooserParams): Boolean {
                     fileCallback?.onReceiveValue(null)
@@ -207,11 +238,13 @@ class KolWebFragment : Fragment() {
                 }
 
                 override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                    view.evaluateJavascript(SELECT_JS, null)
                     if (url.contains("lchat.php")) view.evaluateJavascript("window.__kolmobNoWiden=true;", null)
                     if (phoneLayout || url.contains("lchat.php")) view.evaluateJavascript(PHONE_JS, null)
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
+                    view.evaluateJavascript(SELECT_JS, null)
                     refreshStatus()
                     if (url.contains("choice.php")) autoChoose(view)
                     if (phoneLayout) {
@@ -354,6 +387,20 @@ class KolWebFragment : Fragment() {
     }
 
     private companion object {
+        /** Intercepts taps on <select> and hands them to KolSelect.open; window.__kolSelSet writes the choice back. */
+        const val SELECT_JS = """(function(){
+if(window.__kolSelHooked)return;window.__kolSelHooked=true;
+function find(e){var t=e.target;return t&&t.closest?t.closest('select'):null;}
+function open(e){var s=find(e);if(!s||s.disabled)return;e.preventDefault();e.stopPropagation();
+ var labels=[],sel=[];for(var i=0;i<s.options.length;i++){labels.push(s.options[i].text);sel.push(s.options[i].selected);}
+ var t=(s.getAttribute('aria-label')||s.name||'').replace(/[_-]/g,' ');
+ window.__kolSelEl=s;KolSelect.open(JSON.stringify({title:t,labels:labels,selected:sel,multiple:s.multiple}));}
+document.addEventListener('mousedown',open,true);
+document.addEventListener('click',function(e){if(find(e)){e.preventDefault();}},true);
+window.__kolSelSet=function(idx){var s=window.__kolSelEl;if(!s)return;
+ for(var i=0;i<s.options.length;i++){s.options[i].selected=idx.indexOf(i)>=0;}
+ s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));};
+})();"""
         /** Banner with a 2-second countdown, then KoLmafia's own "auto" button for the choice (choice.php?action=auto). */
         private const val AUTO_CHOICE_JS = """(function(v){if(window.__kolmobAuto)return;window.__kolmobAuto=true;
 var b=document.createElement('div');b.textContent='Auto-choice: option '+v+' in 2 seconds (tap to cancel)';

@@ -333,9 +333,11 @@ class DashboardFragment : Fragment() {
             rows += com.example.kolmafiaandroid.ui.PickRow(it.getString("name"), bits.joinToString(" · "), tag = it.getString("name"), img = it.optString("img"))
         }
         rows += com.example.kolmafiaandroid.ui.PickRow("Show everything I own…", "Includes closet, storage and what you can't wear yet", tag = "\u0000all")
+        if (cli == "familiar") rows += com.example.kolmafiaandroid.ui.PickRow("Open KoL's familiar page", "For familiars whose items aren't listed here", tag = "\u0000page")
         pickList(slot.getString("label"), rows) { r ->
             val n = r.tag as String
             if (n == "\u0000all") { showAllGear(slot.getString("label"), cli); return@pickList }
+            if (n == "\u0000page") { (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage("familiar.php"); return@pickList }
             act(if (n.isEmpty()) "unequip $cli" else "equip $cli $n")
         }
     }
@@ -357,11 +359,14 @@ class DashboardFragment : Fragment() {
                     if (req.isNotEmpty() && !req.equals("none", true) && !req.startsWith("Mus: 0")) bits += "needs $req"
                     com.example.kolmafiaandroid.ui.PickRow(it.getString("name"), bits.joinToString(" · "), locked = !it.optBoolean("can"), tag = it, img = it.optString("img"))
                 }
-                pickList("$label: everything you own", rows, "", "Show items I can't wear yet") { r ->
+                pickList("$label: everything you own", rows, "", "Show items KoLmafia says won't fit") { r ->
                     val it = r.tag as JSONObject
                     val name = it.getString("name")
                     val pre = when (it.getString("where")) { "closet" -> "closet take 1 $name; "; "storage" -> "pull 1 $name; "; else -> "" }
-                    act(pre + "equip $cli $name")
+                    if (cli == "familiar" && !it.optBoolean("can")) {
+                        // KoLmafia's own check refuses this item for the familiar, but KoL may still accept it: ask KoL directly
+                        act(pre + "ash visit_url(\"inv_equip.php?action=equip&whichitem=${it.optInt("id")}&ajax=1\"); refresh equipment")
+                    } else act(pre + "equip $cli $name")
                 }
             }
         }

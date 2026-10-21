@@ -454,6 +454,11 @@ function hook(w){
   var labels=[],sel=[];for(var i=0;i<s.options.length;i++){labels.push(s.options[i].text);sel.push(s.options[i].selected);}
   var t=(s.getAttribute('aria-label')||s.name||'').replace(/[_-]/g,' ');
   T.__kolSelEl=s;KolSelect.open(JSON.stringify({title:t,labels:labels,selected:sel,multiple:s.multiple}));}
+ var WISH={'use genie bottle':9529,'use pocket wish':9537,'use replica genie bottle':11234};
+ d.addEventListener('click',function(e){var b=e.target&&e.target.closest?e.target.closest('.bfast'):null;if(!b)return;
+  var id=WISH[(b.getAttribute('rel')||'').toLowerCase()];if(!id)return;
+  var m=/pwd: *"([0-9a-f]{32})"/.exec(d.documentElement.innerHTML);if(!m)return;
+  e.preventDefault();e.stopPropagation();w.location.href='inv_use.php?which=3&whichitem='+id+'&pwd='+m[1];},true);
  d.addEventListener('mousedown',open,true);
  d.addEventListener('click',function(e){if(find(e)){e.preventDefault();}},true);}catch(x){}}
 function walk(w){hook(w);try{for(var i=0;i<w.frames.length;i++){walk(w.frames[i]);}}catch(x){}}

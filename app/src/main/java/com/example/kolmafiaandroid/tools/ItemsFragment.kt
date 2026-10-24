@@ -40,6 +40,7 @@ class ItemsFragment : DialogFragment() {
     private var currentTab = Tab.INVENTORY
     private lateinit var listView: ListView
     private lateinit var searchEdit: EditText
+    private lateinit var filterBar: com.example.kolmafiaandroid.ui.ItemFilterBar
     private lateinit var headerText: TextView
     private var inventoryItems: List<ItemEntry> = emptyList()
     private var closetItems: List<ItemEntry> = emptyList()
@@ -94,6 +95,8 @@ class ItemsFragment : DialogFragment() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
         view.addView(searchEdit)
+        filterBar = com.example.kolmafiaandroid.ui.ItemFilterBar(ctx, "items") { updateList() }
+        view.addView(filterBar)
 
         // List
         listView = ListView(ctx)
@@ -193,7 +196,8 @@ class ItemsFragment : DialogFragment() {
     private fun updateList() {
         val items = getCurrentItems()
         val query = searchEdit.text.toString().trim().lowercase()
-        filteredItems = if (query.isEmpty()) items else items.filter { it.name.lowercase().contains(query) }
+        val searched = if (query.isEmpty()) items else items.filter { it.name.lowercase().contains(query) }
+        filteredItems = filterBar.apply(searched, { it.name }, { it.count })
 
         val ctx = requireContext()
         val shownItems = filteredItems

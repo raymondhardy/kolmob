@@ -132,7 +132,6 @@ Discreetly-wrapped Eternity Codpiece
 Distant Woods Getaway Brochure
 DIY protonic accelerator kit
 doppelshifter egg
-Duskwalker fangs
 Ed the Undying exhibit crate
 Eight Days a Week Pill Keeper
 Elvish sunglasses

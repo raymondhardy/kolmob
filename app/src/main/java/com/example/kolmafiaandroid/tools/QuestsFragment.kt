@@ -54,13 +54,30 @@ class QuestsFragment : DialogFragment() {
             locationNames = objs.map { it.optString("name") }.filter { it.length > 3 }
             zoneNames = objs.map { it.optString("zone") }.filter { it.length > 3 }.distinct()
         }
-        KolEngineHost.quests { json ->
-            activity?.runOnUiThread {
-                last = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
-                render()
+        load(true)
+        return ScrollView(ctx).apply { addView(body) }
+    }
+
+    /** Reads the quest data; with [fromKol] it first re-reads KoL's quest log so quests started or advanced since the last look show up. */
+    private fun load(fromKol: Boolean) {
+        val read = {
+            KolEngineHost.quests { json ->
+                activity?.runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+                    last = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
+                    render()
+                }
             }
         }
-        return ScrollView(ctx).apply { addView(body) }
+        if (fromKol) {
+            read() // show what is known right away, then update
+            KolEngineHost.execute("refresh quests") { read() }
+        } else read()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (last != null) load(false) // the game may have moved quests along while this screen was away
     }
 
     private fun render() {
@@ -93,6 +110,7 @@ class QuestsFragment : DialogFragment() {
         if (showFinished) done.forEach { finished.addView(questBlock(it)) }
 
         val more = card(ctx, body)
+        more.addView(row(ctx, "Refresh from KoL", "re-reads your quest log", { load(true) }))
         more.addView(row(ctx, "Open KoL's full quest log", null, { openGame("questlog.php") }))
     }
 

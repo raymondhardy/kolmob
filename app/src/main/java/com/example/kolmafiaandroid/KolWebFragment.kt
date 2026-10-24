@@ -87,7 +87,10 @@ class KolWebFragment : Fragment() {
 
     /** The phone's Back button walks the game's page history while this tab is showing. */
     private val backCallback = object : androidx.activity.OnBackPressedCallback(false) {
-        override fun handleOnBackPressed() { if (web?.canGoBack() == true) web?.goBack() else isEnabled = false }
+        override fun handleOnBackPressed() {
+            if (overlay != null) { hideGuide(); isEnabled = web?.canGoBack() == true }
+            else if (web?.canGoBack() == true) web?.goBack() else isEnabled = false
+        }
     }
 
     /** Game shortcuts as icons: description (tooltip + accessibility), KoL page, icon. */
@@ -98,7 +101,6 @@ class KolWebFragment : Fragment() {
         Shortcut("Inventory", "inventory.php", R.drawable.web_bag),
         Shortcut("Character", "charsheet.php", R.drawable.web_person),
         Shortcut("Skills", "skills.php", R.drawable.web_bolt),
-        Shortcut("Quests", "questlog.php", R.drawable.web_quests),
         Shortcut("Familiar", "familiar.php", R.drawable.web_paw),
         Shortcut("Mall", "mall.php", R.drawable.web_cart),
         Shortcut("Chat", "lchat.php", R.drawable.web_chat),
@@ -137,6 +139,11 @@ class KolWebFragment : Fragment() {
         })
         // the three most-used pages stay on the bar; everything else lives in the hamburger menu
         menu.take(3).forEach { sc -> row.addView(icon(sc.icon, sc.desc) { openInGame(sc.path) }) }
+        row.addView(icon(R.drawable.web_panes, "Side panes: all / hide announcements / game only") { cyclePanes() })
+        row.addView(icon(R.drawable.web_guide, "Guide: what to do next") { showGuide(false) })
+        row.addView(icon(R.drawable.web_quests, "Quests: what is in progress") {
+            com.example.kolmafiaandroid.tools.QuestsFragment.show(requireActivity().supportFragmentManager)
+        })
         row.addView(View(ctx), LinearLayout.LayoutParams(0, 1, 1f)) // pushes the hamburger to the right edge
         val more = icon(R.drawable.web_menu, "More pages") { }
         more.setOnClickListener { anchor ->
@@ -179,6 +186,13 @@ class KolWebFragment : Fragment() {
                 @android.webkit.JavascriptInterface
                 fun id(name: String): Int = KolEngineHost.itemId(name)
             }, "KolItem")
+            // the Guide overlay: the page script fetches relay_Guide.ash, boils it down to cards and hands them back here
+            addJavascriptInterface(object {
+                @android.webkit.JavascriptInterface
+                fun done(json: String) { activity?.runOnUiThread { if (isAdded) { guideJson = json; guideError = null; renderGuide() } } }
+                @android.webkit.JavascriptInterface
+                fun fail(msg: String) { activity?.runOnUiThread { if (isAdded) { guideError = msg; renderGuide() } } }
+            }, "KolGuide")
             webChromeClient = object : WebChromeClient() {
                 // KoL pages use alert()/confirm(); the stock WebView dialogs are blank or missing here, so show our own.
                 override fun onJsAlert(view: WebView, url: String?, message: String?, result: android.webkit.JsResult): Boolean {
@@ -240,7 +254,7 @@ class KolWebFragment : Fragment() {
                 }
 
                 override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
-                    backCallback.isEnabled = view.canGoBack()
+                    backCallback.isEnabled = view.canGoBack() || overlay != null
                 }
 
                 override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
@@ -256,11 +270,13 @@ class KolWebFragment : Fragment() {
                         view.postDelayed({ view.evaluateJavascript("try{for(var i=0;i<top.frames.length;i++){if(top.frames[i].name==='mainpane'){top.frames[i].location='/" + p.replace("'", "%27") + "';}}}catch(e){}", null) }, 1500)
                     }
                     if (url.contains("choice.php")) autoChoose(view)
+                    if (url.contains("game.php")) applyPanes()
                 }
             }
             visibility = View.GONE
         }
         web = wv
+        webFrame = frame
         frame.addView(wv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         message = TextView(ctx).apply {
@@ -371,13 +387,153 @@ class KolWebFragment : Fragment() {
         }
     }
 
+    // ---- side panes: game.php is a frameset (character pane | menu+main | announcements/chat); cycle which columns show ----
+    private val paneCols = listOf("200,3*,300", "200,3*,0", "0,3*,0")
+    private val paneNames = listOf("Sidebar and announcements", "Sidebar only (announcements hidden)", "Game only")
+
+    private fun panePref() = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
+
+    private fun applyPanes() {
+        val i = panePref().getInt("web_panes", 0).coerceIn(0, paneCols.size - 1)
+        web?.evaluateJavascript("(function(){try{var r=top.document.getElementById('rootset');if(r)r.cols='" + paneCols[i] + "';}catch(e){}})()", null)
+    }
+
+    private fun cyclePanes() {
+        val next = (panePref().getInt("web_panes", 0) + 1) % paneCols.size
+        panePref().edit().putInt("web_panes", next).apply()
+        applyPanes()
+        android.widget.Toast.makeText(requireContext(), paneNames[next], android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    // ---- Guide overlay: cards from the Guide relay script; tap one to open its page in the game ----
+    private var webFrame: FrameLayout? = null
+    private var overlay: FrameLayout? = null
+    private var overlayBody: LinearLayout? = null
+    private var guideJson: String? = null
+    private var guideError: String? = null
+    private var guideLoading = false
+
+    private fun hideGuide() {
+        overlay?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        overlay = null
+        overlayBody = null
+        backCallback.isEnabled = web?.canGoBack() == true
+    }
+
+    private fun showGuide(refresh: Boolean) {
+        val ctx = context ?: return
+        val frame = webFrame ?: return
+        if (port <= 0) { android.widget.Toast.makeText(ctx, "Log in first", android.widget.Toast.LENGTH_SHORT).show(); return }
+        hideGuide()
+        val dp = resources.displayMetrics.density
+        fun px(v: Int) = (v * dp).toInt()
+        val scrim = FrameLayout(ctx).apply { setBackgroundColor(0xB3000000.toInt()); isClickable = true; setOnClickListener { hideGuide() } }
+        val panel = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            isClickable = true // taps inside the panel do not dismiss it
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(KC.pick(0xFF1E1E1E.toInt(), 0xFFF5F5F5.toInt())); cornerRadius = 16 * dp
+            }
+        }
+        val head = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(px(16), px(10), px(8), px(6)) }
+        head.addView(TextView(ctx).apply { text = "Guide"; textSize = 20f; setTextColor(KC.text); typeface = android.graphics.Typeface.DEFAULT_BOLD }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        fun textBtn(label: String, onClick: () -> Unit) = TextView(ctx).apply {
+            text = label; textSize = 15f; setTextColor(0xFF4CAF50.toInt()); setPadding(px(12), px(10), px(12), px(10))
+            setOnClickListener { onClick() }
+        }
+        head.addView(textBtn("Refresh") { showGuide(true) })
+        head.addView(textBtn("Close") { hideGuide() })
+        panel.addView(head)
+        val body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(px(12), 0, px(12), px(12)) }
+        panel.addView(android.widget.ScrollView(ctx).apply { addView(body) }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        scrim.addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
+            setMargins(px(10), px(10), px(10), px(10))
+        })
+        frame.addView(scrim, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        overlay = scrim
+        overlayBody = body
+        backCallback.isEnabled = true
+        if (refresh || guideJson == null) {
+            guideJson = null; guideError = null
+            if (!guideLoading) {
+                guideLoading = true
+                web?.evaluateJavascript(GUIDE_JS, null)
+            }
+        }
+        renderGuide()
+    }
+
+    private fun renderGuide() {
+        val ctx = context ?: return
+        val body = overlayBody ?: return
+        val dp = resources.displayMetrics.density
+        fun px(v: Int) = (v * dp).toInt()
+        body.removeAllViews()
+        fun note(s: String) = body.addView(TextView(ctx).apply { text = s; textSize = 15f; setTextColor(KC.muted); setPadding(px(4), px(24), px(4), px(24)); gravity = Gravity.CENTER })
+        val err = guideError
+        val json = guideJson
+        if (err != null) { guideLoading = false; note("The Guide could not be loaded: $err"); return }
+        if (json == null) { note("Loading the Guide... the first load can take up to a minute."); return }
+        guideLoading = false
+        val sections = try { org.json.JSONArray(json) } catch (_: Exception) { note("The Guide returned something unreadable."); return }
+        if (sections.length() == 0) { note("The Guide has nothing for you right now."); return }
+        for (s in 0 until sections.length()) {
+            val sec = sections.getJSONObject(s)
+            val cards = sec.getJSONArray("c")
+            body.addView(TextView(ctx).apply {
+                text = sec.optString("s").ifBlank { "Guide" }.uppercase()
+                textSize = 12f; setTextColor(KC.muted); typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setPadding(px(4), px(14), px(4), px(4))
+            })
+            for (i in 0 until cards.length()) {
+                val c = cards.getJSONObject(i)
+                val href = c.optString("h")
+                val card = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(px(10), px(10), px(10), px(10))
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        setColor(KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt())); cornerRadius = 12 * dp; setStroke(px(1), KC.faint)
+                    }
+                    layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = px(8) }
+                    if (href.isNotEmpty()) setOnClickListener { hideGuide(); openInGame(href.removePrefix("/")) }
+                }
+                val img = android.widget.ImageView(ctx)
+                card.addView(img, LinearLayout.LayoutParams(px(36), px(36)).apply { marginEnd = px(10) })
+                val src = c.optString("i").removePrefix("/").removePrefix("images/")
+                com.example.kolmafiaandroid.ui.KolImages.load(img, src)
+                val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+                col.addView(TextView(ctx).apply { text = c.optString("t"); textSize = 15f; setTextColor(KC.text); typeface = android.graphics.Typeface.DEFAULT_BOLD })
+                val b = c.optString("b")
+                if (b.isNotBlank()) col.addView(TextView(ctx).apply { text = b; textSize = 13f; setTextColor(KC.soft); maxLines = 9; ellipsize = android.text.TextUtils.TruncateAt.END })
+                if (href.isNotEmpty()) col.addView(TextView(ctx).apply { text = "Tap to open"; textSize = 11f; setTextColor(0xFF4CAF50.toInt()); setPadding(0, px(2), 0, 0) })
+                card.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                body.addView(card)
+            }
+        }
+    }
+
     override fun onDestroyView() {
+        overlay = null; overlayBody = null; webFrame = null; guideLoading = false
         web?.destroy()
         web = null
         super.onDestroyView()
     }
 
     private companion object {
+        /** Fetches the Guide relay page and reduces each checklist entry to {t: title, b: detail, i: icon, h: link}. */
+        const val GUIDE_JS = """(function(){fetch('/relay_Guide.ash').then(function(r){return r.text();}).then(function(t){
+var d=new DOMParser().parseFromString(t,'text/html'),out=[];
+d.querySelectorAll('.r_cl_checklist_container').forEach(function(c){
+ var h=c.querySelector('.r_cl_header_text'),cards=[];
+ c.querySelectorAll('.r_cl_l_container').forEach(function(it){
+  var st=it.querySelector('.r_cl_subheader');if(!st)return;
+  var im=it.querySelector('img'),a=it.querySelector('a[href]'),co=it.querySelector('.r_cl_l_right_content'),hc=co&&co.querySelector('.r_cl_holding_container');
+  var href=a?a.getAttribute('href'):'';if(/^(#|javascript)/i.test(href||''))href='';
+  var bt='';if(hc){var cl=hc.cloneNode(true);cl.querySelectorAll('div,br,hr,li,p').forEach(function(e){e.insertAdjacentText('beforebegin','\n');});bt=cl.textContent.replace(/[ \t]+/g,' ').replace(/\s*\n\s*/g,'\n').trim().slice(0,300);}
+  cards.push({t:st.textContent.trim(),b:bt,i:im?im.getAttribute('src'):'',h:href});});
+ if(cards.length)out.push({s:h?h.textContent.trim():'',c:cards});});
+KolGuide.done(JSON.stringify(out));}).catch(function(e){KolGuide.fail(String(e));});})()"""
+
         /** Intercepts taps on <select> and hands them to KolSelect.open; window.__kolSelSet writes the choice back. */
         const val SELECT_JS = """(function(){
 var T=window.top;

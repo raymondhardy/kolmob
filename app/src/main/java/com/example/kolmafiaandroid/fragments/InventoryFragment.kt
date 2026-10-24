@@ -25,6 +25,7 @@ class InventoryFragment : Fragment() {
     private lateinit var adapter: ArrayAdapter<String>
     private lateinit var header: TextView
     private lateinit var search: EditText
+    private lateinit var filterBar: com.example.kolmafiaandroid.ui.ItemFilterBar
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
         val ctx = requireContext()
@@ -50,6 +51,8 @@ class InventoryFragment : Fragment() {
         })
         root.addView(header)
         root.addView(search)
+        filterBar = com.example.kolmafiaandroid.ui.ItemFilterBar(ctx, "inventory") { applyFilter() }
+        root.addView(filterBar)
         root.addView(list, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         return root
     }
@@ -81,6 +84,7 @@ class InventoryFragment : Fragment() {
     private fun applyFilter() {
         val q = search.text.toString().trim().lowercase()
         adapter.clear()
-        adapter.addAll(all.filter { q.isEmpty() || it.first.lowercase().contains(q) }.map { "${it.first}  ×${it.second}" })
+        val searched = all.filter { q.isEmpty() || it.first.lowercase().contains(q) }
+        adapter.addAll(filterBar.apply(searched, { it.first }, { it.second }).map { "${it.first}  ×${it.second}" })
     }
 }

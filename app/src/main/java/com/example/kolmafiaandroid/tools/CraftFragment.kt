@@ -37,6 +37,7 @@ class CraftFragment : DialogFragment() {
         val foody = m in setOf("COOK", "COOK_FANCY", "MIX", "MIX_FANCY", "STILL")
         return when (mode) { "food" -> foody; "items" -> !foody; else -> true }
     }
+    private var filterBar: com.example.kolmafiaandroid.ui.ItemFilterBar? = null
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
 
@@ -63,6 +64,7 @@ class CraftFragment : DialogFragment() {
             })
         }
         root.addView(search)
+        root.addView(com.example.kolmafiaandroid.ui.ItemFilterBar(ctx, "craft") { render() }.also { filterBar = it })
         status = label(ctx, "Checking what you can make…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
@@ -102,7 +104,10 @@ class CraftFragment : DialogFragment() {
         val ctx = context ?: return
         body.removeAllViews()
         var group = ""
-        for (r in all.filter { filter.isEmpty() || it.name.lowercase().contains(filter) }) {
+        val searched = all.filter { filter.isEmpty() || it.name.lowercase().contains(filter) }
+        // the bar sorts and filters; the stable sort by method keeps that order inside each crafting group
+        val shown = filterBar?.apply(searched, { it.name }, { it.possible })?.sortedBy { prettyMethod(it.method) } ?: searched
+        for (r in shown) {
             val g = prettyMethod(r.method)
             if (g != group) {
                 group = g

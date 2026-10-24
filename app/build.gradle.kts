@@ -13,8 +13,11 @@ android {
         applicationId = "com.example.kolmafiaandroid"
         minSdk = 33
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        // The release tag (vX.Y.Z, set by CI as GITHUB_REF_NAME) is the version: shown in the app and used for the version code,
+        // so each release is a real update. Local and untagged builds are "dev".
+        val tagVersion = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { Regex("""\d+\.\d+\.\d+""").matches(it) }
+        versionName = tagVersion ?: "dev"
+        versionCode = tagVersion?.split(".")?.map { it.toInt() }?.let { (a, b, c) -> a * 1_000_000 + b * 1_000 + c } ?: 1
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

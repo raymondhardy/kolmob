@@ -174,8 +174,8 @@ public final class KolDiet {
           Cand c = make(k.name, odeActive, o);
           if (c != null) {
             c.source = "craft";
-            c.cost = (long) conc.getAdventuresNeeded(1) * Math.max(1, o.mpa > 0 ? o.mpa : Preferences.getInteger("valueOfAdventure"));
-            int advEach = conc.getAdventuresNeeded(1);
+            c.cost = (long) conc.getAdventuresNeeded(1, true) * Math.max(1, o.mpa > 0 ? o.mpa : Preferences.getInteger("valueOfAdventure"));
+            int advEach = conc.getAdventuresNeeded(1, true);
             if (advEach > o.reserve) continue; // a single craft would eat more than the reserve
             c.max = advEach > 0 ? Math.min(conc.creatable, o.reserve / advEach) : conc.creatable;
             out.add(c);
@@ -297,6 +297,40 @@ public final class KolDiet {
     Result booze = (useOde || odeActive) ? boozeOde : boozePlain;
     if (odeActive) odeGain = 0;
 
+    // Overdrink. Only ONE drink can carry you past the liver limit, and the liver resets to empty at rollover, so the
+    // overshoot costs nothing tomorrow; the only cost is that you cannot adventure again today. So for each owned booze N:
+    // plan the liver without one unit of N, then drink N last. Pick the N with the most total adventures that really does cross
+    // the limit. It only counts if it beats the plain plan.
+    Cand night = null;
+    int nightOver = 0;
+    double nightNet = 0;
+    if (o.nightcap && o.booze) {
+      boolean odeNow = useOde || odeActive;
+      double bestNet = booze.adv + 0.5;
+      Result bestAlt = null;
+      for (Cand n : all) {
+        if (n.organ != Organ.BOOZE || !n.owned || n.max < 1) continue;
+        n.max--;
+        Result alt = solve(all, Organ.BOOZE, boozeCap, mpa, odeNow);
+        n.max++;
+        int used = 0;
+        for (Pick p : alt.picks) used += p.count * p.c.size;
+        int over = n.size - (boozeCap - used);
+        if (over <= 0) continue; // fits in the liver: the normal plan already covers it
+        double total = alt.adv + n.adv + (odeNow ? n.odeBonus : 0);
+        if (total > bestNet) {
+          bestNet = total;
+          night = n;
+          nightOver = over;
+          bestAlt = alt;
+        }
+      }
+      if (night != null) {
+        nightNet = bestNet - booze.adv;
+        booze = bestAlt;
+      }
+    }
+
     // milk of magnesium: +5 adventures on a food, if we have or can buy one and it is not active
     int milkId = ItemDatabase.getItemId("milk of magnesium");
     boolean milkActive = Preferences.getBoolean("milkOfMagnesiumActive");
@@ -319,15 +353,6 @@ public final class KolDiet {
     for (Pick p : spleen.picks) {
       prep(commands, p);
       commands.add("chew " + p.count + " " + p.c.name);
-    }
-
-    // nightcap: best single owned booze by adventures, drunk last (you end the day drunk)
-    Cand night = null;
-    if (o.nightcap && o.booze) {
-      for (Cand c : all) {
-        if (c.organ != Organ.BOOZE || !c.owned) continue;
-        if (night == null || c.adv > night.adv) night = c;
-      }
     }
 
     double totalAdv = food.adv + booze.adv + spleen.adv + (useMilk ? 5 : 0);
@@ -365,11 +390,31 @@ public final class KolDiet {
       sb.append(quote(boozeCommands.get(i)));
     }
     sb.append("]");
+    sb.append(",\"tips\":[");
+    boolean firstTip = true;
+    String[][] tools = {
+      {"oven", "E-Z Cook oven (or a Dramatic range), so you can cook food"},
+      {"kit", "Queue Du Coq cocktailcrafting kit, so you can mix drinks"}
+    };
+    boolean haveOven = KoLCharacter.hasOven() || KoLCharacter.hasRange();
+    boolean haveKit = KoLCharacter.hasCocktailKit() || KoLCharacter.hasBartender();
+    for (String[] t : tools) {
+      boolean have = t[0].equals("oven") ? haveOven : haveKit;
+      if (have) continue;
+      int id = t[0].equals("oven") ? 4707 : 236;
+      long price = NPCStoreDatabase.contains(id) ? NPCStoreDatabase.availablePrice(id) : 0;
+      if (!firstTip) sb.append(',');
+      firstTip = false;
+      sb.append(quote("Get a " + t[1] + (price > 0 ? " (" + price + " meat at an NPC store)" : "")));
+    }
+    sb.append("]");
     if (night != null) {
       sb.append(",\"nightcap\":{");
       put(sb, "name", night.name);
       put(sb, "size", night.size);
       put(sb, "adventures", Math.round(night.adv * 10) / 10.0);
+      put(sb, "overshoot", nightOver);
+      put(sb, "netGain", Math.round(nightNet * 10) / 10.0);
       put(sb, "command", "drink 1 " + night.name);
       sb.append('}');
     }

@@ -55,7 +55,7 @@ class DietFragment : Fragment() {
         val food = check("Food", "food", true)
         val booze = check("Booze", "booze", true)
         val spleen = check("Spleen", "spleen", true)
-        val night = check("Overdrink nightcap: biggest booze last, ends the day drunk for more adventures tomorrow", "night", true)
+        val night = check("Overdrink: one big drink last for extra adventures (you cannot adventure again until rollover; the liver resets)", "night", true)
         val sim = check("Preview as if it were a fresh day (empty organs)", "sim", false)
 
         col.addView(label("Never use these, not even as a crafting ingredient (comma separated item names)"))
@@ -120,7 +120,9 @@ class DietFragment : Fragment() {
         val night = o.optJSONObject("nightcap")
         sb.append("\nYou have ${o.optInt("adventuresNow")} adventures; keep ${o.optInt("reserve")} in reserve. Drink once you are down to about that.")
         sb.append("\nEat next / Drink next do one item and re-plan. Hold the booze until adventures are nearly gone so better drops can replace it.")
-        if (night != null) sb.append("\nNightcap (drunk last): ${night.optString("name")} (${night.optDouble("adventures")} adv, ends the day drunk).")
+        if (night != null) sb.append("\nOverdrink last: ${night.optString("name")} (${night.optDouble("adventures")} adv, ${night.optInt("overshoot")} past the liver limit, ${night.optDouble("netGain")} adv more than stopping at the limit). Do this when you are done adventuring for the day.")
+        val tips = o.optJSONArray("tips")
+        if (tips != null) for (i in 0 until tips.length()) sb.append("\n" + tips.getString(i))
         val list = (0 until (cmds?.length() ?: 0)).map { cmds!!.getString(it) }
         val bc = o.optJSONArray("boozeCommands")
         val boozeList = (0 until (bc?.length() ?: 0)).map { bc!!.getString(it) }.toMutableList()

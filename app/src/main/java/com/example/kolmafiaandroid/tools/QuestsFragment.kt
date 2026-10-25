@@ -31,6 +31,7 @@ class QuestsFragment : DialogFragment() {
     private var last: JSONObject? = null
     private var locationNames = listOf<String>()
     private var zoneNames = listOf<String>()
+    private var zoneOf = mapOf<String, String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,9 +51,19 @@ class QuestsFragment : DialogFragment() {
         body.addView(label(ctx, "Loading…", 14f, KC.muted))
         KolEngineHost.locations { json ->
             val arr = try { org.json.JSONArray(json) } catch (_: Exception) { org.json.JSONArray() }
-            val objs = (0 until arr.length()).map { arr.getJSONObject(it) }
+            // retired copies of areas (e.g. the "(Dehydrated)" desert) are left out so each place is listed once
+            val all = (0 until arr.length()).map { arr.getJSONObject(it) }
+            val baseNames = all.map { it.optString("name") }.toSet()
+            val objs = all.filter { o ->
+                val z = o.optString("zone")
+                val n = o.optString("name")
+                val base = n.replace(Regex("\\s*\\(.*\\)$"), "")
+                !(z.contains("obsolete", true) || z.contains("retired", true) || z.contains("removed", true)) &&
+                    !(base != n && base in baseNames)
+            }
             locationNames = objs.map { it.optString("name") }.filter { it.length > 3 }
             zoneNames = objs.map { it.optString("zone") }.filter { it.length > 3 }.distinct()
+            zoneOf = objs.associate { it.optString("name") to it.optString("zone") }
         }
         load(true)
         return ScrollView(ctx).apply { addView(body) }
@@ -137,6 +148,22 @@ class QuestsFragment : DialogFragment() {
         return (hits + zones).distinct().take(4)
     }
 
+    /** KoL's own page for an area, from the zone name KoLmafia gives; the main page, which lists every area, when the area is not one we know. */
+    private fun mapPageFor(zone: String): String {
+        val z = zone.lowercase()
+        return when {
+            "desert beach" in z || z == "beach" -> "place.php?whichplace=desertbeach"
+            "nearby plains" in z || z == "plains" -> "place.php?whichplace=plains"
+            "distant woods" in z || z == "woods" -> "place.php?whichplace=woods"
+            "big mountains" in z || z == "mountain" -> "place.php?whichplace=mountains"
+            "seaside town" in z || "seaside casino" in z || z == "town" -> "place.php?whichplace=town"
+            "spookyraven (first floor)" in z -> "place.php?whichplace=manor1"
+            "spookyraven (second floor)" in z -> "place.php?whichplace=manor2"
+            "spookyraven (third floor)" in z -> "place.php?whichplace=manor3"
+            else -> "main.php"
+        }
+    }
+
     private fun questDetail(q: JSONObject) {
         val ctx = requireContext()
         val text = q.optString("text")
@@ -145,7 +172,7 @@ class QuestsFragment : DialogFragment() {
         box.addView(label(ctx, text.ifEmpty { "No details." }, 15f, KC.soft))
         val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(q.optString("title")).setView(box)
         places.forEach { name ->
-            box.addView(label(ctx, (if (name in locationNames) "Adventure at " else "Pick a place in ") + "$name  ›", 15f, 0xFF4CAF50.toInt(), true).apply {
+            box.addView(label(ctx, "Open the map: $name  ›", 15f, 0xFF4CAF50.toInt(), true).apply {
                 setPadding(0, dp(ctx, 14), 0, dp(ctx, 4))
             })
         }
@@ -155,7 +182,8 @@ class QuestsFragment : DialogFragment() {
         // tap handlers for the location lines (children after the text)
         for (i in 0 until places.size) com.example.kolmafiaandroid.ui.clickable(box.getChildAt(i + 1)) {
             dialog.dismiss()
-            (activity as? MainActivity)?.openAdventureAt(places[i], places[i] in locationNames)
+            // open the area in the relay browser (nothing is adventured); the Adventure tab is for choosing and starting a fight
+            (activity as? MainActivity)?.openGamePage(mapPageFor(zoneOf[places[i]] ?: places[i]))
         }
         if (places.isEmpty()) box.addView(label(ctx, "No known location in this step — use the quest log for details.", 12f, KC.hint).apply { setPadding(0, dp(ctx, 12), 0, 0) })
         dialog.show()

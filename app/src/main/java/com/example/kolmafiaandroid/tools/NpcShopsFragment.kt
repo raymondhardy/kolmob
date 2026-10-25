@@ -101,7 +101,7 @@ class NpcShopsFragment : DialogFragment() {
             val sub = if (coin) it.optString("cost") else fmt.format(it.getLong("price")) + " meat" + if (lim in 1..99) " · limit $lim" else ""
             PickRow(clean(it.getString("name")), sub, tag = it, img = it.optString("img"))
         }
-        pickList(clean(s.getString("name")), rows) { r ->
+        pickList(clean(s.getString("name")), rows, itemFilterKey = "npcshop") { r ->
             val it = r.tag as JSONObject
             val name = clean(it.getString("name"))
             val msg = if (coin) it.optString("cost") + " each" else fmt.format(it.getLong("price")) + " meat each"

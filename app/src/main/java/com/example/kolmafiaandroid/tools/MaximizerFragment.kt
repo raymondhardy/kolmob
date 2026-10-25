@@ -46,7 +46,22 @@ class MaximizerFragment : DialogFragment() {
         "Non-combat (-)" to "-combat",
         "Initiative" to "init",
         "Max HP" to "hp",
-        "ML (+)" to "ml"
+        "ML (+)" to "ml",
+        "ML (-)" to "-ml",
+        "Muscle" to "muscle",
+        "Mysticality" to "mysticality",
+        "Moxie" to "moxie",
+        "Stat gains (main stat exp)" to "mainstat exp",
+        "Muscle exp" to "muscle exp",
+        "Mysticality exp" to "mysticality exp",
+        "Moxie exp" to "moxie exp",
+        "Weapon damage" to "weapon damage",
+        "Spell damage" to "spell damage",
+        "Damage absorption" to "damage absorption",
+        "Familiar weight" to "familiar weight",
+        "HP regen" to "hp regen",
+        "MP regen" to "mp regen",
+        "Max MP" to "mp"
     )
 
     private var isCollecting = false

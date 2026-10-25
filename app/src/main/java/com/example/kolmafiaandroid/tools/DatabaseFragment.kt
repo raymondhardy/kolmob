@@ -41,6 +41,7 @@ class DatabaseFragment : DialogFragment() {
     private lateinit var listView: ListView
     private lateinit var emptyText: TextView
     private lateinit var chipContainer: LinearLayout
+    private lateinit var filterBar: com.example.kolmafiaandroid.ui.ItemFilterBar
 
     private var currentKind = "item"
     private var searchResults: MutableList<DbEntry> = mutableListOf()
@@ -100,6 +101,8 @@ class DatabaseFragment : DialogFragment() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
         view.addView(searchEdit)
+        filterBar = com.example.kolmafiaandroid.ui.ItemFilterBar(ctx, "database") { if (isAdded) updateList() }
+        view.addView(filterBar)
 
         // List
         listView = ListView(ctx)
@@ -183,7 +186,10 @@ class DatabaseFragment : DialogFragment() {
 
     private fun updateList() {
         val ctx = requireContext()
-        if (searchResults.isEmpty()) {
+        // the stat / food / equipment filter only means something for items
+        filterBar.visibility = if (currentKind == "item") View.VISIBLE else View.GONE
+        val results = if (currentKind == "item") filterBar.apply(searchResults, { it.name }, { 0 }) else searchResults
+        if (results.isEmpty()) {
             listView.visibility = View.GONE
             emptyText.visibility = View.VISIBLE
             emptyText.text = if (searchEdit.text.toString().trim().length >= 2) {
@@ -195,7 +201,7 @@ class DatabaseFragment : DialogFragment() {
             listView.visibility = View.VISIBLE
             emptyText.visibility = View.GONE
 
-            val labels = searchResults.map { "${it.name}\n${it.summary}" }
+            val labels = results.map { "${it.name}\n${it.summary}" }
             val adapter = android.widget.ArrayAdapter<String>(
                 ctx,
                 android.R.layout.simple_list_item_1,
@@ -203,9 +209,30 @@ class DatabaseFragment : DialogFragment() {
             )
             listView.adapter = adapter
             listView.setOnItemClickListener { _, _, position, _ ->
-                if (position < searchResults.size) {
-                    showDescribe(searchResults[position])
+                if (position < results.size) {
+                    showDescribe(results[position])
                 }
+            }
+        }
+    }
+
+    /** A quick fight simulator: the monster's stats against your character as you stand right now. */
+    private fun fightOdds(monster: String) {
+        val m = "to_monster(${com.example.kolmafiaandroid.ui.AshProbe.q(monster)})"
+        val dmg = "expected_damage($m)"
+        val expr = listOf(
+            "\"HP \" + monster_hp($m) + \"  |  attack \" + monster_attack($m) + \"  |  defense \" + monster_defense($m) + \"  |  initiative \" + monster_initiative($m)",
+            "\"\\n\\nIt hits you for about \" + $dmg + \" a round.\"",
+            "\"\\nYou have \" + my_hp() + \" of \" + my_maxhp() + \" HP, so about \" + ($dmg > 0 ? to_string(my_hp() / $dmg) : \"many\") + \" rounds before you drop.\"",
+            "\"\\n\\nYour muscle \" + my_buffedstat(\$stat[muscle]) + \", mysticality \" + my_buffedstat(\$stat[mysticality]) + \", moxie \" + my_buffedstat(\$stat[moxie])",
+        ).joinToString(" + ")
+        com.example.kolmafiaandroid.ui.AshProbe.eval(expr) { text ->
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Fight odds: $monster")
+                    .setMessage(text.ifBlank { "Could not work that out. Are you logged in?" })
+                    .setPositiveButton("OK", null).show()
             }
         }
     }
@@ -249,6 +276,9 @@ class DatabaseFragment : DialogFragment() {
             .setTitle(title)
             .setView(view)
             .setNegativeButton("Close", null)
+            .apply {
+                if (currentKind == "monster") setNeutralButton("Fight odds") { _, _ -> fightOdds(title) }
+            }
             .create()
             .show()
     }

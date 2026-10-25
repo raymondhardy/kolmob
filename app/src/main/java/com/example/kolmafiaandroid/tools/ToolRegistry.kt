@@ -182,14 +182,21 @@ object ToolRegistry {
             group = "Info and scripts"
         ))
         add(Tool(
+            id = "macros",
+            title = "Macros and aliases",
+            subtitle = "Saved command lists to run in one tap or at login, and command aliases",
+            open = { fm -> MacrosFragment.show(fm) },
+            group = "Info and scripts"
+        ))
+        add(Tool(
             id = "maximizer",
             title = "Maximizer",
             subtitle = "Optimize equipment with maximize command",
             open = { fm -> MaximizerFragment.show(fm) },
             group = "Info and scripts"
         ))
-        fun page(id: String, title: String, subtitle: String, path: String) = add(Tool(
-            id = id, title = title, subtitle = subtitle, group = "Mazes",
+        fun page(id: String, title: String, subtitle: String, path: String, group: String = "Mazes") = add(Tool(
+            id = id, title = title, subtitle = subtitle, group = group,
             open = { _ ->
                 com.example.kolmafiaandroid.KolEngineHost.pendingWeb = path
                 com.example.kolmafiaandroid.KolEngineHost.webRequests.tryEmit(path)
@@ -197,6 +204,23 @@ object ToolRegistry {
         ))
                 page("hedge", "Hedge maze", "Sorceress' Tower hedge maze solver", "hedgepuzzle.php")
         page("volcano", "Volcano maze", "Nemesis volcano cave maze solver", "volcanomaze.php")
+        page("campground", "Campground", "Your campground: dwelling, garden, bookshelf and furniture", "campground.php", "Character")
+        page("guild", "Guild", "Guild hall, skill trainer and class quests", "guild.php", "Character")
+        page("hagnk", "Hagnk's storage", "Pull items out of storage (pulls left are shown on the page)", "storage.php", "Character")
+        page("display", "Display case", "Arrange and show off your museum collection", "managecollection.php", "Character")
+        add(Tool(
+            id = "ascensions", title = "Ascension history", subtitle = "Every run you have done: path, class, days and turns",
+            group = "Character",
+            open = { _ ->
+                com.example.kolmafiaandroid.ui.AshProbe.eval("my_id()") { id ->
+                    if (id.isNotBlank()) {
+                        val path = "ascensionhistory.php?back=self&who=$id"
+                        com.example.kolmafiaandroid.KolEngineHost.pendingWeb = path
+                        com.example.kolmafiaandroid.KolEngineHost.webRequests.tryEmit(path)
+                    }
+                }
+            }
+        ))
         replaceAll { t -> homes[t.id]?.let { t.copy(home = it) } ?: t }
     }
 }

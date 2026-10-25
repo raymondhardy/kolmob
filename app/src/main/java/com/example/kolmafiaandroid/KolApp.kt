@@ -24,6 +24,10 @@ class KolApp : Application() {
             registerReceiver(object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
                     intent.getStringExtra("cmd")?.let { KolEngineHost.execute(it) }
+                    // `--es fakeui 1` (debug only) hides the login screen so offline-capable screens can be inspected.
+                    if (intent.hasExtra("fakeui")) { KolEngineHost.devForceUi = true; KolEngineHost.loginState.value = true }
+                    // `--es probe '<ash string expression>'` (debug only) logs the answer under tag KolProbe.
+                    intent.getStringExtra("probe")?.let { e -> com.example.kolmafiaandroid.ui.AshProbe.eval(e) { android.util.Log.i("KolProbe", "answer=" + it.replace("\n", " / ")) } }
                     // `--es theme dark|light|system` (debug only) switches the app theme.
                     intent.getStringExtra("theme")?.let { t ->
                         getSharedPreferences("kolmob", Context.MODE_PRIVATE).edit().putString("theme_mode", t).apply()

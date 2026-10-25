@@ -28,6 +28,8 @@ fun Fragment.pickList(
     lockedLabel: String = "Show locked",
     searchable: Boolean = true,
     onLongPick: ((PickRow) -> Unit)? = null,
+    /** When set, an item filter and sort bar (stat, consumable, ...) is shown, remembered under this key. Rows must be item names. */
+    itemFilterKey: String? = null,
     onPick: (PickRow) -> Unit,
 ) {
     val ctx = requireContext()
@@ -72,11 +74,13 @@ fun Fragment.pickList(
             return outer
         }
     }
+    var bar: ItemFilterBar? = null
     fun rebuild() {
-        val shown = rows.filter {
+        val kept = rows.filter {
             (showLocked || !it.locked) &&
                 (query.isEmpty() || it.title.lowercase().contains(query) || it.group.lowercase().contains(query) || it.subtitle.lowercase().contains(query))
         }
+        val shown = bar?.apply(kept, { it.title }, { 0 }) ?: kept
         val out = mutableListOf<Any>()
         var g: String? = null
         for (r in shown) {
@@ -97,6 +101,10 @@ fun Fragment.pickList(
         setText(initialQuery)
     }
     if (searchable) box.addView(search, LinearLayout.LayoutParams(-1, -2).apply { marginStart = dp(ctx, 16); marginEnd = dp(ctx, 16) })
+    if (itemFilterKey != null) {
+        bar = ItemFilterBar(ctx, itemFilterKey) { rebuild() }
+        box.addView(bar, LinearLayout.LayoutParams(-1, -2).apply { marginStart = dp(ctx, 16); marginEnd = dp(ctx, 16) })
+    }
     if (hasLocked) {
         val sw = android.widget.CheckBox(ctx).apply {
             text = lockedLabel

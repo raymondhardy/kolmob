@@ -23,6 +23,14 @@ object KolEngineHost {
         Thread(null, r, "kol-engine", 64L * 1024 * 1024).apply { isDaemon = true }
     }
 
+    /** Debug hook only: keeps the UI past the login screen when offline, to look at screens that need no network. */
+    @Volatile
+    var devForceUi = false
+
+    /** The last answer an AshProbe question printed (see AshProbe). */
+    @Volatile
+    var probeResult: String? = null
+
     /** Every line KoLmafia prints (HTML), replayed to late subscribers. */
     val lines = MutableSharedFlow<String>(replay = 1000, extraBufferCapacity = 4000)
 
@@ -105,7 +113,9 @@ object KolEngineHost {
                 watched("start") {
                     KolEngine.start(root) { line ->
                         Log.i("KolEngine", line)
-                        lines.tryEmit(line)
+                        // answers to AshProbe questions are kept for the asker and kept out of the Console
+                        val k = line.indexOf("@@P@@")
+                        if (k >= 0) probeResult = line.substring(k + 5) else lines.tryEmit(line)
                     }
                 }
                 ready = true
@@ -133,7 +143,7 @@ object KolEngineHost {
             if (ctx != null) ScriptService.end(ctx)
             loggedIn = KolEngine.isLoggedIn()
             currentUser = if (loggedIn) KolEngine.userName() else ""
-            loginState.value = loggedIn
+            loginState.value = loggedIn || devForceUi
             done()
         }
     }
@@ -147,7 +157,7 @@ object KolEngineHost {
             }
             loggedIn = KolEngine.isLoggedIn()
             currentUser = if (loggedIn) KolEngine.userName() else ""
-            loginState.value = loggedIn
+            loginState.value = loggedIn || devForceUi
             done(loggedIn)
         }
     }
@@ -401,7 +411,7 @@ object KolEngineHost {
             try { KolEngine.logout() } catch (t: Throwable) { lines.tryEmit("LOGOUT ERROR: $t") }
             loggedIn = KolEngine.isLoggedIn()
             currentUser = if (loggedIn) KolEngine.userName() else ""
-            loginState.value = loggedIn
+            loginState.value = loggedIn || devForceUi
             done()
         }
     }

@@ -42,7 +42,7 @@ class DietFragment : Fragment() {
         col.addView(mpa)
 
         col.addView(label("Adventures to keep in reserve (for crafting, and as the point to eat or drink when low)"))
-        val reserve = EditText(ctx).apply { inputType = InputType.TYPE_CLASS_NUMBER; setText(prefs.getString("diet_reserve", "10")) }
+        val reserve = EditText(ctx).apply { inputType = InputType.TYPE_CLASS_NUMBER; setText(prefs.getString("diet_reserve", "3")) }
         col.addView(reserve)
 
         col.addView(label("Where food and drink may come from"))
@@ -78,7 +78,7 @@ class DietFragment : Fragment() {
                     .putBoolean("diet_spleen", spleen.isChecked).putBoolean("diet_night", night.isChecked)
                     .putBoolean("diet_sim", sim.isChecked).apply()
                 fun b(v: Boolean) = if (v) "1" else "0"
-                val spec = "mpa=${mpa.text.toString().toLongOrNull() ?: 0};reserve=${reserve.text.toString().toIntOrNull() ?: 10};owned=${b(owned.isChecked)};npc=${b(npc.isChecked)};" +
+                val spec = "mpa=${mpa.text.toString().toLongOrNull() ?: 0};reserve=${reserve.text.toString().toIntOrNull() ?: 3};owned=${b(owned.isChecked)};npc=${b(npc.isChecked)};" +
                     "mall=${b(mall.isChecked)};craft=${b(craft.isChecked)};food=${b(food.isChecked)};booze=${b(booze.isChecked)};" +
                     "spleen=${b(spleen.isChecked)};night=${b(night.isChecked)};sim=${b(sim.isChecked)}"
                 Toast.makeText(ctx, "Planning…", Toast.LENGTH_SHORT).show()

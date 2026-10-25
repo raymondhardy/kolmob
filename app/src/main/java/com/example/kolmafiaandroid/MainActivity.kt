@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
  * overlay covers the whole app until KoLmafia reports a logged-in character.
  */
 class MainActivity : AppCompatActivity() {
+    private var macroTick: Runnable? = null
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var loginOverlay: View
@@ -466,6 +467,13 @@ class MainActivity : AppCompatActivity() {
                     loginOverlay.visibility = if (loggedIn) View.GONE else View.VISIBLE
                     ChatNotifier.refreshService()
                     if (loggedIn) openPendingChat()
+                    if (loggedIn) com.example.kolmafiaandroid.tools.MacroStore.runLoginMacros(applicationContext)
+                    if (loggedIn && macroTick == null) {
+                        // scheduled macros (daily, every N hours) are checked about once a minute while the app is open
+                        val h = android.os.Handler(android.os.Looper.getMainLooper())
+                        val r = object : Runnable { override fun run() { com.example.kolmafiaandroid.tools.MacroStore.runLoginMacros(applicationContext); h.postDelayed(this, 60_000) } }
+                        h.postDelayed(r, 60_000); macroTick = r
+                    }
                     if (loggedIn) return@collect
                     engineReady = ready
                     rebuildAccounts()

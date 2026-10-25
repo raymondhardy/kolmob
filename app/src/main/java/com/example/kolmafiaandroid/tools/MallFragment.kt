@@ -38,6 +38,7 @@ class MallFragment : DialogFragment() {
     private lateinit var status: TextView
     private lateinit var meatView: TextView
     private lateinit var search: EditText
+    private lateinit var filterBar: com.example.kolmafiaandroid.ui.ItemFilterBar
     private lateinit var list: ListView
     private var lastQuery = ""
     private val fmt = NumberFormat.getIntegerInstance()
@@ -69,6 +70,8 @@ class MallFragment : DialogFragment() {
             setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_SEARCH) { runSearch(text.toString()); true } else false }
         }
         root.addView(search)
+        filterBar = com.example.kolmafiaandroid.ui.ItemFilterBar(ctx, "mall") { if (isAdded) showOffers() }
+        root.addView(filterBar)
         status = label(ctx, "Type an item name and search.", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
         list = ListView(ctx).apply { divider = null }
@@ -101,7 +104,7 @@ class MallFragment : DialogFragment() {
                 status.text = when {
                     o.has("error") -> "Search failed. Are you logged in?"
                     found.isEmpty() -> "Nothing for sale matches “$query”."
-                    else -> "${found.size} offers, cheapest first · tap one to buy"
+                    else -> "${found.size} offers · tap to buy, hold for price history"
                 }
                 showOffers()
             }
@@ -110,7 +113,7 @@ class MallFragment : DialogFragment() {
 
     private fun showOffers() {
         val ctx = requireContext()
-        val shown = offers
+        val shown = filterBar.apply(offers, { it.name }, { it.quantity })
         list.adapter = object : BaseAdapter() {
             override fun getCount() = shown.size
             override fun getItem(i: Int) = shown[i]
@@ -137,6 +140,20 @@ class MallFragment : DialogFragment() {
             }
         }
         list.setOnItemClickListener { _, _, pos, _ -> buy(shown[pos]) }
+        list.setOnItemLongClickListener { _, _, pos, _ -> priceHistory(shown[pos].name); true }
+    }
+
+    /** What KoLmafia has recorded about an item's mall price, and how old that record is. */
+    private fun priceHistory(name: String) {
+        val i = "to_item(${com.example.kolmafiaandroid.ui.AshProbe.q(name)})"
+        val expr = "\"Cheapest in the mall now: \" + mall_price($i) + \" meat\\nLast recorded price: \" + historical_price($i) + \" meat\\nThat record is \" + round(historical_age($i) * 10) / 10.0 + \" days old\\nAutosell: \" + autosell_price($i) + \" meat\\nYou own: \" + item_amount($i) + \" in inventory, \" + closet_amount($i) + \" in the closet\""
+        com.example.kolmafiaandroid.ui.AshProbe.eval(expr) { text ->
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle("Price history: $name")
+                    .setMessage(text.ifBlank { "No price information available." }).setPositiveButton("OK", null).show()
+            }
+        }
     }
 
     private fun buy(o: Offer) {

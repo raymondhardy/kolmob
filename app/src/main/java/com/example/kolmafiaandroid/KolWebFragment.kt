@@ -169,6 +169,9 @@ class KolWebFragment : Fragment() {
             settings.useWideViewPort = true // honour the viewport meta we inject in phone layout
             settings.loadWithOverviewMode = true
             settings.textZoom = ctx.getSharedPreferences("kolmob", Context.MODE_PRIVATE).getInt("web_text_zoom", 115)
+            // KoL opens item/effect/skill descriptions with window.open(); without this the WebView replaces the page with them
+            settings.setSupportMultipleWindows(true)
+            settings.javaScriptCanOpenWindowsAutomatically = true
             settings.setSupportZoom(true)
             settings.builtInZoomControls = true
             settings.displayZoomControls = false
@@ -194,6 +197,27 @@ class KolWebFragment : Fragment() {
                 fun fail(msg: String) { activity?.runOnUiThread { if (isAdded) { guideError = msg; renderGuide() } } }
             }, "KolGuide")
             webChromeClient = object : WebChromeClient() {
+                // window.open() (item, effect and skill descriptions): show it as a popup over the game, not instead of it
+                override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message): Boolean {
+                    val c = context ?: return false
+                    val pop = WebView(c).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.useWideViewPort = false // lay the description out at the popup's width so it stays readable
+                        settings.textZoom = web?.settings?.textZoom ?: 100
+                        webViewClient = WebViewClient()
+                    }
+                    val box = FrameLayout(c)
+                    box.addView(pop, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.heightPixels * 0.45).toInt()))
+                    val d = com.google.android.material.dialog.MaterialAlertDialogBuilder(c).setView(box).setPositiveButton("Close", null).create()
+                    pop.webChromeClient = object : WebChromeClient() { override fun onCloseWindow(window: WebView) { d.dismiss() } }
+                    d.setOnDismissListener { pop.destroy() }
+                    d.show()
+                    (resultMsg.obj as WebView.WebViewTransport).webView = pop
+                    resultMsg.sendToTarget()
+                    return true
+                }
+
                 // KoL pages use alert()/confirm(); the stock WebView dialogs are blank or missing here, so show our own.
                 override fun onJsAlert(view: WebView, url: String?, message: String?, result: android.webkit.JsResult): Boolean {
                     if (!isAdded) { result.cancel(); return true }

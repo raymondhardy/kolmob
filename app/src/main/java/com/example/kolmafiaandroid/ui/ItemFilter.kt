@@ -61,7 +61,7 @@ class ItemFilterBar(ctx: Context, private val key: String, private val onChange:
     private val prefs = ctx.getSharedPreferences("kolmob", Context.MODE_PRIVATE)
     private val options = listOf(
         "CONSUMABLE" to "Consumable (food, booze, spleen)", "FOOD" to "Food", "BOOZE" to "Booze", "SPLEEN" to "Spleen",
-        "STAT" to "Gives stats", "EQUIPMENT" to "Equipment", "USABLE" to "Usable", "OTHER" to "Other",
+        "STAT" to "Gives stats", "IOTM" to "Item of the Month / Year (paid Mr. Store items)", "EQUIPMENT" to "Equipment", "USABLE" to "Usable", "OTHER" to "Other",
     )
     private val sorts = listOf("Name A to Z", "Name Z to A", "Value high to low", "Value low to high", "Count high to low", "Count low to high")
     private var checked: MutableSet<String> = (prefs.getString("itemfilter_$key", "") ?: "").split(",").filter { it.isNotEmpty() }.toMutableSet()
@@ -124,6 +124,7 @@ class ItemFilterBar(ctx: Context, private val key: String, private val onChange:
     private fun matches(name: String, k: String): Boolean = when (k) {
         "CONSUMABLE" -> ItemInfo.kind(name).let { it == "FOOD" || it == "BOOZE" || it == "SPLEEN" }
         "STAT" -> ItemInfo.givesStats(name)
+        "IOTM" -> ItemTier.of(name) == ItemTier.Tier.IOTM
         else -> ItemInfo.kind(name) == k
     }
 

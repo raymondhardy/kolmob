@@ -127,7 +127,8 @@ class ScriptsFragment : DialogFragment() {
         } ?: emptyArray()
         // relay scripts (installed to the relay folder, e.g. the Guide) are listed too; they open in the Game tab
         val relayFiles = File(requireContext().filesDir, "kolmafia/relay").listFiles { _, name ->
-            name.startsWith("relay_") && name.lowercase(Locale.ROOT).endsWith(".ash")
+            name.startsWith("relay_") && name.lowercase(Locale.ROOT).endsWith(".ash") &&
+                !com.example.kolmafiaandroid.ui.GuideBundle.isBundled(name)
         } ?: emptyArray()
         val all = (files.toList().sortedByDescending { it.lastModified() }) + relayFiles.sortedBy { it.name }
         adapter.submitList(all)

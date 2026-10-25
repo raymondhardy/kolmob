@@ -481,7 +481,11 @@ class KolWebFragment : Fragment() {
             guideJson = null; guideError = null
             if (!guideLoading) {
                 guideLoading = true
-                web?.evaluateJavascript(GUIDE_JS, null)
+                // our own bundled copy, written first so it is always there whatever the user has installed
+                Thread {
+                    try { com.example.kolmafiaandroid.ui.GuideBundle.install(ctx.applicationContext) } catch (_: Exception) {}
+                    activity?.runOnUiThread { if (isAdded) web?.evaluateJavascript(GUIDE_JS, null) }
+                }.start()
             }
         }
         renderGuide()
@@ -545,7 +549,7 @@ class KolWebFragment : Fragment() {
 
     private companion object {
         /** Fetches the Guide relay page and reduces each checklist entry to {t: title, b: detail, i: icon, h: link}. */
-        const val GUIDE_JS = """(function(){fetch('/relay_Guide.ash').then(function(r){return r.text();}).then(function(t){
+        const val GUIDE_JS = """(function(){fetch('/relay_KolmobGuide.ash').then(function(r){return r.text();}).then(function(t){
 var d=new DOMParser().parseFromString(t,'text/html'),out=[];
 d.querySelectorAll('.r_cl_checklist_container').forEach(function(c){
  var h=c.querySelector('.r_cl_header_text'),cards=[];

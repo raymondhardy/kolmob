@@ -20,10 +20,20 @@ import org.json.JSONObject
  * a blacklist are all switchable, so e.g. an oxygen run can turn food off. Nothing is eaten until you tap Run.
  */
 class DietFragment : Fragment() {
+    private var shownOnce = false
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (savedInstanceState != null) shownOnce = true
+    }
+
     private val prefs get() = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
 
     override fun onStart() {
         super.onStart()
+        // the popup is shown once per tap: coming back to the app must not bring it up again
+        if (shownOnce) return
+        shownOnce = true
         showOptions()
     }
 

@@ -458,9 +458,27 @@ class AdventureFragment : Fragment() {
                         setRunning(false)
                         lastRefresh = 0
                         refreshState()
-                        append("<b>■ Finished</b>")
-                        // a long run that ended while you were elsewhere gets a notification
-                        if (System.currentTimeMillis() - started > 20000 && !requireActivity().hasWindowFocus()) notifyFinished(appCtx, name)
+                        // KoLmafia also stops on special encounters and unset choices: if the game is waiting on you, say so
+                        com.example.kolmafiaandroid.ui.AshProbe.eval(
+                            "visit_url(\"main.php\").contains_text(\"name=whichchoice\") ? \"WAIT\" : (visit_url(\"main.php\").contains_text(\"fightform\") ? \"WAIT\" : \"OK\")"
+                        ) { state ->
+                            activity?.runOnUiThread {
+                                if (!isAdded) return@runOnUiThread
+                                val waiting = state.trim() == "WAIT"
+                                val long = System.currentTimeMillis() - started > 20000 && !requireActivity().hasWindowFocus()
+                                if (waiting) {
+                                    append("<b>■ Stopped — the game needs you</b>")
+                                    com.google.android.material.snackbar.Snackbar.make(requireView(), "Stopped — the game needs you", com.google.android.material.snackbar.Snackbar.LENGTH_INDEFINITE)
+                                        .setAction("Open it") { (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage("main.php") }
+                                        .show()
+                                    if (long) notifyFinished(appCtx, name, "Stopped — the game needs you")
+                                } else {
+                                    append("<b>■ Finished</b>")
+                                    // a long run that ended while you were elsewhere gets a notification
+                                    if (long) notifyFinished(appCtx, name, "Adventuring finished")
+                                }
+                            }
+                        }
                     }
                 }
                 return
@@ -470,14 +488,14 @@ class AdventureFragment : Fragment() {
         runNext(0)
     }
 
-    private fun notifyFinished(ctx: Context, place: String) {
+    private fun notifyFinished(ctx: Context, place: String, title: String = "Adventuring finished") {
         try {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             nm.createNotificationChannel(android.app.NotificationChannel("adventure", "Adventure runs", android.app.NotificationManager.IMPORTANCE_DEFAULT))
             val open = android.app.PendingIntent.getActivity(ctx, 0,
                 ctx.packageManager.getLaunchIntentForPackage(ctx.packageName), android.app.PendingIntent.FLAG_IMMUTABLE)
             nm.notify(4711, androidx.core.app.NotificationCompat.Builder(ctx, "adventure")
-                .setSmallIcon(R.drawable.tab_go).setContentTitle("Adventuring finished")
+                .setSmallIcon(R.drawable.tab_go).setContentTitle(title)
                 .setContentText(place).setContentIntent(open).setAutoCancel(true).build())
         } catch (_: Exception) {}
     }

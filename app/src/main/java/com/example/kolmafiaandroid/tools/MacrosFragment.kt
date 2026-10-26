@@ -78,7 +78,7 @@ object MacroStore {
 
     /** The KoL day a moment belongs to; the day turns over at rollover, about 3:30 in the morning Eastern. */
     private fun kolDay(ms: Long): String {
-        val z = java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(ms), java.time.ZoneId.of("America/New_York")).minusMinutes(210)
+        val z = java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(ms), java.time.ZoneId.of("UTC")).minusMinutes(210)
         return z.toLocalDate().toString()
     }
 

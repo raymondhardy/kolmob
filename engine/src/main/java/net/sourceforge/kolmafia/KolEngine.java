@@ -562,13 +562,24 @@ public final class KolEngine {
       // Storage items
       sb.append(",\"storage\":[");
       first = true;
-      for (net.sourceforge.kolmafia.AdventureResult r : new java.util.ArrayList<>(KoLConstants.storage)) {
+      // Hardcore keeps the free pulls in their own list; show both, and mark the ones that are free to pull
+      java.util.ArrayList<net.sourceforge.kolmafia.AdventureResult> storageAll =
+          new java.util.ArrayList<>(KoLConstants.storage);
+      for (net.sourceforge.kolmafia.AdventureResult r : new java.util.ArrayList<>(KoLConstants.freepulls)) {
+        boolean dup = false;
+        for (net.sourceforge.kolmafia.AdventureResult x : storageAll) {
+          if (x.getItemId() == r.getItemId()) { dup = true; break; }
+        }
+        if (!dup) storageAll.add(r);
+      }
+      for (net.sourceforge.kolmafia.AdventureResult r : storageAll) {
         if (!first) sb.append(',');
         first = false;
         sb.append('{');
         kv(sb, "name", r.getName());
         kv(sb, "count", r.getCount());
         kv(sb, "img", itemImg(r.getItemId()));
+        kv(sb, "free", net.sourceforge.kolmafia.request.StorageRequest.isFreePull(r));
         sb.append('}');
       }
       sb.append("]");

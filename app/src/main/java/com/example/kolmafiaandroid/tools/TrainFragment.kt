@@ -16,8 +16,18 @@ import com.example.kolmafiaandroid.KolEngineHost
  * to a base weight, to a buffed weight, or for a number of arena turns. Progress prints in the Console tab.
  */
 class TrainFragment : Fragment() {
+    private var shownOnce = false
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (savedInstanceState != null) shownOnce = true
+    }
+
     override fun onStart() {
         super.onStart()
+        // the popup is shown once per tap: coming back to the app must not bring it up again
+        if (shownOnce) return
+        shownOnce = true
         Toast.makeText(requireContext(), "Checking the arena…", Toast.LENGTH_SHORT).show()
         KolEngineHost.arenaInfo { json ->
             val o = try { org.json.JSONObject(json) } catch (_: Exception) { org.json.JSONObject() }

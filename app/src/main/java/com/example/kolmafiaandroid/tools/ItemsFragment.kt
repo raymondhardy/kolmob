@@ -33,7 +33,7 @@ import org.json.JSONObject
  */
 class ItemsFragment : DialogFragment() {
 
-    private data class ItemEntry(val name: String, val count: Int, val img: String = "", val tier: com.example.kolmafiaandroid.ui.ItemTier.Tier? = null)
+    private data class ItemEntry(val name: String, val count: Int, val img: String = "", val tier: com.example.kolmafiaandroid.ui.ItemTier.Tier? = null, val free: Boolean = false)
 
     private enum class Tab { INVENTORY, CLOSET, STORAGE, DISPLAY }
 
@@ -160,7 +160,7 @@ class ItemsFragment : DialogFragment() {
 
                 val storageArr = o.optJSONArray("storage") ?: JSONArray()
                 storageItems = (0 until storageArr.length()).map { storageArr.getJSONObject(it) }
-                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img")).let { e -> e.copy(tier = com.example.kolmafiaandroid.ui.ItemTier.of(e.name)) } }
+                    .map { ItemEntry(android.text.Html.fromHtml(it.getString("name"), 0).toString(), it.getInt("count"), it.optString("img"), free = it.optBoolean("free")).let { e -> e.copy(tier = com.example.kolmafiaandroid.ui.ItemTier.of(e.name)) } }
                     .sortedBy { it.name.lowercase() }
 
                 val displayArr = o.optJSONArray("display") ?: JSONArray()
@@ -216,7 +216,7 @@ class ItemsFragment : DialogFragment() {
                 }
                 val it = shownItems[i]
                 com.example.kolmafiaandroid.ui.KolImages.load(row.getChildAt(0) as android.widget.ImageView, it.img)
-                (row.getChildAt(1) as TextView).apply { text = it.name; setTextColor(it.tier?.color() ?: KC.text) }
+                (row.getChildAt(1) as TextView).apply { text = if (it.free && currentTab == Tab.STORAGE) it.name + "  · free pull" else it.name; setTextColor(it.tier?.color() ?: KC.text) }
                 (row.getChildAt(2) as TextView).text = "×${it.count}"
                 return row
             }

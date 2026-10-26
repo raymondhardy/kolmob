@@ -15,8 +15,18 @@ import org.json.JSONObject
  * The bot then casts on you. Real meat leaves your account, so there is always a confirmation.
  */
 class BuffRequestFragment : Fragment() {
+    private var shownOnce = false
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (savedInstanceState != null) shownOnce = true
+    }
+
     override fun onStart() {
         super.onStart()
+        // the popup is shown once per tap: coming back to the app must not bring it up again
+        if (shownOnce) return
+        shownOnce = true
         Toast.makeText(requireContext(), "Fetching buffbot prices…", Toast.LENGTH_SHORT).show()
         KolEngineHost.buffRequestBots { json ->
             val o = try { JSONObject(json) } catch (_: Exception) { JSONObject() }

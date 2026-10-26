@@ -13,12 +13,17 @@ import com.example.kolmafiaandroid.ui.pickList
  * Runs KoLmafia's own `synthesize` command, which picks the candies (and may buy them).
  */
 class SynthesizeFragment : Fragment() {
+    private var shownOnce = false
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState != null) shownOnce = true
     }
 
     override fun onStart() {
         super.onStart()
+        // the popup is shown once per tap: coming back to the app must not bring it up again
+        if (shownOnce) return
+        shownOnce = true
         val effects = listOf(
             "Hot" to "Hot Res +9", "Cold" to "Cold Res +9", "Pungent" to "Stench Res +9", "Scary" to "Spooky Res +9",
             "Greasy" to "Sleaze Res +9", "Strong" to "Mus +300%", "Smart" to "Mys +300%", "Cool" to "Mox +300%",

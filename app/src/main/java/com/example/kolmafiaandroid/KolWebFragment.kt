@@ -41,7 +41,7 @@ class KolWebFragment : Fragment() {
     private val vt = HashMap<String, TextView>()
     private val vitalsTick = object : Runnable {
         override fun run() {
-            if (statusBar?.visibility == View.VISIBLE) refreshVitals()
+            if (vitalsWanted()) refreshVitals()
             statusBar?.postDelayed(this, 4000)
         }
     }
@@ -343,6 +343,13 @@ class KolWebFragment : Fragment() {
             }
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
+                    if (request.url.scheme == "kolmob") { // links the app injects into the game page (HP in the icon row)
+                        if (request.url.host == "restore") when (request.url.lastPathSegment) {
+                            "hp" -> restoreTap("restore hp", "HP")()
+                            "mp" -> restoreTap("restore mp", "MP")()
+                        }
+                        return true
+                    }
                     val host = request.url.host ?: return false
                     val local = host == "127.0.0.1" || host == "localhost" || host.endsWith("kingdomofloathing.com")
                     if (local || request.url.scheme !in listOf("http", "https")) return false
@@ -496,10 +503,17 @@ class KolWebFragment : Fragment() {
 
     /** The vitals bar stands in for the character pane, so it shows exactly when that pane is hidden. */
     private fun updateStatusBar() {
-        val hidden = panePref().getInt("web_panes", 0).coerceIn(0, paneCols.size - 1) == paneCols.size - 1
-        statusBar?.visibility = if (hidden) View.VISIBLE else View.GONE
+        val hidden = vitalsWanted()
+        statusBar?.visibility = if (hidden && !vitalsInMenu) View.VISIBLE else View.GONE
         if (hidden) refreshVitals()
+        else if (vitalsInMenu) { // the character pane is back: take the vitals out of the game's icon row
+            vitalsInMenu = false
+            web?.evaluateJavascript(MENU_VITALS_JS.replace("__VALS__", "[]").replace("__REMOVE__", "true"), null)
+        }
     }
+
+    private fun vitalsWanted() = panePref().getInt("web_panes", 0).coerceIn(0, paneCols.size - 1) == paneCols.size - 1
+    private var vitalsInMenu = false
 
     /** Full number below 10,000; above that 40k, 1.2M, 3.4B, 5T, 6Qa, 7Qi so trillions of meat still fit the bar. */
     private fun compactNumber(n: Long, plainBelow: Long = 1_000_000L): String {
@@ -528,6 +542,13 @@ class KolWebFragment : Fragment() {
                     vt["food"]?.text = "${o.optInt("full")}/${o.optInt("fullLimit")}"
                     vt["drink"]?.text = "${o.optInt("drunk")}/${o.optInt("drunkLimit")}"
                     vt["spleen"]?.text = "${o.optInt("spleen")}/${o.optInt("spleenLimit")}"
+                    if (vitalsWanted()) {
+                        val vals = listOf("hp", "mp", "adv", "food", "drink", "spleen", "meat").joinToString(",", "[", "]") { "\"" + (vt[it]?.text?.toString().orEmpty().replace("\"", "")) + "\"" }
+                        web?.evaluateJavascript(MENU_VITALS_JS.replace("__VALS__", vals).replace("__REMOVE__", "false")) { r ->
+                            vitalsInMenu = r?.contains("ok") == true
+                            statusBar?.visibility = if (vitalsInMenu) View.GONE else View.VISIBLE
+                        }
+                    }
                 } catch (_: Exception) {
                 }
             }
@@ -709,6 +730,34 @@ walk(T);
 if(!T.__kolSelTimer){T.__kolSelTimer=setInterval(function(){walk(T);},400);}
 })();"""
         /** Banner with a 2-second countdown, then KoLmafia's own "auto" button for the choice (choice.php?action=auto). */
+        /**
+         * Puts all the vitals into the game's own icon row, after a divider next to the "Support the Kingdom" (Mr. Store) icon, as a
+         * two-line grid (HP over MP, and so on). HP and MP are links that top off. Returns "ok" when it worked, so the app's own bar
+         * can show them instead when it did not; "gone" after removing them.
+         */
+        private const val MENU_VITALS_JS = """(function(vals,remove){try{
+var d=null;for(var i=0;i<top.frames.length;i++){if(top.frames[i].name==='menupane')d=top.frames[i].document;}
+if(!d)return 'no';
+var el=d.getElementById('kolmob-vitals');
+if(remove){if(el)el.parentNode.removeChild(el);return 'gone';}
+if(!el){
+var img=d.querySelector('img[src$="donate.gif"]');if(!img)return 'no';
+var a=img.closest('a')||img;
+el=d.createElement('span');el.id='kolmob-vitals';
+el.style.cssText='display:inline-grid;grid-template-rows:auto auto;grid-auto-flow:column;column-gap:5px;row-gap:0;margin-left:5px;padding-left:5px;border-left:1px solid #888;font:12px/14px sans-serif;position:relative;top:-9px;vertical-align:middle;white-space:nowrap;color:#222';
+var spec=[["hp","restore/hp","Hit points - tap to restore","FM12,21.8 C5,16.4 1.6,12.8 1.6,8.7 C1.6,5.6 4,3.4 6.9,3.4 C9,3.4 10.9,4.5 12,6.3 C13.1,4.5 15,3.4 17.1,3.4 C20,3.4 22.4,5.6 22.4,8.7 C22.4,12.8 19,16.4 12,21.8 Z M5.6,7.6 h1.4 v2.4 h2.2 v-2.4 h1.4 v6.8 h-1.4 v-3 h-2.2 v3 h-1.4 Z M12.4,7.6 h3.4 q1.6,0 1.6,1.7 v0.4 q0,1.7 -1.6,1.7 h-2 v3 h-1.4 Z M13.8,8.9 v1.5 h1.8 q0.4,0 0.4,-0.4 v-0.7 q0,-0.4 -0.4,-0.4 Z"],["mp","restore/mp","Mana - tap to restore","FM16.36,1.47 L16.95,7.05 L22.53,7.64 L19.00,12.00 L22.53,16.36 L16.95,16.95 L16.36,22.53 L12.00,19.00 L7.64,22.53 L7.05,16.95 L1.47,16.36 L5.00,12.00 L1.47,7.64 L7.05,7.05 L7.64,1.47 L12.00,5.00 Z M4.6,14.8 V8 h1.4 l1.8,3 l1.8,-3 h1.4 v6.8 h-1.3 v-4.4 l-1.9,3.1 l-1.9,-3.1 v4.4 Z M12.8,8 h2.9 q1.6,0 1.6,1.6 v0.5 q0,1.6 -1.6,1.6 h-1.6 v3.1 h-1.3 Z M14.1,9.2 v1.4 h1.5 q0.3,0 0.3,-0.3 v-0.8 q0,-0.3 -0.3,-0.3 Z"],["adv","","Adventures left","FM4.6,2.6 h14.8 v2 h-14.8 Z M4.6,19.4 h14.8 v2 h-14.8 Z M6.8,4.6 h10.4 c0,3.2 -1.9,5.4 -3.7,7.4 c1.8,2 3.7,4.2 3.7,7.4 h-10.4 c0,-3.2 1.9,-5.4 3.7,-7.4 C8.7,10 6.8,7.8 6.8,4.6 Z M8.7,5.9 c0.2,1.8 1.3,3.2 2.5,4.6 h1.6 c1.2,-1.4 2.3,-2.8 2.5,-4.6 Z M8.4,17.9 c0.5,-2 1.8,-3.1 3.6,-4.5 c1.8,1.4 3.1,2.5 3.6,4.5 Z M9.9,17.9 c0.5,-1.2 1.2,-1.8 2.1,-2.5 c0.9,0.7 1.6,1.3 2.1,2.5 Z"],["food","","Fullness","FM4.6,2.6 h1.3 v5.2 h1.1 V2.6 h1.3 v5.2 h1.1 V2.6 h1.3 v6.4 c0,1.5 -1,2.6 -2.5,2.8 V21.4 H7 V11.8 C5.6,11.6 4.6,10.5 4.6,9 Z M15.2,2.6 c2.4,1.1 3.6,3.5 3.6,6.8 h-2.2 V21.4 h-1.4 Z"],["drink","","Liver","FM5.4,8.4 h9.6 V20.4 a1.4,1.4 0 0 1 -1.4,1.4 H6.8 a1.4,1.4 0 0 1 -1.4,-1.4 Z M15,10.6 h2 c1.3,0 2.2,0.9 2.2,2.1 v3.4 c0,1.2 -0.9,2.1 -2.2,2.1 H15 v-1.5 h1.9 c0.4,0 0.7,-0.3 0.7,-0.7 v-2.7 c0,-0.4 -0.3,-0.7 -0.7,-0.7 H15 Z M5,8.4 c-0.7,-2.2 0.8,-4 2.8,-3.8 c0.7,-1.4 2.7,-1.7 3.8,-0.6 c1.7,-0.6 3.6,0.6 3.5,2.5 c0,0.6 -0.2,1.4 -0.4,1.9 Z M7.3,10.8 h1.2 v7.4 h-1.2 Z M10.1,10.8 h1.2 v7.4 h-1.2 Z M12.9,10.8 h1.2 v7.4 h-1.2 Z"],["spleen","","Spleen","SM8.4,3.8 C14,2.6 20.4,6.2 20.2,12.2 C20,17.8 15.2,21.2 10.2,20.2 C8.4,19.8 7.8,18.6 8.6,17.4 C9.6,15.8 9.8,14.2 8.8,12.8 C7.6,11.2 5.8,10.8 5.4,9 C5,6.4 6.4,4.4 8.4,3.8 Z M8.8,12.8 L4.2,13.8 M8.8,12.8 L4.6,16.4 M11.6,7.4 C14.6,7.2 17.4,9.2 17.4,12.4"],["meat","","Meat","FM6.6,4.6 C9.6,1.9 15.2,2.4 18.2,6 C20.8,9.2 20.6,13.2 18,16.8 C15.9,19.8 12.2,21.6 9,20.4 C6.2,19.4 6.1,16.6 8.2,14.7 C10,13 10.1,11.2 8.2,9.7 C5.8,7.9 5,6.2 6.6,4.6 Z M10.2,6.4 C11.4,5.7 13,6 13.3,7.1 C13.6,8.1 12.6,8.9 11.5,8.9 C10.2,8.9 9.2,7.2 10.2,6.4 Z"]];
+var html='';
+for(var k=0;k<spec.length;k++){var c=spec[k];
+var ic=c[3].charAt(0)==='S'?'<svg viewBox="0 0 24 24" width="13" height="13" style="margin-right:1px"><path fill="none" stroke="#222" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" d="'+c[3].substr(1)+'"/></svg>':'<svg viewBox="0 0 24 24" width="13" height="13" style="margin-right:1px"><path fill="#222" fill-rule="evenodd" d="'+c[3].substr(1)+'"/></svg>';
+var inner=ic+'<span id="kv-'+c[0]+'"></span>';
+html+=c[1]?'<a href="kolmob://'+c[1]+'" title="'+c[2]+'" style="display:flex;align-items:center;color:#222;text-decoration:none">'+inner+'</a>':'<span title="'+c[2]+'" style="display:flex;align-items:center">'+inner+'</span>';}
+el.innerHTML=html;
+a.parentNode.insertBefore(el,a.nextSibling);
+}
+var order=['hp','mp','adv','food','drink','spleen','meat'];
+for(var j=0;j<order.length;j++){var t=d.getElementById('kv-'+order[j]);if(t)t.textContent=vals[j];}
+return 'ok';}catch(e){return 'err';}})(__VALS__,__REMOVE__)"""
+
         private const val AUTO_CHOICE_JS = """(function(v){if(window.__kolmobAuto)return;window.__kolmobAuto=true;
 var b=document.createElement('div');b.textContent='Auto-choice: option '+v+' in 2 seconds (tap to cancel)';
 b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#2e7d32;color:#fff;padding:10px;text-align:center;font:14px sans-serif';

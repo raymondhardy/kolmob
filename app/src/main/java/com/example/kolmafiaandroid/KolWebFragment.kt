@@ -157,11 +157,23 @@ class KolWebFragment : Fragment() {
         val more = icon(R.drawable.web_menu, "More pages") { }
         more.setOnClickListener { anchor ->
             val popup = android.widget.PopupMenu(ctx, anchor)
-            menu.drop(3).forEachIndexed { i, sc -> popup.menu.add(0, i, i, sc.desc).setIcon(sc.icon) }
-            popup.menu.add(0, 100, 100, "Text size…").setIcon(R.drawable.web_text_size)
+            menu.drop(3).forEachIndexed { i, sc -> popup.menu.add(0, i, 10 + i, sc.desc).setIcon(sc.icon) }
+            popup.menu.add(0, 100, 110, "Text size…").setIcon(R.drawable.web_text_size)
+            val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            if (landscape) { // the bottom tabs are hidden on the Game tab in landscape: offer them here
+                popup.menu.add(0, 200, 0, "Character tab").setIcon(R.drawable.nav_character)
+                popup.menu.add(0, 201, 1, "Adventure tab").setIcon(R.drawable.nav_adventure)
+                popup.menu.add(0, 202, 2, "Scripts tab").setIcon(R.drawable.nav_console)
+                popup.menu.add(0, 203, 3, "More…").setIcon(R.drawable.nav_menu)
+            }
             popup.setForceShowIcon(true)
             popup.setOnMenuItemClickListener { item ->
-                if (item.itemId == 100) chooseTextSize() else openInGame(menu.drop(3)[item.itemId].path)
+                when (item.itemId) {
+                    100 -> chooseTextSize()
+                    in 200..202 -> (activity as? MainActivity)?.goToTab(item.itemId - 200)
+                    203 -> (activity as? MainActivity)?.openMore()
+                    else -> openInGame(menu.drop(3)[item.itemId].path)
+                }
                 true
             }
             popup.show()
@@ -213,8 +225,14 @@ class KolWebFragment : Fragment() {
             addView(vitalItem("meat", R.drawable.ic_vital_meat, "Meat"))
             visibility = if (panePref().getInt("web_panes", 0) == paneCols.size - 1) View.VISIBLE else View.GONE
         }
-        // swipe sideways if the line is longer than the screen
-        root.addView(HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; isFillViewport = true; addView(statusBar) })
+        if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+            // landscape: the screen is wide and short, so the vitals share the toolbar row (in the free space before the menu button)
+            statusBar?.setPadding((8 * dp).toInt(), 0, 0, 0)
+            row.addView(statusBar, row.indexOfChild(more) - 1)
+        } else {
+            // swipe sideways if the line is longer than the screen
+            root.addView(HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; isFillViewport = true; addView(statusBar) })
+        }
 
         val frame = FrameLayout(ctx)
         val wv = WebView(ctx).apply {

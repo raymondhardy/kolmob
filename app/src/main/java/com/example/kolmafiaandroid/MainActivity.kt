@@ -523,9 +523,20 @@ class MainActivity : AppCompatActivity() {
                     else -> R.id.nav_dashboard
                 }
                 binding.bottomNavigation.menu.findItem(item)?.isChecked = true
+                applyNavVisibility()
             }
         })
+        binding.viewPager.post { applyNavVisibility() }
     }
+
+    /** In landscape the Game tab takes the whole height: the bottom tabs hide there (the Game toolbar's menu has them). */
+    private fun applyNavVisibility() {
+        val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        binding.bottomNavigation.visibility = if (landscape && binding.viewPager.currentItem == 2) View.GONE else View.VISIBLE
+    }
+
+    fun goToTab(index: Int) { dismissOpenDialogs(); binding.viewPager.currentItem = index }
+    fun openMore() { showMoreSheet() }
 
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemReselectedListener { dismissOpenDialogs() } // tapping the current tab closes a dialog too

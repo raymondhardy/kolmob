@@ -207,10 +207,10 @@ class KolWebFragment : Fragment() {
             addView(vitalItem("hp", R.drawable.ic_vital_hp, "Hit points. Tap to restore", restoreTap("restore hp", "HP")))
             addView(vitalItem("mp", R.drawable.ic_vital_mp, "Mana. Tap to restore", restoreTap("restore mp", "MP")))
             addView(vitalItem("adv", R.drawable.ic_vital_adv, "Adventures left"))
-            addView(vitalItem("meat", R.drawable.ic_vital_meat, "Meat"))
             addView(vitalItem("food", R.drawable.ic_vital_food, "Fullness"))
             addView(vitalItem("drink", R.drawable.ic_vital_drink, "Liver"))
             addView(vitalItem("spleen", R.drawable.ic_vital_spleen, "Spleen"))
+            addView(vitalItem("meat", R.drawable.ic_vital_meat, "Meat"))
             visibility = if (panePref().getInt("web_panes", 0) == paneCols.size - 1) View.VISIBLE else View.GONE
         }
         // swipe sideways if the line is longer than the screen
@@ -483,6 +483,19 @@ class KolWebFragment : Fragment() {
         if (hidden) refreshVitals()
     }
 
+    /** Full number below 10,000; above that 40k, 1.2M, 3.4B, 5T, 6Qa, 7Qi so trillions of meat still fit the bar. */
+    private fun compactNumber(n: Long, plainBelow: Long = 1_000_000L): String {
+        if (n < plainBelow) return String.format("%,d", n)
+        val units = arrayOf("k", "M", "B", "T", "Qa", "Qi")
+        var v = n.toDouble()
+        var i = -1
+        while (v >= 1000.0 && i < units.size - 1) { v /= 1000.0; i++ }
+        // carry 999.96k up to 1M instead of showing "1000k"
+        if (Math.round(v * 10) >= 10_000 && i < units.size - 1) { v /= 1000.0; i++ }
+        val text = if (v >= 100) Math.round(v).toString() else String.format("%.1f", v).removeSuffix(".0")
+        return text + units[i]
+    }
+
     private fun refreshVitals() {
         KolEngineHost.vitals { json ->
             activity?.runOnUiThread {
@@ -490,10 +503,10 @@ class KolWebFragment : Fragment() {
                 try {
                     val o = org.json.JSONObject(json)
                     if (!o.has("hp")) return@runOnUiThread
-                    vt["hp"]?.text = "${o.optLong("hp")}/${o.optLong("maxHp")}"
-                    vt["mp"]?.text = "${o.optLong("mp")}/${o.optLong("maxMp")}"
+                    vt["hp"]?.text = "${compactNumber(o.optLong("hp"), 10_000L)}/${compactNumber(o.optLong("maxHp"), 10_000L)}"
+                    vt["mp"]?.text = "${compactNumber(o.optLong("mp"), 10_000L)}/${compactNumber(o.optLong("maxMp"), 10_000L)}"
                     vt["adv"]?.text = "${o.optInt("adv")}"
-                    vt["meat"]?.text = String.format("%,d", o.optLong("meat"))
+                    vt["meat"]?.text = compactNumber(o.optLong("meat"))
                     vt["food"]?.text = "${o.optInt("full")}/${o.optInt("fullLimit")}"
                     vt["drink"]?.text = "${o.optInt("drunk")}/${o.optInt("drunkLimit")}"
                     vt["spleen"]?.text = "${o.optInt("spleen")}/${o.optInt("spleenLimit")}"

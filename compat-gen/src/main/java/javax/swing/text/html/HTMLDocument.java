@@ -7,22 +7,22 @@ public class HTMLDocument extends javax.swing.text.DefaultStyledDocument {
   public javax.swing.text.Element getElement(javax.swing.text.Element p0, java.lang.Object p1, java.lang.Object p2) { return null; }
   public void removeElement(javax.swing.text.Element p0) {  }
   public void insertBeforeEnd(javax.swing.text.Element p0, java.lang.String p1) {  }
-  public javax.swing.text.Element getCharacterElement(int p0) { return null; }
-  public void setParagraphAttributes(int p0, int p1, javax.swing.text.AttributeSet p2, boolean p3) {  }
-  public void removeStyle(java.lang.String p0) {  }
-  public void setCharacterAttributes(int p0, int p1, javax.swing.text.AttributeSet p2, boolean p3) {  }
   public javax.swing.text.Element getParagraphElement(int p0) { return null; }
   public com.kolmob.awt.Color getForeground(javax.swing.text.AttributeSet p0) { return null; }
   public com.kolmob.awt.Color getBackground(javax.swing.text.AttributeSet p0) { return null; }
   public com.kolmob.awt.Font getFont(javax.swing.text.AttributeSet p0) { return null; }
+  public javax.swing.text.Element getCharacterElement(int p0) { return null; }
+  public void setParagraphAttributes(int p0, int p1, javax.swing.text.AttributeSet p2, boolean p3) {  }
+  public void removeStyle(java.lang.String p0) {  }
+  public void setCharacterAttributes(int p0, int p1, javax.swing.text.AttributeSet p2, boolean p3) {  }
+  public void putProperty(java.lang.Object p0, java.lang.Object p1) {  }
+  public void insertString(int p0, java.lang.String p1, javax.swing.text.AttributeSet p2) {  }
+  public javax.swing.text.Position createPosition(int p0) { return null; }
+  public java.lang.String getText(int p0, int p1) { return null; }
   public javax.swing.text.Position getStartPosition() { return null; }
   public javax.swing.text.Position getEndPosition() { return null; }
   public javax.swing.text.Element[] getRootElements() { return new javax.swing.text.Element[0]; }
   public void render(java.lang.Runnable p0) {  }
-  public java.lang.String getText(int p0, int p1) { return null; }
-  public void putProperty(java.lang.Object p0, java.lang.Object p1) {  }
-  public void insertString(int p0, java.lang.String p1, javax.swing.text.AttributeSet p2) {  }
-  public javax.swing.text.Position createPosition(int p0) { return null; }
   public void remove(int p0, int p1) {  }
   public java.lang.Object getProperty(java.lang.Object p0) { return null; }
   public HTMLDocument() {  }

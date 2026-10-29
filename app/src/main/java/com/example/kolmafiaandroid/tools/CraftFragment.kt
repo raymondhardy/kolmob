@@ -26,7 +26,7 @@ import org.json.JSONObject
 
 /** Crafting: everything KoLmafia says you can make right now; tap one to make it (runs `create`). */
 class CraftFragment : DialogFragment() {
-    private class Recipe(val name: String, val img: String, val possible: Int, val method: String, val ingredients: String)
+    private class Recipe(val name: String, val img: String, val possible: Int, val method: String, val ingredients: String, val needs: String = "")
 
     private var all = listOf<Recipe>()
     private var filter = ""
@@ -78,12 +78,14 @@ class CraftFragment : DialogFragment() {
             val o = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
             val arr = o.optJSONArray("items")
             val list = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getJSONObject(it) }.map {
-                Recipe(android.text.Html.fromHtml(it.optString("name"), 0).toString(), it.optString("img"), it.optInt("possible"), it.optString("method"), it.optString("ingredients"))
+                Recipe(android.text.Html.fromHtml(it.optString("name"), 0).toString(), it.optString("img"), it.optInt("possible"), it.optString("method"), it.optString("ingredients"), if (it.optBoolean("blocked")) it.optString("needs").ifEmpty { "a tool" } else "")
             }
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 all = list.filter { inMode(it.method) }.sortedWith(compareBy({ prettyMethod(it.method) }, { it.name.lowercase() }))
-                status.text = if (o.has("error")) "Could not load recipes. Are you logged in?" else "${all.size} things you can make · tap one"
+                val blocked = all.count { it.needs.isNotEmpty() }
+                status.text = if (o.has("error")) "Could not load recipes. Are you logged in?"
+                else "${all.size - blocked} things you can make · tap one" + if (blocked > 0) " · $blocked more need a tool you don't have" else ""
                 render()
             }
         }
@@ -91,6 +93,7 @@ class CraftFragment : DialogFragment() {
 
     private fun prettyMethod(m: String) = when (m) {
         "COMBINE" -> "Meat paste"
+        "NOCREATE" -> "Meat items"
         "COOK", "COOK_FANCY" -> "Cooking"
         "MIX", "MIX_FANCY" -> "Cocktail crafting"
         "SMITH", "SSMITH", "SMITH_ARMOR", "SMITH_WEAPON" -> "Smithing"
@@ -124,6 +127,7 @@ class CraftFragment : DialogFragment() {
             val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
             col.addView(label(ctx, r.name, 16f, KC.text))
             if (r.ingredients.isNotEmpty()) col.addView(label(ctx, r.ingredients, 12f, KC.muted))
+            if (r.needs.isNotEmpty()) col.addView(label(ctx, "Needs ${r.needs}", 12f, 0xFFFF9800.toInt()))
             row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
             row.addView(label(ctx, "×${r.possible}", 14f, KC.muted))
             com.example.kolmafiaandroid.ui.clickable(row) { make(r) }
@@ -132,6 +136,12 @@ class CraftFragment : DialogFragment() {
     }
 
     private fun make(r: Recipe) {
+        if (r.needs.isNotEmpty()) {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(r.name)
+                .setMessage("You have the ingredients, but making this needs ${r.needs}, which you don't have.")
+                .setPositiveButton("OK", null).show()
+            return
+        }
         askQuantity("Make ${r.name}", r.ingredients, r.possible, "Make") { n ->
             status.text = "Making $n × ${r.name}…"
             KolEngineHost.execute("create $n ${r.name}") {

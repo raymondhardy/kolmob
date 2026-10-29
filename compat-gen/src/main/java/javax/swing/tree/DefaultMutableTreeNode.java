@@ -8,9 +8,9 @@ public class DefaultMutableTreeNode implements java.lang.Cloneable, javax.swing.
   public void removeAllChildren() {  }
   public javax.swing.tree.TreeNode getChildAt(int p0) { return null; }
   public javax.swing.tree.TreeNode getLastChild() { return null; }
+  public void setParent(javax.swing.tree.MutableTreeNode p0) {  }
   public void setUserObject(java.lang.Object p0) {  }
   public void removeFromParent() {  }
-  public void setParent(javax.swing.tree.MutableTreeNode p0) {  }
   public void remove(javax.swing.tree.MutableTreeNode p0) {  }
   public void remove(int p0) {  }
   public void insert(javax.swing.tree.MutableTreeNode p0, int p1) {  }

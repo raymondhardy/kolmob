@@ -649,7 +649,7 @@ public final class KolEngine {
     return sb.append('}').toString();
   }
 
-  /** Mall search: JSON [{name,img,price,quantity,limit,shop,shopId}] cheapest first (up to max rows). */
+  /** Mall search: JSON {results:[{name,img,price,quantity,limit,shop,cost?}]}: meat offers cheapest first, then coinmaster offers (cost = their price in their own currency). */
   public static synchronized String mallSearch(String query, int max) {
     StringBuilder sb = new StringBuilder("{\"results\":[");
     try {
@@ -659,9 +659,19 @@ public final class KolEngine {
       req.run();
       boolean first = true;
       int n = 0;
+      // Coinmasters (Mr. Store, tokens...) are listed by what they cost in their own currency, not in meat: put them after the
+      // real meat offers so a "1" there is never mistaken for the cheapest price.
+      java.util.List<net.sourceforge.kolmafia.request.PurchaseRequest> ordered = new java.util.ArrayList<>();
+      java.util.List<net.sourceforge.kolmafia.request.PurchaseRequest> coin = new java.util.ArrayList<>();
       for (net.sourceforge.kolmafia.request.PurchaseRequest p : new java.util.ArrayList<>(results)) {
         if (p == null) continue;
-        if (n++ >= max) break;
+        if (p instanceof net.sourceforge.kolmafia.request.CoinMasterPurchaseRequest) coin.add(p);
+        else ordered.add(p);
+      }
+      ordered.addAll(coin);
+      for (net.sourceforge.kolmafia.request.PurchaseRequest p : ordered) {
+        // the row limit applies to meat offers; coinmaster rows (few) are always kept
+        if (!(p instanceof net.sourceforge.kolmafia.request.CoinMasterPurchaseRequest) && n++ >= max) continue;
         if (!first) sb.append(',');
         first = false;
         sb.append('{');
@@ -671,6 +681,9 @@ public final class KolEngine {
         kv(sb, "quantity", p.getQuantity());
         kv(sb, "limit", p.getLimit());
         kv(sb, "shop", p.getShopName());
+        if (p instanceof net.sourceforge.kolmafia.request.CoinMasterPurchaseRequest cm) {
+          kv(sb, "cost", cm.getPriceString());
+        }
         sb.append('}');
       }
       sb.append(']');
@@ -1355,7 +1368,7 @@ public final class KolEngine {
     }
   }
 
-  /** Things you can make right now: JSON [{name,img,possible,method,ingredients}]. */
+  /** Things you can make right now: JSON {items:[{name,img,possible,method,ingredients,blocked?,needs?}]}; blocked ones lack a tool. */
   public static synchronized String creatables() {
     StringBuilder sb = new StringBuilder("{\"items\":[");
     boolean first = true;
@@ -1384,11 +1397,59 @@ public final class KolEngine {
         kv(sb, "ingredients", ing.toString());
         sb.append('}');
       }
+      // Recipes whose ingredients you already hold but whose crafting tool you lack (smithing without a tenderizing hammer...):
+      // listed too, marked blocked, so the screen can say what is missing instead of silently hiding them.
+      for (var c : new java.util.ArrayList<>(net.sourceforge.kolmafia.objectpool.ConcoctionPool.concoctions())) {
+        try {
+          if (c == null) continue;
+          var method = net.sourceforge.kolmafia.persistence.ConcoctionDatabase.getMixingMethod(c);
+          String needs = missingTool(method);
+          if (needs == null || net.sourceforge.kolmafia.persistence.ConcoctionDatabase.PERMIT_METHOD.contains(method)) continue;
+          var ings = net.sourceforge.kolmafia.persistence.ConcoctionDatabase.getIngredients(c);
+          if (ings == null || ings.length == 0) continue;
+          int possible = Integer.MAX_VALUE;
+          StringBuilder ing = new StringBuilder();
+          for (var a : ings) {
+            if (a == null || a.getItemId() <= 0) { possible = 0; break; }
+            possible = Math.min(possible, net.sourceforge.kolmafia.session.InventoryManager.getAccessibleCount(a) / Math.max(1, a.getCount()));
+            if (ing.length() > 0) ing.append(" + ");
+            ing.append(a.getCount() > 1 ? a.getCount() + "× " : "").append(a.getName());
+          }
+          if (possible <= 0 || possible == Integer.MAX_VALUE) continue;
+          if (!first) sb.append(',');
+          first = false;
+          sb.append('{');
+          kv(sb, "name", c.getName());
+          kv(sb, "img", itemImg(c.getItemId()));
+          kv(sb, "possible", possible);
+          kv(sb, "method", String.valueOf(method));
+          kv(sb, "ingredients", ing.toString());
+          kv(sb, "blocked", true);
+          kv(sb, "needs", needs);
+          sb.append('}');
+        } catch (Throwable ignored) {
+        }
+      }
       sb.append(']');
     } catch (Throwable t) {
       sb.append("],\"error\":").append(quote(String.valueOf(t)));
     }
     return sb.append('}').toString();
+  }
+
+  /** The tool a crafting method needs, for the methods where owning one is the usual obstacle; null for anything else. */
+  private static String missingTool(net.sourceforge.kolmafia.KoLConstants.CraftingType method) {
+    if (method == null) return null;
+    return switch (method) {
+      case SMITH, SSMITH -> "a tenderizing hammer";
+      case COOK -> "an oven or a dramatic range";
+      case COOK_FANCY -> "a dramatic range";
+      case MIX -> "a shaker or a cocktailcrafting kit";
+      case MIX_FANCY -> "a cocktailcrafting kit";
+      case JEWELRY -> "jewelry-making pliers";
+      case SUSHI -> "a sushi-rolling mat";
+      default -> null;
+    };
   }
 
   /** Your mall store: JSON {open, items:[{name,img,quantity,price,limit,lowest}]}. Loads it from KoL first. */

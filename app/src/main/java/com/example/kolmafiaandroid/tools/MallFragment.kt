@@ -31,7 +31,7 @@ import java.text.NumberFormat
 
 /** Mall: search the player mall (KoLmafia's MallSearchRequest) and buy with KoLmafia's own `buy` command. */
 class MallFragment : DialogFragment() {
-    private class Offer(val name: String, val img: String, val price: Long, val quantity: Int, val limit: Int, val shop: String)
+    private class Offer(val name: String, val img: String, val price: Long, val quantity: Int, val limit: Int, val shop: String, val cost: String = "")
 
     private var offers = listOf<Offer>()
     private var meat = 0L
@@ -96,7 +96,7 @@ class MallFragment : DialogFragment() {
             val o = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
             val arr = o.optJSONArray("results")
             val found = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getJSONObject(it) }.map {
-                Offer(android.text.Html.fromHtml(it.optString("name"), 0).toString(), it.optString("img"), it.optLong("price"), it.optInt("quantity"), it.optInt("limit"), it.optString("shop"))
+                Offer(android.text.Html.fromHtml(it.optString("name"), 0).toString(), it.optString("img"), it.optLong("price"), it.optInt("quantity"), it.optInt("limit"), it.optString("shop"), it.optString("cost"))
             }
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
@@ -135,7 +135,7 @@ class MallFragment : DialogFragment() {
                 val col = row.getChildAt(1) as LinearLayout
                 (col.getChildAt(0) as TextView).text = o.name
                 (col.getChildAt(1) as TextView).text = listOf(o.shop, "${fmt.format(o.quantity)} in stock", if (o.limit in 1 until o.quantity) "limit ${o.limit}/day" else "").filter { it.isNotEmpty() }.joinToString(" · ")
-                (row.getChildAt(2) as TextView).text = fmt.format(o.price) + " meat"
+                (row.getChildAt(2) as TextView).text = if (o.cost.isNotEmpty()) o.cost else fmt.format(o.price) + " meat"
                 return row
             }
         }
@@ -157,6 +157,13 @@ class MallFragment : DialogFragment() {
     }
 
     private fun buy(o: Offer) {
+        if (o.cost.isNotEmpty()) {
+            // a coinmaster such as Mr. Store: paid in its own currency, never meat
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(o.name)
+                .setMessage("Sold by ${o.shop} for ${o.cost}, not for meat.")
+                .setPositiveButton("OK", null).show()
+            return
+        }
         val affordable = if (o.price > 0) (meat / o.price).toInt() else 0
         val cap = minOf(o.quantity, affordable, if (o.limit > 0) o.limit else Int.MAX_VALUE)
         if (cap <= 0) {

@@ -165,21 +165,6 @@ class AdventureFragment : Fragment() {
         val prep = card(prepBox, "Before you go")
         prep.addView(uiRow(ctx, "Restore HP to full", null, { KolEngineHost.execute("restore hp") }, green))
         prep.addView(uiRow(ctx, "Restore MP to full", null, { KolEngineHost.execute("restore mp") }, green))
-        // ascension scripts: shown only when autoscend is installed
-        if (java.io.File(ctx.filesDir, "kolmafia/scripts/autoscend.ash").exists()) {
-            val asc = card(prepBox, "Ascension  ·  autoscend")
-            asc.addView(uiRow(ctx, "Run autoscend", "plays your whole run", {
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Run autoscend?")
-                    .setMessage("It will spend adventures, meat and items on its own until the run is done or you stop it. A notification keeps it running in the background, with a Stop button.")
-                    .setPositiveButton("Run") { _, _ -> KolEngineHost.execute("autoscend") }
-                    .setNegativeButton("Cancel", null).show()
-            }, green))
-            asc.addView(uiRow(ctx, "Simulate", "autoscend sim: shows what it would do", { KolEngineHost.execute("autoscend sim") }, green))
-            asc.addView(uiRow(ctx, "Stop", "abort whatever is running", { KolEngineHost.abort() }, 0xFFFF8A65.toInt()))
-            asc.addView(uiRow(ctx, "Settings", "all auto_ preferences", {
-                com.example.kolmafiaandroid.tools.PreferencesFragment.show(parentFragmentManager, "auto_")
-            }, KC.text))
-        }
         val auto = card(prepBox, "Auto-restore  ·  KoLmafia heals for you between turns")
         for (hp in listOf(true, false)) {
             val name = if (hp) "HP" else "MP"

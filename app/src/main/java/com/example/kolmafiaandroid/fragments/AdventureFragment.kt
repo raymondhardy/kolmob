@@ -249,7 +249,7 @@ class AdventureFragment : Fragment() {
         }
         logScroll = ScrollView(ctx).apply { addView(log) }
         logCard.addView(logScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(if (wide) 560 else 260)))
-        logCard.addView(MaterialButton(ctx, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+        logCard.addView(MaterialButton(ctx, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
             text = "Clear log"
             setOnClickListener { logBuffer.clear(); log.text = "" }
         })

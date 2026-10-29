@@ -10,22 +10,22 @@ public class DefaultCaret extends com.kolmob.awt.Rectangle implements javax.swin
   public void setDot(int p0, javax.swing.text.Position.Bias p1) {  }
   public void moveDot(int p0, javax.swing.text.Position.Bias p1) {  }
   public void adjustVisibility(com.kolmob.awt.Rectangle p0) {  }
+  public boolean isSelectionVisible() { return false; }
+  public void setSelectionVisible(boolean p0) {  }
+  public void setMagicCaretPosition(com.kolmob.awt.Point p0) {  }
+  public com.kolmob.awt.Point getMagicCaretPosition() { return null; }
   public void deinstall(javax.swing.text.JTextComponent p0) {  }
   public void install(javax.swing.text.JTextComponent p0) {  }
   public int getDot() { return 0; }
   public int getMark() { return 0; }
   public void setDot(int p0) {  }
   public void moveDot(int p0) {  }
-  public void removeChangeListener(javax.swing.event.ChangeListener p0) {  }
-  public void addChangeListener(javax.swing.event.ChangeListener p0) {  }
   public int getBlinkRate() { return 0; }
   public void setBlinkRate(int p0) {  }
   public boolean isVisible() { return false; }
   public void paint(com.kolmob.awt.Graphics p0) {  }
-  public boolean isSelectionVisible() { return false; }
-  public void setSelectionVisible(boolean p0) {  }
-  public void setMagicCaretPosition(com.kolmob.awt.Point p0) {  }
-  public com.kolmob.awt.Point getMagicCaretPosition() { return null; }
+  public void removeChangeListener(javax.swing.event.ChangeListener p0) {  }
+  public void addChangeListener(javax.swing.event.ChangeListener p0) {  }
   public void focusLost(com.kolmob.awt.event.FocusEvent p0) {  }
   public void mouseClicked(com.kolmob.awt.event.MouseEvent p0) {  }
   public void mouseExited(com.kolmob.awt.event.MouseEvent p0) {  }

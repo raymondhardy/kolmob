@@ -82,7 +82,7 @@ class ChatFragment : DialogFragment() {
     }
 
     private fun textBtn(label: String, onClick: () -> Unit) =
-        MaterialButton(requireContext(), null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+        MaterialButton(requireContext(), null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
             text = label; isAllCaps = false; minWidth = 0; setOnClickListener { onClick() }
         }
 
@@ -524,11 +524,11 @@ class ChatFragment : DialogFragment() {
         }
         known.forEach { addChannel(it, cur.channels.contains(it)) }
         box.addView(channelHolder)
-        box.addView(MaterialButton(ctx, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+        box.addView(MaterialButton(ctx, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
             text = "Highlight words…"
             setOnClickListener { showHighlights() }
         })
-        box.addView(MaterialButton(ctx, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+        box.addView(MaterialButton(ctx, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
             text = "Add a channel…"
             setOnClickListener { ask("Channel name") { n -> if (n.isNotBlank()) addChannel("/" + n.trim().trimStart('/').lowercase(), true) } }
         })

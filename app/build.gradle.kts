@@ -2,12 +2,11 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
     namespace = "com.example.kolmafiaandroid"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.kolmafiaandroid"
@@ -68,10 +67,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    kotlinOptions {
-        jvmTarget = "21"
-    }
-
     buildFeatures {
         viewBinding = true
     }
@@ -88,25 +83,31 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
+}
+
 dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("androidx.activity:activity-ktx:1.9.0")
-    implementation("androidx.fragment:fragment-ktx:1.7.1")
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.activity:activity-ktx:1.13.0")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
 
     // Material 3
-    implementation("com.google.android.material:material:1.11.0")
+    implementation("com.google.android.material:material:1.14.0")
 
     // Splash screen support
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.core:core-splashscreen:1.2.0")
 
     // Sliding tabs via ViewPager2
-    implementation("androidx.viewpager2:viewpager2:1.0.0")
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
 
     // JSON
     implementation("com.google.code.gson:gson:2.15.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
 
     // Real KoLmafia core (headless, with Swing/AWT/java.net.http replaced by Android shims).
     // The core jar is remapped by :engine:remapAwt (java.awt -> com.kolmob.awt, java.net.http -> com.kolmob.http).
@@ -124,14 +125,14 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-core:5.12.0")
-    testImplementation("org.robolectric:robolectric:4.12")
-    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("org.mockito:mockito-core:5.24.0")
+    testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation("androidx.test.ext:junit:1.3.0")
     testImplementation("androidx.test:core:1.6.1")
 
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test:runner:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test:rules:1.6.1")
     androidTestImplementation("androidx.test:core:1.6.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }

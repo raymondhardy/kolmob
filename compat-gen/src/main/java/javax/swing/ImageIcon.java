@@ -5,7 +5,7 @@ public class ImageIcon implements javax.swing.Icon, java.io.Serializable, javax.
   public com.kolmob.awt.Image getImage() { return null; }
   public ImageIcon(java.lang.String p0) {  }
   public ImageIcon(java.net.URL p0) {  }
-  public void paintIcon(com.kolmob.awt.Component p0, com.kolmob.awt.Graphics p1, int p2, int p3) {  }
   public int getIconWidth() { return 0; }
   public int getIconHeight() { return 0; }
+  public void paintIcon(com.kolmob.awt.Component p0, com.kolmob.awt.Graphics p1, int p2, int p3) {  }
 }

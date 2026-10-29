@@ -118,8 +118,17 @@ fun row(
         gravity = Gravity.CENTER_VERTICAL
         setPadding(0, dp(context, 8), 0, dp(context, 8))
     }
-    r.addView(label(context, left, 15f, leftColor), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-    if (right != null) r.addView(label(context, right, 13f, KC.muted))
+    // a long description would otherwise take the whole row and squeeze the title into a sliver that wraps letter by letter:
+    // share the width instead and let the description wrap on its own lines
+    val longRight = right != null && right.length > 32
+    r.addView(label(context, left, 15f, leftColor), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, if (longRight) 0.42f else 1f))
+    if (right != null) {
+        val rv = label(context, right, 13f, KC.muted)
+        if (longRight) {
+            rv.gravity = Gravity.END
+            r.addView(rv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.58f).apply { marginStart = dp(context, 8) })
+        } else r.addView(rv)
+    }
     if (onClick != null) {
         r.addView(label(context, "  ›", 20f, KC.muted))
         clickable(r, onClick)

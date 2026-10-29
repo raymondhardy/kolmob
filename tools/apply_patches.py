@@ -46,6 +46,45 @@ PATCHES = [
     ('net/sourceforge/kolmafia/KoLmafiaCLI.java',
      '  public void listenForCommands() {',
      '  /** Kolmob: lets scripts that ask a question read the answer from System.in (the app feeds it). */\n  public void startInputRetriever() {\n    if (!this.retriever.isAlive()) {\n      this.retriever.setDaemon(true);\n      this.retriever.start();\n    }\n  }\n\n  public void listenForCommands() {'),
+    # Memory: KoLmafia caches one fully parsed interpreter per script file. Autoscend's pre/post-adventure, choice and
+    # combat scripts each import all of autoscend (~140 MB parsed each), which exhausts the phone's 512 MB heap after a few
+    # dozen turns. Hold the cache through soft references so the runtime drops cached parses before running out of memory
+    # (a dropped script is simply parsed again the next time it runs).
+    ('net/sourceforge/kolmafia/KoLmafiaASH.java',
+     '''  private static final HashMap<File, ScriptRuntime> INTERPRETERS = new HashMap<>();''',
+     '''  private static final HashMap<File, java.lang.ref.SoftReference<ScriptRuntime>> INTERPRETERS =
+      new HashMap<>();'''),
+    ('net/sourceforge/kolmafia/KoLmafiaASH.java',
+     '''    boolean createInterpreter = !KoLmafiaASH.TIMESTAMPS.containsKey(toExecute);
+''',
+     '''    boolean createInterpreter = !KoLmafiaASH.TIMESTAMPS.containsKey(toExecute);
+    ScriptRuntime cached = null;
+'''),
+    ('net/sourceforge/kolmafia/KoLmafiaASH.java',
+     '''      ScriptRuntime interpreter = KoLmafiaASH.INTERPRETERS.get(toExecute);
+      if (interpreter instanceof AshRuntime) {''',
+     '''      java.lang.ref.SoftReference<ScriptRuntime> ref = KoLmafiaASH.INTERPRETERS.get(toExecute);
+      cached = ref == null ? null : ref.get();
+      ScriptRuntime interpreter = cached;
+      if (interpreter == null) {
+        createInterpreter = true;
+      } else if (interpreter instanceof AshRuntime) {'''),
+    ('net/sourceforge/kolmafia/KoLmafiaASH.java',
+     '''      KoLmafiaASH.INTERPRETERS.put(toExecute, interpreter);
+    }
+
+    return KoLmafiaASH.INTERPRETERS.get(toExecute);''',
+     '''      KoLmafiaASH.INTERPRETERS.put(toExecute, new java.lang.ref.SoftReference<>(interpreter));
+      return interpreter;
+    }
+
+    return cached;'''),
+    ('net/sourceforge/kolmafia/KoLmafiaASH.java',
+     '''    for (ScriptRuntime i : KoLmafiaASH.INTERPRETERS.values()) {
+      if (i.getRelayRequest() != null) {''',
+     '''    for (java.lang.ref.SoftReference<ScriptRuntime> ref : KoLmafiaASH.INTERPRETERS.values()) {
+      ScriptRuntime i = ref.get();
+      if (i != null && i.getRelayRequest() != null) {'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

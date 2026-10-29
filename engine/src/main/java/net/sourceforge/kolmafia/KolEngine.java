@@ -172,6 +172,7 @@ public final class KolEngine {
       return;
     }
     KolProjects.registerNew(before, scope, userName());
+    KolProjects.reconcile(userName());
   }
 
   /** Changes a project's scope ("global" or "user" for the logged-in account). */

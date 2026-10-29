@@ -314,6 +314,32 @@
     invalidateProjectsSyncPaths();
   }
 
+  /**
+   * The git project folders named in a project's dependencies.txt (the folders they install into, whether
+   * or not they are installed yet). SVN dependencies are not listed.
+   */
+  public static List<String> dependencyFolders(Path projectPath) {
+    List<String> out = new ArrayList<>();
+    try {
+      Path deps = getRoot(projectPath).resolve(DEPENDENCIES);
+      if (!Files.exists(deps)) return out;
+      for (String line : Files.readAllLines(deps)) {
+        line = line.trim();
+        if (line.isEmpty() || line.startsWith("#")) continue;
+        String[] args = line.split("\\s+");
+        if (args[0].equals("github")) {
+          if (args.length < 2) continue;
+          out.add(getRepoId("https://github.com/" + args[1] + ".git", args.length > 2 ? args[2] : null));
+        } else if (args.length > 1 || args[0].endsWith(".git")) {
+          out.add(getRepoId(args[0], args.length > 1 ? args[1] : null));
+        }
+      }
+    } catch (IOException | RuntimeException ignored) {
+      // best effort: no dependency info just means nothing extra to fix up
+    }
+    return out;
+  }
+
   /** The data-root-relative paths a project provides when synced. */
   public static Set<Path> projectFiles(Path projectPath) throws IOException {
     return Files.isDirectory(projectPath) ? syncedFiles(getRoot(projectPath)) : Set.of();

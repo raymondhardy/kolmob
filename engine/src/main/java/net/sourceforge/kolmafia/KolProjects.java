@@ -115,6 +115,25 @@ final class KolProjects {
   static void reconcile(String activeUser) {
     List<Project> all = list();
     String user = activeUser == null ? "" : activeUser;
+    // A project is only usable if what it depends on is installed too. A dependency that belongs to another
+    // account (or was never synced for this one) would leave the project with missing imports, so make
+    // such dependencies global.
+    boolean promoted = false;
+    for (Project p : all) {
+      if (!p.kind.equals("git") || !wanted(p, user)) continue;
+      for (String dep : GitManager.dependencyFolders(p.path)) {
+        for (Project d : all) {
+          if (d.kind.equals("git") && d.name.equals(dep) && !wanted(d, user)) {
+            RequestLogger.printLine(
+                d.name + " is needed by " + p.name + "; making it available to every account");
+            d.scope = "global";
+            d.owner = "";
+            promoted = true;
+          }
+        }
+      }
+    }
+    if (promoted) saveRegistry(all);
     Set<Path> removed = new HashSet<>();
     boolean changed = false;
     for (Project p : all) {

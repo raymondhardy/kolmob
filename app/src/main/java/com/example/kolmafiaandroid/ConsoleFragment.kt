@@ -452,14 +452,21 @@ class ConsoleFragment : Fragment() {
     }
 
     private fun submit() {
-        val cmd = input.text.toString().trim()
-        if (cmd.isEmpty()) return
-        addToHistory(cmd)
+        val text = input.text.toString().trim()
+        if (text.isEmpty()) return
         input.setText("")
-        output.append("> $cmd\n")
         KolEngineHost.blankParams = pendingBlank
         pendingBlank = false
-        KolEngineHost.execute(cmd)
+        // A pasted block of several commands (one per line) must run as separate commands, not as one command
+        // whose last word is the rest of the paste. Script blocks (ash/js with braces) stay in one piece.
+        val first = text.substringBefore(' ').lowercase()
+        val isScriptBlock = (first == "ash" || first == "js") && (text.contains('{') || text.contains('}'))
+        val cmds = if (isScriptBlock) listOf(text) else text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        for (cmd in cmds) {
+            addToHistory(cmd)
+            output.append("> $cmd\n")
+            KolEngineHost.execute(cmd)
+        }
     }
 
     private fun copyOutput() {

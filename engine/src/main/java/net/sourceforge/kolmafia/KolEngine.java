@@ -1418,6 +1418,24 @@ public final class KolEngine {
     return sb.append('}').toString();
   }
 
+  /** The few numbers the relay browser's slim status bar shows: JSON {hp,maxHp,mp,maxMp,full,fullLimit,adv,meat}. */
+  public static synchronized String vitals() {
+    StringBuilder sb = new StringBuilder("{");
+    try {
+      kv(sb, "hp", KoLCharacter.getCurrentHP());
+      kv(sb, "maxHp", KoLCharacter.getMaximumHP());
+      kv(sb, "mp", KoLCharacter.getCurrentMP());
+      kv(sb, "maxMp", KoLCharacter.getMaximumMP());
+      kv(sb, "full", KoLCharacter.getFullness());
+      kv(sb, "fullLimit", KoLCharacter.getStomachCapacity());
+      kv(sb, "adv", KoLCharacter.getAdventuresLeft());
+      kv(sb, "meat", KoLCharacter.getAvailableMeat());
+    } catch (Throwable t) {
+      sb.append(",\"error\":").append(quote(String.valueOf(t)));
+    }
+    return sb.append('}').toString();
+  }
+
   /** Auto-restore settings for HP or MP: JSON {threshold,target,items:[{name,on}]} (fractions 0..1; threshold < 0 means off). */
   public static synchronized String restoreConfig(boolean hp) {
     StringBuilder sb = new StringBuilder("{");

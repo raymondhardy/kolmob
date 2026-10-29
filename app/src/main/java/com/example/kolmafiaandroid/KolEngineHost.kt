@@ -174,6 +174,11 @@ object KolEngineHost {
         }
     }
 
+    /** HP, MP and fullness for the slim status bar (see KolEngine.vitals), delivered on the reader thread. */
+    fun vitals(done: (String) -> Unit) {
+        reader.execute { done(try { KolEngine.vitals() } catch (t: Throwable) { "{}" }) }
+    }
+
     /** Diet plan JSON for an options string (see KolEngine.dietPlan), delivered on the reader thread. */
     fun dietPlan(spec: String, done: (String) -> Unit) {
         reader.execute {

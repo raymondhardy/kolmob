@@ -36,6 +36,17 @@ class KolWebFragment : Fragment() {
     private lateinit var box: LinearLayout
     private lateinit var message: TextView
     private lateinit var shortcuts: HorizontalScrollView
+    /** Slim HP / MP / fullness bar, shown only when the character pane is hidden ("Game only"). */
+    private var statusBar: LinearLayout? = null
+    private var hpView: TextView? = null
+    private var mpView: TextView? = null
+    private var fullView: TextView? = null
+    private val vitalsTick = object : Runnable {
+        override fun run() {
+            if (statusBar?.visibility == View.VISIBLE) refreshVitals()
+            statusBar?.postDelayed(this, 4000)
+        }
+    }
     /** Optional: on a choice page, take the option set in Choice adventures after a 2-second countdown (tap the banner to cancel). */
     /** Native replacement for a web <select>: [json] is {title, labels[], selected[], multiple}. */
     private fun showSelectDialog(json: String) {
@@ -160,6 +171,36 @@ class KolWebFragment : Fragment() {
         row.addView(more)
         shortcuts = HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; isFillViewport = true; addView(row) }
         root.addView(shortcuts)
+
+        // slim vitals bar: replaces the character pane's HP / MP / fullness when that pane is hidden; tap HP or MP to top off
+        fun vitalButton(label: String, color: Int, command: String, what: String): TextView = TextView(ctx).apply {
+            text = label
+            textSize = 14f
+            setTextColor(color)
+            gravity = Gravity.CENTER
+            setBackgroundResource(R.drawable.bg_icon_button)
+            setPadding((12 * dp).toInt(), (6 * dp).toInt(), (12 * dp).toInt(), (6 * dp).toInt())
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = (6 * dp).toInt() }
+            contentDescription = "Restore $what"
+            setOnClickListener {
+                android.widget.Toast.makeText(ctx, "Restoring $what...", android.widget.Toast.LENGTH_SHORT).show()
+                KolEngineHost.execute(command) { activity?.runOnUiThread { if (isAdded) refreshVitals() } }
+            }
+        }
+        hpView = vitalButton("HP ...", KC.pick(0xFFFF8A80.toInt(), 0xFFB71C1C.toInt()), "restore hp", "HP")
+        mpView = vitalButton("MP ...", KC.pick(0xFF82B1FF.toInt(), 0xFF0D47A1.toInt()), "restore mp", "MP")
+        fullView = TextView(ctx).apply { text = "Full ..."; textSize = 14f; setTextColor(KC.text); maxLines = 1; setPadding((4 * dp).toInt(), 0, (8 * dp).toInt(), 0) }
+        statusBar = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((8 * dp).toInt(), (3 * dp).toInt(), (8 * dp).toInt(), (3 * dp).toInt())
+            addView(hpView)
+            addView(mpView)
+            addView(fullView)
+            visibility = if (panePref().getInt("web_panes", 0) == paneCols.size - 1) View.VISIBLE else View.GONE
+        }
+        // swipe sideways if the line is longer than the screen
+        root.addView(HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; isFillViewport = true; addView(statusBar) })
 
         val frame = FrameLayout(ctx)
         val wv = WebView(ctx).apply {
@@ -318,10 +359,14 @@ class KolWebFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         backCallback.isEnabled = web?.canGoBack() == true
+        updateStatusBar()
+        statusBar?.removeCallbacks(vitalsTick)
+        statusBar?.postDelayed(vitalsTick, 4000)
     }
 
     override fun onPause() {
         backCallback.isEnabled = false
+        statusBar?.removeCallbacks(vitalsTick)
         super.onPause()
     }
 
@@ -417,7 +462,31 @@ class KolWebFragment : Fragment() {
 
     private fun panePref() = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
 
+    /** The vitals bar stands in for the character pane, so it shows exactly when that pane is hidden. */
+    private fun updateStatusBar() {
+        val hidden = panePref().getInt("web_panes", 0).coerceIn(0, paneCols.size - 1) == paneCols.size - 1
+        statusBar?.visibility = if (hidden) View.VISIBLE else View.GONE
+        if (hidden) refreshVitals()
+    }
+
+    private fun refreshVitals() {
+        KolEngineHost.vitals { json ->
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                try {
+                    val o = org.json.JSONObject(json)
+                    if (!o.has("hp")) return@runOnUiThread
+                    hpView?.text = "HP ${o.optLong("hp")}/${o.optLong("maxHp")}"
+                    mpView?.text = "MP ${o.optLong("mp")}/${o.optLong("maxMp")}"
+                    fullView?.text = "Full ${o.optInt("full")}/${o.optInt("fullLimit")}   Adv ${o.optInt("adv")}   Meat ${String.format("%,d", o.optLong("meat"))}"
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
     private fun applyPanes() {
+        updateStatusBar()
         val i = panePref().getInt("web_panes", 0).coerceIn(0, paneCols.size - 1)
         web?.evaluateJavascript("(function(){try{var r=top.document.getElementById('rootset');if(r)r.cols='" + paneCols[i] + "';}catch(e){}})()", null)
     }
@@ -541,6 +610,8 @@ class KolWebFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        statusBar?.removeCallbacks(vitalsTick)
+        statusBar = null; hpView = null; mpView = null; fullView = null
         overlay = null; overlayBody = null; webFrame = null; guideLoading = false
         web?.destroy()
         web = null

@@ -38,9 +38,7 @@ class KolWebFragment : Fragment() {
     private lateinit var shortcuts: HorizontalScrollView
     /** Slim HP / MP / fullness bar, shown only when the character pane is hidden ("Game only"). */
     private var statusBar: LinearLayout? = null
-    private var hpView: TextView? = null
-    private var mpView: TextView? = null
-    private var fullView: TextView? = null
+    private val vt = HashMap<String, TextView>()
     private val vitalsTick = object : Runnable {
         override fun run() {
             if (statusBar?.visibility == View.VISIBLE) refreshVitals()
@@ -172,31 +170,56 @@ class KolWebFragment : Fragment() {
         shortcuts = HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; isFillViewport = true; addView(row) }
         root.addView(shortcuts)
 
-        // slim vitals bar: replaces the character pane's HP / MP / fullness when that pane is hidden; tap HP or MP to top off
-        fun vitalButton(label: String, color: Int, command: String, what: String): TextView = TextView(ctx).apply {
-            text = label
-            textSize = 14f
-            setTextColor(color)
-            gravity = Gravity.CENTER
-            setBackgroundResource(R.drawable.bg_icon_button)
-            setPadding((12 * dp).toInt(), (6 * dp).toInt(), (12 * dp).toInt(), (6 * dp).toInt())
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = (6 * dp).toInt() }
-            contentDescription = "Restore $what"
-            setOnClickListener {
-                android.widget.Toast.makeText(ctx, "Restoring $what...", android.widget.Toast.LENGTH_SHORT).show()
-                KolEngineHost.execute(command) { activity?.runOnUiThread { if (isAdded) refreshVitals() } }
+        // slim vitals bar: icons (drawn to match the game's) for HP, MP, adventures, meat and the three organs, standing in for the
+        // character pane when it is hidden. Tap HP or MP to top off.
+        fun vitalItem(key: String, icon: Int, desc: String, onClick: (() -> Unit)? = null): LinearLayout {
+            val label = TextView(ctx).apply { text = "..."; textSize = 14f; setTextColor(KC.text); maxLines = 1 }
+            vt[key] = label
+            return LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                contentDescription = desc
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = (8 * dp).toInt() }
+                addView(android.widget.ImageView(ctx).apply {
+                    setImageResource(icon)
+                    setColorFilter(KC.text)
+                    layoutParams = LinearLayout.LayoutParams((20 * dp).toInt(), (20 * dp).toInt()).apply { marginEnd = (4 * dp).toInt() }
+                })
+                addView(label)
+                if (onClick != null) {
+                    setBackgroundResource(R.drawable.bg_icon_button)
+                    setPadding((10 * dp).toInt(), (6 * dp).toInt(), (10 * dp).toInt(), (6 * dp).toInt())
+                    setOnClickListener { onClick() }
+                } else {
+                    setPadding((4 * dp).toInt(), (6 * dp).toInt(), (4 * dp).toInt(), (6 * dp).toInt())
+                }
             }
         }
-        hpView = vitalButton("HP ...", KC.pick(0xFFFF8A80.toInt(), 0xFFB71C1C.toInt()), "restore hp", "HP")
-        mpView = vitalButton("MP ...", KC.pick(0xFF82B1FF.toInt(), 0xFF0D47A1.toInt()), "restore mp", "MP")
-        fullView = TextView(ctx).apply { text = "Full ..."; textSize = 14f; setTextColor(KC.text); maxLines = 1; setPadding((4 * dp).toInt(), 0, (8 * dp).toInt(), 0) }
-        statusBar = LinearLayout(ctx).apply {
+        fun restoreTap(command: String, what: String): () -> Unit = {
+            android.widget.Toast.makeText(ctx, "Restoring $what...", android.widget.Toast.LENGTH_SHORT).show()
+            KolEngineHost.execute(command) { activity?.runOnUiThread { if (isAdded) refreshVitals() } }
+        }
+        vt.clear()
+        val topRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            addView(vitalItem("hp", R.drawable.ic_vital_hp, "Hit points. Tap to restore", restoreTap("restore hp", "HP")))
+            addView(vitalItem("mp", R.drawable.ic_vital_mp, "Mana. Tap to restore", restoreTap("restore mp", "MP")))
+            addView(vitalItem("adv", R.drawable.ic_vital_adv, "Adventures left"))
+            addView(vitalItem("meat", R.drawable.ic_vital_meat, "Meat"))
+        }
+        val organRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(vitalItem("food", R.drawable.ic_vital_food, "Fullness"))
+            addView(vitalItem("drink", R.drawable.ic_vital_drink, "Liver"))
+            addView(vitalItem("spleen", R.drawable.ic_vital_spleen, "Spleen"))
+        }
+        statusBar = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding((8 * dp).toInt(), (3 * dp).toInt(), (8 * dp).toInt(), (3 * dp).toInt())
-            addView(hpView)
-            addView(mpView)
-            addView(fullView)
+            addView(topRow)
+            addView(organRow)
             visibility = if (panePref().getInt("web_panes", 0) == paneCols.size - 1) View.VISIBLE else View.GONE
         }
         // swipe sideways if the line is longer than the screen
@@ -476,9 +499,13 @@ class KolWebFragment : Fragment() {
                 try {
                     val o = org.json.JSONObject(json)
                     if (!o.has("hp")) return@runOnUiThread
-                    hpView?.text = "HP ${o.optLong("hp")}/${o.optLong("maxHp")}"
-                    mpView?.text = "MP ${o.optLong("mp")}/${o.optLong("maxMp")}"
-                    fullView?.text = "Full ${o.optInt("full")}/${o.optInt("fullLimit")}   Adv ${o.optInt("adv")}   Meat ${String.format("%,d", o.optLong("meat"))}"
+                    vt["hp"]?.text = "${o.optLong("hp")}/${o.optLong("maxHp")}"
+                    vt["mp"]?.text = "${o.optLong("mp")}/${o.optLong("maxMp")}"
+                    vt["adv"]?.text = "${o.optInt("adv")}"
+                    vt["meat"]?.text = String.format("%,d", o.optLong("meat"))
+                    vt["food"]?.text = "${o.optInt("full")}/${o.optInt("fullLimit")}"
+                    vt["drink"]?.text = "${o.optInt("drunk")}/${o.optInt("drunkLimit")}"
+                    vt["spleen"]?.text = "${o.optInt("spleen")}/${o.optInt("spleenLimit")}"
                 } catch (_: Exception) {
                 }
             }
@@ -611,7 +638,7 @@ class KolWebFragment : Fragment() {
 
     override fun onDestroyView() {
         statusBar?.removeCallbacks(vitalsTick)
-        statusBar = null; hpView = null; mpView = null; fullView = null
+        statusBar = null; vt.clear()
         overlay = null; overlayBody = null; webFrame = null; guideLoading = false
         web?.destroy()
         web = null

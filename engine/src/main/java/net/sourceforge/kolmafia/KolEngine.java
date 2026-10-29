@@ -1418,7 +1418,7 @@ public final class KolEngine {
     return sb.append('}').toString();
   }
 
-  /** The few numbers the relay browser's slim status bar shows: JSON {hp,maxHp,mp,maxMp,full,fullLimit,adv,meat}. */
+  /** The few numbers the relay browser's slim status bar shows: JSON {hp,maxHp,mp,maxMp,full,fullLimit,drunk,drunkLimit,spleen,spleenLimit,adv,meat}. */
   public static synchronized String vitals() {
     StringBuilder sb = new StringBuilder("{");
     try {
@@ -1428,6 +1428,10 @@ public final class KolEngine {
       kv(sb, "maxMp", KoLCharacter.getMaximumMP());
       kv(sb, "full", KoLCharacter.getFullness());
       kv(sb, "fullLimit", KoLCharacter.getStomachCapacity());
+      kv(sb, "drunk", KoLCharacter.getInebriety());
+      kv(sb, "drunkLimit", KoLCharacter.getLiverCapacity());
+      kv(sb, "spleen", KoLCharacter.getSpleenUse());
+      kv(sb, "spleenLimit", KoLCharacter.getSpleenLimit());
       kv(sb, "adv", KoLCharacter.getAdventuresLeft());
       kv(sb, "meat", KoLCharacter.getAvailableMeat());
     } catch (Throwable t) {

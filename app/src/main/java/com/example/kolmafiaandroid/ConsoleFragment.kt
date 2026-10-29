@@ -1,6 +1,7 @@
 package com.example.kolmafiaandroid
 
 import com.example.kolmafiaandroid.ui.KC
+import com.example.kolmafiaandroid.ui.ConsoleThemes
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -204,6 +205,7 @@ class ConsoleFragment : Fragment() {
             setPadding((12 * dp).toInt(), (12 * dp).toInt(), (12 * dp).toInt(), (12 * dp).toInt())
         }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        applyTheme()
 
         // Toolbar row: Copy, Clear, Auto-scroll
         val toolbarRow = LinearLayout(ctx).apply {
@@ -235,6 +237,13 @@ class ConsoleFragment : Fragment() {
         }
         toolbarRow.addView(copyBtn)
         toolbarRow.addView(clearBtn)
+        toolbarRow.addView(Button(ctx).apply {
+            text = "Colors"
+            setTextColor(KC.onAccent)
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(ctx.getColor(R.color.colorSecondary)))
+            setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
+            setOnClickListener { showThemePicker() }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = (8 * dp).toInt() })
         toolbarRow.addView(autoScrollCheck, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         root.addView(toolbarRow)
 
@@ -379,6 +388,55 @@ class ConsoleFragment : Fragment() {
         }
     }
 
+    private fun theme(): ConsoleThemes.Theme = ConsoleThemes.byName(prefs?.getString("console_theme", null))
+
+    /** Output colours: the chosen terminal profile's background and text, with KoLmafia's own colours re-mapped to it. */
+    private fun applyTheme() {
+        val t = theme()
+        val dp = resources.displayMetrics.density
+        output.setTextColor(t.fg)
+        scroll.background = android.graphics.drawable.GradientDrawable().apply { setColor(t.bg); cornerRadius = 8 * dp }
+        output.editableText?.let { ConsoleThemes.retheme(it, t) }
+    }
+
+    /** A list of the profiles, each drawn in its own colours, so the choice is a look and not a name. */
+    private fun showThemePicker() {
+        val ctx = requireContext()
+        val dp = resources.displayMetrics.density
+        val list = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding((12 * dp).toInt(), (8 * dp).toInt(), (12 * dp).toInt(), (8 * dp).toInt()) }
+        val current = theme().name
+        var dialog: androidx.appcompat.app.AlertDialog? = null
+        for (th in ConsoleThemes.all) {
+            val sample = android.text.SpannableStringBuilder()
+            fun add(text: String, color: Int) {
+                val start = sample.length
+                sample.append(text)
+                sample.setSpan(android.text.style.ForegroundColorSpan(color), start, sample.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            val acc = th.accents ?: intArrayOf(0xFFFF6B6B.toInt(), 0xFFFFA726.toInt(), 0xFFFFEE58.toInt(), 0xFF66BB6A.toInt(), 0xFF26C6DA.toInt(), 0xFF42A5F5.toInt(), 0xFFAB47BC.toInt())
+            add((if (th.name == current) "✓ " else "") + th.name + "\n", th.fg)
+            add("error ", acc[0]); add("warn ", acc[2]); add("ok ", acc[3]); add("info ", acc[5]); add("item ", acc[6]); add("dim", th.dim)
+            list.addView(TextView(ctx).apply {
+                text = sample
+                typeface = Typeface.MONOSPACE
+                textSize = 13f
+                setBackgroundColor(th.bg)
+                setTextColor(th.fg)
+                setPadding((12 * dp).toInt(), (10 * dp).toInt(), (12 * dp).toInt(), (10 * dp).toInt())
+                setOnClickListener {
+                    prefs?.edit()?.putString("console_theme", th.name)?.apply()
+                    applyTheme()
+                    dialog?.dismiss()
+                }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = (6 * dp).toInt() })
+        }
+        dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle("Terminal colours")
+            .setView(ScrollView(ctx).apply { addView(list) })
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
     /** Called by the embedded script manager (for its back arrow, and after it starts a script). */
     fun showConsoleTab() {
         selectHubTab(0)
@@ -388,7 +446,7 @@ class ConsoleFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             KolEngineHost.lines.collect { line ->
                 withContext(Dispatchers.Main) {
-                    output.append(Html.fromHtml(line, Html.FROM_HTML_MODE_COMPACT))
+                    output.append(ConsoleThemes.themed(Html.fromHtml(line, Html.FROM_HTML_MODE_COMPACT), theme()))
                     output.append("\n")
                     if (autoScroll) {
                         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }

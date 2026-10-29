@@ -389,7 +389,7 @@ class ScriptsFragment : DialogFragment() {
 
         // Popular projects
         val popularProjects = listOf(
-            PopularProject("autoscend", "https://github.com/Loathing-Associates-Scripting-Society/autoscend", getString(R.string.installer_popular_autoscend_desc), true),
+            PopularProject("autoscend", "https://github.com/loathers/autoscend", getString(R.string.installer_popular_autoscend_desc), true),
             PopularProject("zlib", "https://svn.code.sf.net/p/zlib/code", getString(R.string.installer_popular_zlib_desc), false)
         )
         val popularAdapter = PopularProjectAdapter(requireContext(), popularProjects) { project ->

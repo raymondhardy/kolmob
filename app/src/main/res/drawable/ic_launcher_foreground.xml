@@ -1,13 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Kolmob mark: a little stick-figure mob. Everything sits inside the 66dp adaptive-icon safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- ground -->
     <path
-        android:fillColor="#4CAF50"
-        android:pathData="M54,14A40,40 0 1,1 14,54A40,40 0 0,1 54,14Z"/>
+        android:strokeColor="#8A7B5A"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M28,85 L80,85"/>
+    <!-- left figure -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,30L38,54L54,78L70,54L54,30Z"/>
+        android:strokeColor="#2B2B2B"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M29.5,53 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0 M34,57.5 L34,72 M34,62 L27,67 M34,62 L41,66 M34,72 L29,84 M34,72 L39,84"/>
+    <!-- right figure, arm raised -->
+    <path
+        android:strokeColor="#2B2B2B"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M69.5,53 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0 M74,57.5 L74,72 M74,62 L67,66 M74,62 L81,56 M74,72 L69,84 M74,72 L79,84"/>
+    <!-- middle figure, bigger, in the app green -->
+    <path
+        android:strokeColor="#2E7D32"
+        android:strokeWidth="3.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M47,38 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 M54,45 L54,67 M54,52 L43,60 M54,52 L65,47 M54,67 L45,84 M54,67 L63,84"/>
+    <!-- the club -->
+    <path
+        android:strokeColor="#8B5A2B"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M65,47 L71,34"/>
 </vector>

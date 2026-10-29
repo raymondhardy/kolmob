@@ -19,6 +19,15 @@
             android:orientation="vertical"
             android:padding="24dp">
 
+            <ImageView
+                android:layout_width="84dp"
+                android:layout_height="84dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_logo_oval"
+                android:contentDescription="Kolmob"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_launcher_foreground" />
+
             <TextView
                 android:id="@+id/login_title"
                 android:layout_width="wrap_content"

@@ -39,6 +39,32 @@ class CraftFragment : DialogFragment() {
     }
     private var filterBar: com.example.kolmafiaandroid.ui.ItemFilterBar? = null
     private lateinit var body: LinearLayout
+    /** Crafting kinds switched on in the chip row; empty = show every kind. Kept while the app runs. */
+    private val picked: MutableSet<String> get() = pickedKinds.getOrPut(mode) { mutableSetOf() }
+    private lateinit var chips: LinearLayout
+
+    private fun buildChips() {
+        val ctx = context ?: return
+        chips.removeAllViews()
+        val counts = all.groupingBy { prettyMethod(it.method) }.eachCount().toSortedMap()
+        picked.retainAll(counts.keys)
+        if (counts.size < 2) return
+        for ((kind, n) in counts) {
+            val on = kind in picked
+            val chip = label(ctx, "$kind $n", 13f, if (on) 0xFF000000.toInt() else KC.text).apply {
+                setPadding(dp(ctx, 12), dp(ctx, 6), dp(ctx, 12), dp(ctx, 6))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = dp(ctx, 16).toFloat()
+                    if (on) setColor(0xFF4CAF50.toInt()) else setStroke(dp(ctx, 1), KC.muted)
+                }
+            }
+            com.example.kolmafiaandroid.ui.clickable(chip) {
+                if (!picked.add(kind)) picked.remove(kind)
+                buildChips(); render()
+            }
+            chips.addView(chip, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(ctx, 8) })
+        }
+    }
     private lateinit var status: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +91,8 @@ class CraftFragment : DialogFragment() {
         }
         root.addView(search)
         root.addView(com.example.kolmafiaandroid.ui.ItemFilterBar(ctx, "craft") { render() }.also { filterBar = it })
+        chips = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(ctx, 6), 0, dp(ctx, 2)) }
+        root.addView(android.widget.HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(chips) })
         status = label(ctx, "Checking what you can make…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
@@ -86,6 +114,7 @@ class CraftFragment : DialogFragment() {
                 val blocked = all.count { it.needs.isNotEmpty() }
                 status.text = if (o.has("error")) "Could not load recipes. Are you logged in?"
                 else "${all.size - blocked} things you can make · tap one" + if (blocked > 0) " · $blocked more need a tool you don't have" else ""
+                buildChips()
                 render()
             }
         }
@@ -107,7 +136,7 @@ class CraftFragment : DialogFragment() {
         val ctx = context ?: return
         body.removeAllViews()
         var group = ""
-        val searched = all.filter { filter.isEmpty() || it.name.lowercase().contains(filter) }
+        val searched = all.filter { (picked.isEmpty() || prettyMethod(it.method) in picked) && (filter.isEmpty() || it.name.lowercase().contains(filter)) }
         // the bar sorts and filters; the stable sort by method keeps that order inside each crafting group
         val shown = filterBar?.apply(searched, { it.name }, { it.possible })?.sortedBy { prettyMethod(it.method) } ?: searched
         for (r in shown) {
@@ -155,6 +184,7 @@ class CraftFragment : DialogFragment() {
     }
 
     companion object {
+        private val pickedKinds = HashMap<String, MutableSet<String>>()
         fun show(fm: FragmentManager, mode: String = "all") = CraftFragment().apply { arguments = Bundle().apply { putString("mode", mode) } }.show(fm, "craft")
     }
 }

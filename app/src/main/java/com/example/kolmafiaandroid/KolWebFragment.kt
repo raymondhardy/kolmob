@@ -164,7 +164,7 @@ class KolWebFragment : Fragment() {
                 popup.menu.add(0, 200, 0, "Character tab").setIcon(R.drawable.nav_character)
                 popup.menu.add(0, 201, 1, "Adventure tab").setIcon(R.drawable.nav_adventure)
                 popup.menu.add(0, 202, 2, "Scripts tab").setIcon(R.drawable.nav_console)
-                popup.menu.add(0, 203, 3, "More…").setIcon(R.drawable.nav_menu)
+                popup.menu.add(0, 203, 3, "Chat, tools & settings").setIcon(R.drawable.ic_tools)
             }
             popup.setForceShowIcon(true)
             popup.setOnMenuItemClickListener { item ->

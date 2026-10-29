@@ -665,7 +665,12 @@ public final class KolEngine {
       java.util.List<net.sourceforge.kolmafia.request.PurchaseRequest> coin = new java.util.ArrayList<>();
       for (net.sourceforge.kolmafia.request.PurchaseRequest p : new java.util.ArrayList<>(results)) {
         if (p == null) continue;
-        if (p instanceof net.sourceforge.kolmafia.request.CoinMasterPurchaseRequest) coin.add(p);
+        if (p instanceof net.sourceforge.kolmafia.request.CoinMasterPurchaseRequest cmp) {
+          // Replica Mr. Store items can only be bought on Legacy of Loathing: don't offer them anywhere else
+          if (cmp.getData() == net.sourceforge.kolmafia.request.coinmaster.shop.ReplicaMrStoreRequest.REPLICA_MR_STORE
+              && !net.sourceforge.kolmafia.KoLCharacter.inLegacyOfLoathing()) continue;
+          coin.add(p);
+        }
         else ordered.add(p);
       }
       ordered.addAll(coin);

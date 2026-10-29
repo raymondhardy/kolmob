@@ -733,6 +733,9 @@ public final class KolEngine {
     StringBuilder sb = new StringBuilder("{\"shops\":[");
     boolean first = true;
     for (var d : net.sourceforge.kolmafia.CoinmasterRegistry.COINMASTERS) {
+      // Replica Mr. Store only exists on Legacy of Loathing
+      if (d == net.sourceforge.kolmafia.request.coinmaster.shop.ReplicaMrStoreRequest.REPLICA_MR_STORE
+          && !net.sourceforge.kolmafia.KoLCharacter.inLegacyOfLoathing()) continue;
       try {
         StringBuilder it = new StringBuilder();
         int n = 0;

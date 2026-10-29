@@ -104,7 +104,7 @@ dependencies {
     implementation("androidx.viewpager2:viewpager2:1.0.0")
 
     // JSON
-    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.code.gson:gson:2.15.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
@@ -115,12 +115,12 @@ dependencies {
     implementation(project(":engine")) { exclude(module = "kolmafia-core") }
     implementation(files(rootProject.file("engine/build/android/kolmafia-core-android.jar")).builtBy(":engine:remapAwt"))
     implementation("net.sourceforge.htmlcleaner:htmlcleaner:2.29")
-    implementation("org.jsoup:jsoup:1.23.1")
-    implementation("com.alibaba.fastjson2:fastjson2:2.0.59")
-    implementation("org.mozilla:rhino:1.9.1")
-    implementation("org.slf4j:slf4j-api:2.0.17")
-    implementation("org.slf4j:slf4j-nop:2.0.17")
-    implementation("org.fusesource.jansi:jansi:2.4.2")
+    implementation("org.jsoup:jsoup:1.23.2")
+    implementation("com.alibaba.fastjson2:fastjson2:2.0.66")
+    implementation("org.mozilla:rhino:1.9.2")
+    implementation("org.slf4j:slf4j-api:2.0.20")
+    implementation("org.slf4j:slf4j-nop:2.0.20")
+    implementation("org.fusesource.jansi:jansi:2.4.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")

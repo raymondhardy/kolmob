@@ -16,16 +16,16 @@ repositories {
 dependencies {
     // HTML parsing
     implementation("net.sourceforge.htmlcleaner:htmlcleaner:2.29")
-    implementation("org.jsoup:jsoup:1.23.1")
+    implementation("org.jsoup:jsoup:1.23.2")
 
     // JSON - using Gson instead of fastjson2 (compatible with minSdk 21)
-    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.code.gson:gson:2.15.0")
 
     // JavaScript engine for ASH - using Rhino with minSdk 26 requirement
     // Using a simpler approach without Rhino for now
 
     // ANSI colors
-    implementation("org.fusesource.jansi:jansi:2.4.2")
+    implementation("org.fusesource.jansi:jansi:2.4.3")
 
     // SVN support
     implementation("org.tmatesoft.svnkit:svnkit:1.10.11") {
@@ -49,8 +49,8 @@ dependencies {
     implementation("com.trilead:trilead-ssh2:1.0.0-build222")
 
     // Logging
-    implementation("org.slf4j:slf4j-api:2.0.17")
-    implementation("org.slf4j:slf4j-nop:2.0.17")
+    implementation("org.slf4j:slf4j-api:2.0.20")
+    implementation("org.slf4j:slf4j-nop:2.0.20")
 
     // JGoodies binding
     implementation("com.jgoodies:jgoodies-binding:2.13.0")

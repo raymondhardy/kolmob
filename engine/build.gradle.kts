@@ -17,7 +17,7 @@ sourceSets.create("tool")
 dependencies {
     api(project(":kolmafia-core"))
     compileOnly(project(":compat"))
-    implementation("com.alibaba.fastjson2:fastjson2:2.0.59")
+    implementation("com.alibaba.fastjson2:fastjson2:2.0.66")
     "toolImplementation"("org.ow2.asm:asm:9.7")
     "toolImplementation"("org.ow2.asm:asm-commons:9.7")
 }

@@ -173,25 +173,25 @@ class KolWebFragment : Fragment() {
         // slim vitals bar: icons (drawn to match the game's) for HP, MP, adventures, meat and the three organs, standing in for the
         // character pane when it is hidden. Tap HP or MP to top off.
         fun vitalItem(key: String, icon: Int, desc: String, onClick: (() -> Unit)? = null): LinearLayout {
-            val label = TextView(ctx).apply { text = "..."; textSize = 14f; setTextColor(KC.text); maxLines = 1 }
+            val label = TextView(ctx).apply { text = "..."; textSize = 12f; setTextColor(KC.text); maxLines = 1 }
             vt[key] = label
             return LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 contentDescription = desc
-                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = (8 * dp).toInt() }
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = (5 * dp).toInt() }
                 addView(android.widget.ImageView(ctx).apply {
                     setImageResource(icon)
                     setColorFilter(KC.text)
-                    layoutParams = LinearLayout.LayoutParams((20 * dp).toInt(), (20 * dp).toInt()).apply { marginEnd = (4 * dp).toInt() }
+                    layoutParams = LinearLayout.LayoutParams((16 * dp).toInt(), (16 * dp).toInt()).apply { marginEnd = (2 * dp).toInt() }
                 })
                 addView(label)
                 if (onClick != null) {
                     setBackgroundResource(R.drawable.bg_icon_button)
-                    setPadding((10 * dp).toInt(), (6 * dp).toInt(), (10 * dp).toInt(), (6 * dp).toInt())
+                    setPadding((5 * dp).toInt(), (5 * dp).toInt(), (5 * dp).toInt(), (5 * dp).toInt())
                     setOnClickListener { onClick() }
                 } else {
-                    setPadding((4 * dp).toInt(), (6 * dp).toInt(), (4 * dp).toInt(), (6 * dp).toInt())
+                    setPadding((2 * dp).toInt(), (5 * dp).toInt(), (2 * dp).toInt(), (5 * dp).toInt())
                 }
             }
         }
@@ -200,26 +200,17 @@ class KolWebFragment : Fragment() {
             KolEngineHost.execute(command) { activity?.runOnUiThread { if (isAdded) refreshVitals() } }
         }
         vt.clear()
-        val topRow = LinearLayout(ctx).apply {
+        statusBar = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding((8 * dp).toInt(), (3 * dp).toInt(), (8 * dp).toInt(), (3 * dp).toInt())
             addView(vitalItem("hp", R.drawable.ic_vital_hp, "Hit points. Tap to restore", restoreTap("restore hp", "HP")))
             addView(vitalItem("mp", R.drawable.ic_vital_mp, "Mana. Tap to restore", restoreTap("restore mp", "MP")))
             addView(vitalItem("adv", R.drawable.ic_vital_adv, "Adventures left"))
             addView(vitalItem("meat", R.drawable.ic_vital_meat, "Meat"))
-        }
-        val organRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
             addView(vitalItem("food", R.drawable.ic_vital_food, "Fullness"))
             addView(vitalItem("drink", R.drawable.ic_vital_drink, "Liver"))
             addView(vitalItem("spleen", R.drawable.ic_vital_spleen, "Spleen"))
-        }
-        statusBar = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((8 * dp).toInt(), (3 * dp).toInt(), (8 * dp).toInt(), (3 * dp).toInt())
-            addView(topRow)
-            addView(organRow)
             visibility = if (panePref().getInt("web_panes", 0) == paneCols.size - 1) View.VISIBLE else View.GONE
         }
         // swipe sideways if the line is longer than the screen

@@ -187,8 +187,14 @@ object KolEngineHost {
     }
 
     /** Starts KoLmafia's relay server (the in-game browser proxy); delivers its port or -1. */
+    /**
+     * Starts the relay server on its own thread. It must not queue behind the engine thread: a running script (autoscend can run for
+     * an hour) owns that thread, and the Game tab would sit on "Starting the relay browser..." until the script finished.
+     */
+    private val relayExecutor = Executors.newSingleThreadExecutor { r -> Thread(r, "kol-relay").apply { isDaemon = true } }
+
     fun startRelay(done: (Int) -> Unit) {
-        executor.execute { done(KolEngine.startRelay()) }
+        relayExecutor.execute { done(KolEngine.startRelay()) }
     }
 
     /** KoL's own "Desktop/Mobile Options" (compact character pane etc.) as JSON. */

@@ -34,6 +34,13 @@ import kotlinx.coroutines.launch
  */
 class MainActivity : AppCompatActivity() {
     private var macroTick: Runnable? = null
+    private val macroHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    override fun onDestroy() {
+        macroTick?.let { macroHandler.removeCallbacks(it) }
+        macroTick = null
+        super.onDestroy()
+    }
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var loginOverlay: View
@@ -470,8 +477,11 @@ class MainActivity : AppCompatActivity() {
                     if (loggedIn) com.example.kolmafiaandroid.tools.MacroStore.runLoginMacros(applicationContext)
                     if (loggedIn && macroTick == null) {
                         // scheduled macros (daily, every N hours) are checked about once a minute while the app is open
-                        val h = android.os.Handler(android.os.Looper.getMainLooper())
-                        val r = object : Runnable { override fun run() { com.example.kolmafiaandroid.tools.MacroStore.runLoginMacros(applicationContext); h.postDelayed(this, 60_000) } }
+                        // The loop holds only the application context and is cancelled in onDestroy; if it captured this activity
+                        // (or outlived it) every screen rebuild would leak the old activity, its WebView and its views.
+                        val app = applicationContext
+                        val h = macroHandler
+                        val r = object : Runnable { override fun run() { com.example.kolmafiaandroid.tools.MacroStore.runLoginMacros(app); h.postDelayed(this, 60_000) } }
                         h.postDelayed(r, 60_000); macroTick = r
                     }
                     if (loggedIn) return@collect

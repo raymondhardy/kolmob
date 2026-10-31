@@ -111,19 +111,37 @@ class KolWebFragment : Fragment() {
         Shortcut("Character", "charsheet.php", R.drawable.web_person),
         Shortcut("Skills", "skills.php", R.drawable.web_bolt),
         Shortcut("Familiar", "familiar.php", R.drawable.web_paw),
-        Shortcut("Mall", "mall.php", R.drawable.web_cart),
-        Shortcut("Chat", "lchat.php", R.drawable.web_chat),
-        Shortcut("Clan", "clan_hall.php", R.drawable.web_clan),
-        Shortcut("Campground", "campground.php", R.drawable.web_map),
-        Shortcut("Guild", "guild.php", R.drawable.web_bolt),
-        Shortcut("Hagnk's storage", "storage.php", R.drawable.web_bag),
-        Shortcut("Display case", "managecollection.php", R.drawable.web_bag),
         Shortcut("Trophies", "trophies.php", R.drawable.web_quests),
-        Shortcut("Hedge maze", "hedgepuzzle.php", R.drawable.web_map),
-        Shortcut("Volcano maze", "volcanomaze.php", R.drawable.web_map),
         Shortcut("Ascension history", "\u0000ascensions", R.drawable.web_person),
         Shortcut("KoL options", "account.php", R.drawable.web_gear),
     )
+
+    /** The places people go most, one tap away: opens the game page for it. */
+    private val places = listOf(
+        "Town map" to "place.php?whichplace=town",
+        "Market Square" to "place.php?whichplace=town_market",
+        "Seaside Town (right side)" to "place.php?whichplace=town_right",
+        "Wrong side of the tracks" to "place.php?whichplace=town_wrong",
+        "The Distant Woods" to "place.php?whichplace=woods",
+        "The Nearby Plains" to "place.php?whichplace=plains",
+        "The Big Mountains" to "place.php?whichplace=mountains",
+        "The Desert Beach" to "place.php?whichplace=desertbeach",
+        "Council of Loathing" to "council.php",
+        "Campground" to "campground.php",
+        "Guild" to "guild.php",
+        "The Mall" to "mall.php",
+        "Clan hall" to "clan_hall.php",
+        "Hagnk's storage" to "storage.php",
+        "Display case" to "managecollection.php",
+        "Hedge maze" to "hedgepuzzle.php",
+        "Volcano maze" to "volcanomaze.php",
+    )
+
+    private fun showGoTo() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle("Go to…")
+            .setItems(places.map { it.first }.toTypedArray()) { _, i -> openInGame(places[i].second) }
+            .setNegativeButton("Cancel", null).show()
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
@@ -154,8 +172,9 @@ class KolWebFragment : Fragment() {
             setBackgroundColor(KC.faint)
             layoutParams = LinearLayout.LayoutParams((1 * dp).toInt(), (26 * dp).toInt()).apply { marginStart = (6 * dp).toInt(); marginEnd = (6 * dp).toInt() }
         })
-        // the three most-used pages stay on the bar; everything else lives in the hamburger menu
-        menu.take(3).forEach { sc -> row.addView(icon(sc.icon, sc.desc) { openInGame(sc.path) }) }
+        // only the map stays on the bar (handy if something covers the bottom tabs); Inventory and Character are the bottom tabs' job,
+        // everything else lives in the hamburger menu
+        row.addView(icon(R.drawable.web_map, "Go to a place") { showGoTo() })
         row.addView(icon(R.drawable.web_panes, "Side panes: all / hide announcements / game only") { cyclePanes() })
         row.addView(icon(R.drawable.web_guide, "Guide: what to do next") { showGuide(false) })
         row.addView(icon(R.drawable.web_quests, "Quests: what is in progress") {

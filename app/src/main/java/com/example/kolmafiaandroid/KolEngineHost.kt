@@ -438,6 +438,8 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.choiceList() } catch (t: Throwable) { "[]" }) }
     }
 
+    fun chatSuspend() { executor.execute { try { KolEngine.chatSuspend() } catch (_: Throwable) {} } }
+
     fun chatPoll(done: (String) -> Unit) {
         reader.execute { done(try { KolEngine.chatPoll() } catch (t: Throwable) { "{}" }) }
     }

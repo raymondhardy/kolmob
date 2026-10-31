@@ -231,6 +231,22 @@ class ChatFragment : DialogFragment() {
             }
             tabsBox.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
         }
+        // KoL's own chat commands: who is in this channel, and which friends are online
+        fun action(label: String, cmd: String) {
+            val chip = TextView(ctx).apply {
+                text = label; textSize = 13f; maxLines = 1; setTextColor(green)
+                background = roundBg(KC.pick(0xFF1E2A1E.toInt(), 0xFFE3F1E3.toInt()), 16)
+                setPadding(dp(12), dp(6), dp(12), dp(6))
+                setOnClickListener {
+                    val key = selected ?: return@setOnClickListener
+                    KolEngineHost.chatSend(key, cmd) { ui { handler.postDelayed({ refresh() }, 900) } }
+                }
+            }
+            tabsBox.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
+        }
+        val sel = selected
+        if (sel != null && sel.startsWith("/")) action("👥 Who's here", "/who " + sel.removePrefix("/"))
+        action("⭐ Friends online", "/friends")
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

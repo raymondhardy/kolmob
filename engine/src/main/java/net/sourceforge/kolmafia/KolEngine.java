@@ -1908,7 +1908,15 @@ public final class KolEngine {
     } catch (Throwable t) {
       output.accept("chat failed to start: " + t);
     }
+    if (net.sourceforge.kolmafia.chat.ChatManager.isRunning()) {
+      net.sourceforge.kolmafia.chat.ChatPoller.startInstance(); // no-op when already polling; restarts after chatSuspend
+    }
     return net.sourceforge.kolmafia.chat.ChatManager.isRunning();
+  }
+
+  /** Stops the polling thread but keeps the open buffers (used when chat is away and nobody is looking). */
+  public static synchronized void chatSuspend() {
+    net.sourceforge.kolmafia.chat.ChatPoller.stopInstance();
   }
 
   /** {"running","literate","current","channels":[active channels],"buffers":[every open channel/whisper key]} */

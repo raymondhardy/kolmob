@@ -38,6 +38,7 @@ object ChatNotifier {
     private val handler = Handler(Looper.getMainLooper())
     private var polling = false
     private var chatStarted = false
+    private var suspended = false
     private var seeded = false
     private val last = mutableMapOf<String, String>()
     private val recent = mutableMapOf<String, MutableList<String>>()
@@ -184,10 +185,20 @@ object ChatNotifier {
 
     private fun poll() {
         val cfg = config(app)
-        if (!cfg.enabled || !KolEngineHost.loggedIn) return
+        if (!KolEngineHost.loggedIn) return
+        val auto = app.getSharedPreferences("kolmob", Context.MODE_PRIVATE).getBoolean("chat_autostart", false)
+        if (!cfg.enabled && !auto) return
+        if (chatScreenOpen) suspended = false          // the panel restarts the poller itself
+        if (suspended) return
         if (!chatStarted) {
             chatStarted = true
             KolEngineHost.chatStart { ok -> if (!ok) chatStarted = false }
+            return
+        }
+        // Chat gone quiet (away mode), nobody looking and no alerts wanted: stop polling KoL until the panel is opened
+        if (away && !cfg.enabled && !chatScreenOpen) {
+            suspended = true; chatStarted = false; away = false
+            KolEngineHost.chatSuspend()
             return
         }
         KolEngineHost.chatPoll { p -> away = try { JSONObject(p).optBoolean("away") } catch (_: Exception) { false } }
@@ -209,6 +220,7 @@ object ChatNotifier {
     } catch (_: Exception) { null }
 
     private fun handle(key: String, json: String, firstPass: Boolean, cfg: Config) {
+        if (!cfg.enabled) return                        // chat may be running only to count unread messages
         val body = bodyOf(json) ?: return
         val prev = last[key]
         last[key] = body

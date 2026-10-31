@@ -286,9 +286,12 @@ class MainActivity : AppCompatActivity() {
         }
         val unread = com.example.kolmafiaandroid.ChatNotifier.unreadTotal
         val threads = com.example.kolmafiaandroid.ChatNotifier.unreadTabs
-        row(R.drawable.web_chat, if (unread > 0) "Chat  ($unread)" else "Chat",
-            if (unread > 0) "$unread new in $threads conversation${if (threads == 1) "" else "s"}" else "Channels, whispers and alerts") {
-            com.example.kolmafiaandroid.tools.ChatFragment().show(supportFragmentManager, "chat")
+        // the floating chat button replaces this row; it comes back only if the button is hidden
+        if (!getSharedPreferences("kolmob", MODE_PRIVATE).getBoolean("chat_handle", true)) {
+            row(R.drawable.web_chat, if (unread > 0) "Chat  ($unread)" else "Chat",
+                if (unread > 0) "$unread new in $threads conversation${if (threads == 1) "" else "s"}" else "Channels, whispers and alerts") {
+                com.example.kolmafiaandroid.tools.ChatFragment().show(supportFragmentManager, "chat")
+            }
         }
         for (t in com.example.kolmafiaandroid.tools.ToolRegistry.tools.filter { it.home == null && it.group == "Social" }) {
             val icon = when (t.id) { "mail" -> R.drawable.web_chat; "clan" -> R.drawable.web_clan; else -> R.drawable.web_person }
@@ -355,6 +358,15 @@ class MainActivity : AppCompatActivity() {
             isChecked = getSharedPreferences("kolmob", MODE_PRIVATE).getBoolean("chat_handle", true)
             setOnCheckedChangeListener { _, on -> setChatHandleVisible(on) }
         })
+        box.addView(com.google.android.material.checkbox.MaterialCheckBox(this).apply {
+            text = "Start chat when I log in (so missed messages are counted)"
+            setTextColor(KC.soft)
+            isChecked = getSharedPreferences("kolmob", MODE_PRIVATE).getBoolean("chat_autostart", false)
+            setOnCheckedChangeListener { _, on ->
+                getSharedPreferences("kolmob", MODE_PRIVATE).edit().putBoolean("chat_autostart", on).apply()
+            }
+        })
+        box.addView(note("Chat only polls KoL while you are active; once chat goes quiet (away mode) it stops until you open the panel, unless chat alerts are on.", 12f))
         box.addView(note("Keep logs for", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
         val keepSpinner = android.widget.Spinner(this).apply {
             adapter = android.widget.ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, LogPruner.choices.map { it.second })

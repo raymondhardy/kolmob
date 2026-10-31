@@ -69,9 +69,11 @@ class ConsoleFragment : Fragment() {
         if (f == null) { argParams = emptyList(); v.text = ""; return }
         val src = try { f.readText() } catch (e: Exception) { "" }
         val m = Regex("""\bmain\s*\(([^)]*)\)""").find(src)
-        argParams = m?.groupValues?.get(1)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+        argParams = if (f.name.lowercase().endsWith(".js")) {
+            listOf("string" to "arguments") // a JavaScript script gets everything typed after its name as one string
+        } else m?.groupValues?.get(1)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
             ?.map { p -> val parts = p.split(Regex("\\s+")); (parts.firstOrNull() ?: "") to (parts.getOrNull(1) ?: "") } ?: emptyList()
-        val saved = prefs?.getString("args_" + f.name, "") ?: ""
+        val saved = prefs?.getString("args_" + rel(f), "") ?: ""
         val vals = if (saved.isEmpty()) emptyList() else saved.split("\u001f")
         argValues = argParams.indices.map { vals.getOrNull(it) ?: "" }
         v.text = if (argParams.isEmpty()) "Arguments: none (main has no parameters)"
@@ -96,10 +98,10 @@ class ConsoleFragment : Fragment() {
                 setSingleLine()
             }.also { col.addView(it) }
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Arguments for ${f.name}").setView(col)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Arguments for ${rel(f)}").setView(col)
             .setPositiveButton("Save") { _, _ ->
                 argValues = boxes.map { it.text.toString() }
-                prefs?.edit()?.putString("args_" + f.name, argValues.joinToString("\u001f"))?.apply()
+                prefs?.edit()?.putString("args_" + rel(f), argValues.joinToString("\u001f"))?.apply()
                 refreshArgs()
             }
             .setNegativeButton("Cancel", null).create().also { d ->
@@ -111,18 +113,21 @@ class ConsoleFragment : Fragment() {
     private var scriptPicker: android.widget.Spinner? = null
     private var scriptFiles: List<java.io.File> = emptyList()
 
+    /** Name as shown and as `call` wants it: relative to the scripts folder (JavaScript scripts live in their own folder). */
+    private fun rel(f: java.io.File): String =
+        com.example.kolmafiaandroid.ui.ScriptFiles.relName(java.io.File(requireContext().filesDir, "kolmafia/scripts"), f)
+
     private fun reloadScripts() {
         val ctx = context ?: return
         val picker = scriptPicker ?: return
         val dir = java.io.File(ctx.filesDir, "kolmafia/scripts")
-        val keep = scriptFiles.getOrNull(picker.selectedItemPosition)?.name ?: prefs?.getString("last_script", null)
-        scriptFiles = (dir.listFiles { f -> f.name.lowercase().let { it.endsWith(".ash") || it.endsWith(".txt") } } ?: emptyArray())
-            .sortedBy { it.name.lowercase() }
-        picker.adapter = android.widget.ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, scriptFiles.map { it.name })
-        scriptFiles.indexOfFirst { it.name == keep }.takeIf { it >= 0 }?.let { picker.setSelection(it) }
+        val keep = scriptFiles.getOrNull(picker.selectedItemPosition)?.let { rel(it) } ?: prefs?.getString("last_script", null)
+        scriptFiles = com.example.kolmafiaandroid.ui.ScriptFiles.list(dir).sortedBy { rel(it).lowercase() }
+        picker.adapter = android.widget.ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, scriptFiles.map { rel(it) })
+        scriptFiles.indexOfFirst { rel(it) == keep }.takeIf { it >= 0 }?.let { picker.setSelection(it) }
         picker.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                scriptFiles.getOrNull(pos)?.let { prefs?.edit()?.putString("last_script", it.name)?.apply() }
+                scriptFiles.getOrNull(pos)?.let { prefs?.edit()?.putString("last_script", rel(it))?.apply() }
                 refreshArgs()
             }
             override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
@@ -177,7 +182,7 @@ class ConsoleFragment : Fragment() {
             if (f == null) Toast.makeText(ctx, "No scripts yet. Tap + or the import buttons.", Toast.LENGTH_SHORT).show()
             else {
                 val a = argValues.dropLastWhile { it.isBlank() }.joinToString(" ") { it.trim() }
-                input.setText(if (a.isEmpty()) "call ${f.name}" else "call ${f.name} $a")
+                input.setText(if (a.isEmpty()) "call ${rel(f)}" else "call ${rel(f)} $a")
                 pendingBlank = a.isEmpty()
                 submit()
             }

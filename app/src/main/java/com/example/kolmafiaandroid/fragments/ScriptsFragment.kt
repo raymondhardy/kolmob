@@ -122,15 +122,13 @@ class ScriptsFragment : DialogFragment() {
         if (!scriptsDir.exists()) {
             scriptsDir.mkdirs()
         }
-        val files = scriptsDir.listFiles { _, name ->
-            name.lowercase(Locale.ROOT).endsWith(".ash") || name.lowercase(Locale.ROOT).endsWith(".txt")
-        } ?: emptyArray()
+        val files = com.example.kolmafiaandroid.ui.ScriptFiles.list(scriptsDir)
         // relay scripts (installed to the relay folder, e.g. the Guide) are listed too; they open in the Game tab
         val relayFiles = File(requireContext().filesDir, "kolmafia/relay").listFiles { _, name ->
             name.startsWith("relay_") && name.lowercase(Locale.ROOT).endsWith(".ash") &&
                 !com.example.kolmafiaandroid.ui.GuideBundle.isBundled(name)
         } ?: emptyArray()
-        val all = (files.toList().sortedByDescending { it.lastModified() }) + relayFiles.sortedBy { it.name }
+        val all = files + relayFiles.sortedBy { it.name }
         adapter.submitList(all)
         emptyText.visibility = if (all.isEmpty()) View.VISIBLE else View.GONE
     }
@@ -141,7 +139,8 @@ class ScriptsFragment : DialogFragment() {
             return
         }
         // live output in a window right here instead of jumping to the Console tab
-        com.example.kolmafiaandroid.tools.ScriptRunSheet.run(requireActivity(), file.name, "call ${file.name}")
+        val rel = com.example.kolmafiaandroid.ui.ScriptFiles.relName(scriptsDir, file)
+        com.example.kolmafiaandroid.tools.ScriptRunSheet.run(requireActivity(), rel, "call $rel")
     }
 
     private fun openEditor(file: File) {
@@ -307,7 +306,8 @@ class ScriptsFragment : DialogFragment() {
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val file = files[position]
-            holder.name.text = file.name
+            holder.name.text = if (file.parentFile?.name == "relay") file.name
+            else com.example.kolmafiaandroid.ui.ScriptFiles.relName(File(holder.itemView.context.filesDir, "kolmafia/scripts"), file)
             val size = file.length()
             val date = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(file.lastModified())
             holder.info.text = (if (file.parentFile?.name == "relay") "relay script, opens in the Game tab • " else "") + "${formatSize(size)} • $date"

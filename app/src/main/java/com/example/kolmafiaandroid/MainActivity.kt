@@ -231,6 +231,7 @@ class MainActivity : AppCompatActivity() {
     /** Tapping the bottom bar leaves whatever full-screen dialog is open. */
     private fun dismissOpenDialogs() {
         for (f in supportFragmentManager.fragments) (f as? androidx.fragment.app.DialogFragment)?.dismissAllowingStateLoss()
+        moreSheet?.let { if (it.isShowing) it.dismiss() } // the More sheet is a plain dialog, not a fragment
     }
 
     /** Pre-select a location on the Adventure tab and go there. */

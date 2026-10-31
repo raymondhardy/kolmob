@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -54,11 +55,13 @@ class MainActivity : AppCompatActivity() {
 
         setupViewPager()
         setupBottomNavigation()
+        setupChatHandle()
         com.example.kolmafiaandroid.ChatNotifier.onUnreadChanged = {
             val n = com.example.kolmafiaandroid.ChatNotifier.unreadTotal
             val badge = binding.bottomNavigation.getOrCreateBadge(R.id.nav_menu)
             badge.isVisible = n > 0
             if (n > 0) badge.number = n
+            updateChatHandleBadge(n)
         }
         setupLoginOverlay()
         // first run: the use-at-your-own-risk agreement covers everything, including the login screen
@@ -156,6 +159,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Make a full-screen dialog end where the bottom bar starts, and let touches below it reach the bar. */
     fun fitDialogAboveNav(dialog: android.app.Dialog) {
+        if (dialog === com.example.kolmafiaandroid.tools.ChatFragment.panelDialog) { fitChatPanel(dialog); return }
         val w = dialog.window ?: return
         val loc = IntArray(2)
         binding.bottomNavigation.getLocationOnScreen(loc)
@@ -178,6 +182,23 @@ class MainActivity : AppCompatActivity() {
                 w.attributes = lp
             }
         }
+    }
+
+    /** Chat is a panel on the right edge: most of the width, ending where the bottom bar starts; the bar stays usable. */
+    private fun fitChatPanel(dialog: android.app.Dialog) {
+        val w = dialog.window ?: return
+        val loc = IntArray(2)
+        binding.bottomNavigation.getLocationOnScreen(loc)
+        var navTop = loc[1]
+        if (navTop <= 0) navTop = resources.displayMetrics.heightPixels - binding.bottomNavigation.height - (48 * resources.displayMetrics.density).toInt()
+        if (navTop <= 0) return
+        val dm = resources.displayMetrics
+        val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val width = if (com.example.kolmafiaandroid.tools.ChatFragment.panelFull) dm.widthPixels else (dm.widthPixels * (if (landscape) 0.55f else 0.85f)).toInt()
+        w.setGravity(android.view.Gravity.TOP or android.view.Gravity.END)
+        w.setLayout(width, navTop)
+        w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH)
+        w.setDimAmount(0.25f)
     }
 
     /** For tall centred dialogs (not full-screen): trim the height so the dialog ends above the bottom bar. */
@@ -321,6 +342,12 @@ class MainActivity : AppCompatActivity() {
                 getSharedPreferences("kolmob", MODE_PRIVATE).edit().putBoolean("keep_awake", on).apply()
                 applyKeepAwake(KolEngineHost.running.value)
             }
+        })
+        box.addView(com.google.android.material.checkbox.MaterialCheckBox(this).apply {
+            text = "Show the chat button on the right edge"
+            setTextColor(KC.soft)
+            isChecked = getSharedPreferences("kolmob", MODE_PRIVATE).getBoolean("chat_handle", true)
+            setOnCheckedChangeListener { _, on -> setChatHandleVisible(on) }
         })
         box.addView(note("Keep logs for", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
         val keepSpinner = android.widget.Spinner(this).apply {
@@ -597,6 +624,91 @@ class MainActivity : AppCompatActivity() {
 
     fun goToTab(index: Int) { dismissOpenDialogs(); binding.viewPager.currentItem = index }
     fun openMore() { showMoreSheet() }
+
+    // ---- chat button: a tab on the right edge, on every screen; tap opens the chat panel ----
+
+    private var chatHandle: View? = null
+    private var chatBadge: TextView? = null
+
+    fun openChatPanel() {
+        if (supportFragmentManager.findFragmentByTag("chat") != null) return
+        com.example.kolmafiaandroid.tools.ChatFragment().show(supportFragmentManager, "chat")
+    }
+
+    private fun updateChatHandleBadge(n: Int) {
+        chatBadge?.apply { visibility = if (n > 0) View.VISIBLE else View.GONE; text = if (n > 99) "99+" else n.toString() }
+    }
+
+    fun setChatHandleVisible(show: Boolean) {
+        getSharedPreferences("kolmob", MODE_PRIVATE).edit().putBoolean("chat_handle", show).apply()
+        chatHandle?.visibility = if (show && KolEngineHost.currentUser.isNotEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun setupChatHandle() {
+        val prefs = getSharedPreferences("kolmob", MODE_PRIVATE)
+        val dp = resources.displayMetrics.density
+        val content = findViewById<ViewGroup>(android.R.id.content)
+        val tab = android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xCC2E7D32.toInt())
+                cornerRadii = floatArrayOf(14 * dp, 14 * dp, 0f, 0f, 0f, 0f, 14 * dp, 14 * dp)
+            }
+            elevation = 6 * dp
+            contentDescription = "Chat"
+            addView(android.widget.ImageView(this@MainActivity).apply { setImageResource(R.drawable.web_chat); setColorFilter(0xFFFFFFFF.toInt()) },
+                android.widget.FrameLayout.LayoutParams((22 * dp).toInt(), (22 * dp).toInt(), android.view.Gravity.CENTER).apply { marginStart = (2 * dp).toInt() })
+        }
+        val badge = TextView(this).apply {
+            textSize = 10f; setTextColor(0xFFFFFFFF.toInt()); gravity = android.view.Gravity.CENTER
+            setPadding((4 * dp).toInt(), 0, (4 * dp).toInt(), 0)
+            background = android.graphics.drawable.GradientDrawable().apply { setColor(0xFFE53935.toInt()); cornerRadius = 9 * dp }
+            visibility = View.GONE
+        }
+        tab.addView(badge, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, (18 * dp).toInt(), android.view.Gravity.TOP or android.view.Gravity.START).apply { topMargin = (2 * dp).toInt() })
+        val lp = android.widget.FrameLayout.LayoutParams((30 * dp).toInt(), (60 * dp).toInt(), android.view.Gravity.END or android.view.Gravity.TOP)
+        content.post { lp.topMargin = prefs.getInt("chat_handle_y", (content.height * 0.35f).toInt()).coerceIn(0, (content.height - (130 * dp)).toInt().coerceAtLeast(0)); tab.layoutParams = lp }
+        lp.topMargin = prefs.getInt("chat_handle_y", (240 * dp).toInt())
+        content.addView(tab, lp)
+        chatHandle = tab
+        chatBadge = badge
+        // tap = open, drag up/down = move, long-press = hide
+        var downY = 0f; var startMargin = 0; var moved = false; var longFired = false
+        val longPress = Runnable {
+            longFired = true
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Hide the chat button?")
+                .setMessage("You can still open Chat from the More menu, or bring the button back in Settings.")
+                .setPositiveButton("Hide") { _, _ -> setChatHandleVisible(false) }
+                .setNegativeButton("Keep", null).show()
+        }
+        tab.setOnTouchListener { v, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { downY = e.rawY; startMargin = lp.topMargin; moved = false; longFired = false; v.postDelayed(longPress, 700) }
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = e.rawY - downY
+                    if (Math.abs(dy) > 12 * dp) { moved = true; v.removeCallbacks(longPress) }
+                    if (moved) {
+                        lp.topMargin = (startMargin + dy).toInt().coerceIn(0, (content.height - 60 * dp).toInt().coerceAtLeast(0))
+                        v.layoutParams = lp
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    v.removeCallbacks(longPress)
+                    if (moved) prefs.edit().putInt("chat_handle_y", lp.topMargin).apply()
+                    else if (!longFired) openChatPanel()
+                }
+                MotionEvent.ACTION_CANCEL -> v.removeCallbacks(longPress)
+            }
+            true
+        }
+        tab.visibility = View.GONE
+        lifecycleScope.launch {
+            KolEngineHost.loginState.collect {
+                val show = prefs.getBoolean("chat_handle", true) && KolEngineHost.currentUser.isNotEmpty()
+                tab.visibility = if (show) View.VISIBLE else View.GONE
+            }
+        }
+    }
 
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemReselectedListener { dismissOpenDialogs() } // tapping the current tab closes a dialog too

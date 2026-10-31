@@ -43,6 +43,11 @@
         <item name="android:windowSoftInputMode">stateVisible|adjustResize</item>
     </style>
 
+    <style name="ChatPanelAnim">
+        <item name="android:windowEnterAnimation">@anim/chat_panel_in</item>
+        <item name="android:windowExitAnimation">@anim/chat_panel_out</item>
+    </style>
+
     <style name="FullScreenDialogStyle" parent="Theme.MaterialComponents.DayNight.Dialog">
         <item name="android:alertDialogTheme">@style/Kolmob.AlertDialog</item>
         <item name="materialAlertDialogTheme">@style/Kolmob.MaterialAlertDialog</item>

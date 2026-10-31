@@ -72,6 +72,13 @@ class ChatFragment : DialogFragment() {
         setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
     }
 
+    override fun onCreateDialog(savedInstanceState: Bundle?): android.app.Dialog =
+        super.onCreateDialog(savedInstanceState).also {
+            it.window?.setWindowAnimations(R.style.ChatPanelAnim)
+            it.setCanceledOnTouchOutside(true)
+            panelDialog = it
+        }
+
     override fun onStart() {
         super.onStart()
         ChatNotifier.chatScreenOpen = true
@@ -99,9 +106,18 @@ class ChatFragment : DialogFragment() {
         header.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         newBtn = textBtn("＋ New") { addMenu() }
         alertsBtn = textBtn("Alerts") { showAlertSettings() }
-        doneBtn = textBtn("Done") { dismiss() }
-        closeChatBtn = textBtn("Close chat") { selected?.let { closeThread(it) } }
-        for (b in listOf(newBtn, alertsBtn, doneBtn, closeChatBtn)) header.addView(b)
+        doneBtn = textBtn("✕") { dismiss() }.apply { textSize = 20f; contentDescription = "Close chat panel" }
+        closeChatBtn = textBtn("Close thread") { selected?.let { closeThread(it) } }
+        panelFull = requireContext().getSharedPreferences("kolmob", android.content.Context.MODE_PRIVATE).getBoolean("chat_panel_full", false)
+        var expandRef: MaterialButton? = null
+        val expandBtn = textBtn(if (panelFull) "⤡" else "⤢") {
+            panelFull = !panelFull
+            requireContext().getSharedPreferences("kolmob", android.content.Context.MODE_PRIVATE).edit().putBoolean("chat_panel_full", panelFull).apply()
+            expandRef?.text = if (panelFull) "⤡" else "⤢"
+            dialog?.let { d -> (activity as? com.example.kolmafiaandroid.MainActivity)?.fitDialogAboveNav(d) }
+        }.apply { textSize = 20f; contentDescription = "Make the chat panel bigger or smaller" }
+        expandRef = expandBtn
+        for (b in listOf(newBtn, alertsBtn, closeChatBtn, expandBtn, doneBtn)) header.addView(b)
         root.addView(header)
         status = TextView(ctx).apply { textSize = 12f; setTextColor(muted); setPadding(dp(16), 0, dp(16), dp(6)); text = "Starting chat…" }
         root.addView(status)
@@ -128,7 +144,7 @@ class ChatFragment : DialogFragment() {
         composer.addView(MaterialButton(ctx).apply { text = "Send"; setOnClickListener { send() } })
         root.addView(composer)
         showMode()
-        return root
+        return com.example.kolmafiaandroid.ui.SwipeDismissLayout(ctx) { dismiss() }.apply { addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)) }
     }
 
     /** List view or conversation view: shows the matching header buttons and body. */
@@ -138,7 +154,7 @@ class ChatFragment : DialogFragment() {
         closeChatBtn.visibility = if (inConvo) View.VISIBLE else View.GONE
         newBtn.visibility = if (inConvo) View.GONE else View.VISIBLE
         alertsBtn.visibility = if (inConvo) View.GONE else View.VISIBLE
-        doneBtn.visibility = if (inConvo) View.GONE else View.VISIBLE
+        doneBtn.visibility = View.VISIBLE // the panel can always be closed
         listScroll.visibility = if (inConvo) View.GONE else View.VISIBLE
         convoScroll.visibility = if (inConvo) View.VISIBLE else View.GONE
         composer.visibility = if (inConvo) View.VISIBLE else View.GONE
@@ -174,6 +190,7 @@ class ChatFragment : DialogFragment() {
     }
 
     override fun onDestroyView() {
+        if (panelDialog === dialog) panelDialog = null
         polling = false
         handler.removeCallbacks(pollTask)
         super.onDestroyView()
@@ -563,5 +580,12 @@ class ChatFragment : DialogFragment() {
         if (text.isEmpty()) return
         input.setText("")
         KolEngineHost.chatSend(key, text) { ui { handler.postDelayed({ refresh() }, 900) } }
+    }
+
+    companion object {
+        /** The open chat panel's window, so MainActivity can size it as a side panel instead of a full-screen page. */
+        var panelDialog: android.app.Dialog? = null
+        /** Part of the screen (false) or the whole width (true, the bottom bar still shows). */
+        var panelFull = false
     }
 }

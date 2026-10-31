@@ -404,6 +404,7 @@ class ScriptsFragment : DialogFragment() {
                 InstalledAction.UPDATE -> updateProject(project, dialog, progressBar, installBtn, popularRecycler, installedRecycler, installedEmpty)
                 InstalledAction.DELETE -> confirmDeleteProject(project, dialog, progressBar, installBtn, popularRecycler, installedRecycler, installedEmpty)
                 InstalledAction.SCOPE -> changeScope(project, installedRecycler, installedEmpty)
+                InstalledAction.BRANCH -> changeBranch(project, installedRecycler, installedEmpty)
             }
         }
         installedRecycler.layoutManager = LinearLayoutManager(requireContext())
@@ -425,13 +426,20 @@ class ScriptsFragment : DialogFragment() {
             }
             repoUrlLayout.error = null
 
-            val isGit = url.contains("github.com")
+            val isGit = net.sourceforge.kolmafia.KolEngine.gitCheckoutArgs(url) != null
             val isSvn = url.contains("svn.code.sf.net") || url.contains("svn.")
             if (!isGit && !isSvn) {
                 repoUrlLayout.error = getString(R.string.installer_error_unsupported)
                 return@setOnClickListener
             }
 
+            val args = net.sourceforge.kolmafia.KolEngine.gitCheckoutArgs(url)
+            if (isGit && args != null && !args.contains(" ")) {
+                // no branch given: let the person choose, default branch preselected
+                pickBranch("Which branch?", args, null) { branch ->
+                    installFromUrl("$args $branch", true, dialog, progressBar, installBtn, popularRecycler, installedRecycler, installedEmpty, repoUrlInput)
+                }
+            } else
             installFromUrl(url, isGit, dialog, progressBar, installBtn, popularRecycler, installedRecycler, installedEmpty, repoUrlInput)
         }
 
@@ -494,6 +502,89 @@ class ScriptsFragment : DialogFragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    /** Branches of a GitHub repository (default branch first), or null when they can't be fetched. */
+    private fun fetchBranches(repoUrl: String, done: (List<String>?) -> Unit) {
+        val m = Regex("github\\.com/([^/]+)/([^/]+)").find(repoUrl)
+        if (m == null) { done(null); return }
+        val api = "https://api.github.com/repos/${m.groupValues[1]}/${m.groupValues[2]}"
+        Thread {
+            val result: List<String>? = try {
+                fun get(u: String): String {
+                    val c = URL(u).openConnection() as HttpURLConnection
+                    c.connectTimeout = 10000; c.readTimeout = 10000
+                    c.setRequestProperty("Accept", "application/vnd.github+json")
+                    return c.inputStream.bufferedReader().use { it.readText() }
+                }
+                val def = JSONObject(get(api)).optString("default_branch", "")
+                val arr = org.json.JSONArray(get("$api/branches?per_page=100"))
+                val names = (0 until arr.length()).map { arr.getJSONObject(it).getString("name") }.toMutableList()
+                if (def.isNotEmpty()) { names.remove(def); names.add(0, def) }
+                names
+            } catch (e: Exception) { null }
+            activity?.runOnUiThread { done(result) }
+        }.start()
+    }
+
+    /** Drop-down of branches with [selected] (or the default) preselected; falls back to typing when the list can't be fetched. */
+    private fun pickBranch(title: String, repoUrl: String, selected: String?, onPick: (String) -> Unit) {
+        fetchBranches(repoUrl) { names ->
+            if (!isAdded) return@fetchBranches
+            if (names.isNullOrEmpty()) {
+                val input = android.widget.EditText(requireContext()).apply { setText(selected ?: ""); hint = "branch"; setSingleLine() }
+                val pad = (20 * resources.displayMetrics.density).toInt()
+                val box = android.widget.FrameLayout(requireContext()).apply { setPadding(pad, pad / 2, pad, 0); addView(input) }
+                MaterialAlertDialogBuilder(requireContext()).setTitle(title)
+                    .setMessage("Couldn't load the branch list; type one.")
+                    .setView(box)
+                    .setPositiveButton("OK") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onPick) }
+                    .setNegativeButton(R.string.scripts_cancel, null).show()
+                return@fetchBranches
+            }
+            val list = if (selected != null && selected !in names) listOf(selected) + names else names
+            var idx = list.indexOf(selected ?: names[0]).coerceAtLeast(0)
+            val labels = list.mapIndexed { i, n -> if (selected == null && i == 0) "$n (default)" else n }.toTypedArray()
+            MaterialAlertDialogBuilder(requireContext()).setTitle(title)
+                .setSingleChoiceItems(labels, idx) { _, which -> idx = which }
+                .setPositiveButton("OK") { _, _ -> onPick(list[idx]) }
+                .setNegativeButton(R.string.scripts_cancel, null).show()
+        }
+    }
+
+    private fun changeBranch(project: InstalledProject, installedRecycler: RecyclerView, installedEmpty: TextView) {
+        val meta = File(requireContext().filesDir, "kolmafia/git/${project.name}/.kolmob-git.json")
+        val url = try { JSONObject(meta.readText()).optString("url", "") } catch (e: Exception) { "" }
+        if (url.isEmpty()) {
+            Toast.makeText(requireContext(), "Can't find this project's repository link", Toast.LENGTH_LONG).show()
+            return
+        }
+        pickBranch("Branch for ${project.name}", url, project.branch) { branch ->
+            if (branch == project.branch) return@pickBranch
+            val adapter = installedRecycler.adapter as? InstalledProjectAdapter ?: return@pickBranch
+            adapter.setUpdating(project.name, true)
+            val wasUser = project.scope == "user"
+            KolEngineHost.execute("git delete ${project.name}") {
+                KolEngineHost.execute("git checkout $url $branch") {
+                    val finish = {
+                        activity?.runOnUiThread {
+                            adapter.setUpdating(project.name, false)
+                            val projects = scanInstalledProjects()
+                            adapter.submitList(projects)
+                            installedEmpty.visibility = if (projects.isEmpty()) View.VISIBLE else View.GONE
+                            val ok = projects.any { it.isGit && it.branch == branch && it.name.endsWith("-$branch") }
+                            Toast.makeText(requireContext(),
+                                if (ok) "Switched to $branch" else "Switch failed - see the Console log", Toast.LENGTH_LONG).show()
+                        }
+                        Unit
+                    }
+                    if (wasUser) {
+                        val newId = "git/" + project.name.removeSuffix("-" + project.branch) + "-" + branch
+                        KolEngineHost.setProjectScope(newId, "user") { finish() }
+                    } else finish()
+                }
+            }
+        }
     }
 
     private fun setInstallingState(
@@ -758,7 +849,7 @@ class ScriptsFragment : DialogFragment() {
         val owner: String = ""
     )
 
-    private enum class InstalledAction { UPDATE, DELETE, SCOPE }
+    private enum class InstalledAction { UPDATE, DELETE, SCOPE, BRANCH }
 
     private class InstalledProjectAdapter(
         private val context: Context,
@@ -810,8 +901,9 @@ class ScriptsFragment : DialogFragment() {
             holder.source.setTextColor(context.getColor(if (project.isGit) R.color.colorPrimary else R.color.colorSecondary))
             
             if (project.isGit) {
-                holder.details.text = context.getString(R.string.installer_branch, project.branch) + " • " + 
+                holder.details.text = context.getString(R.string.installer_branch, project.branch) + " ▾ • " + 
                     context.getString(R.string.installer_commit, project.commit)
+                holder.details.setOnClickListener { onAction(project, InstalledAction.BRANCH) }
             } else {
                 holder.details.text = context.getString(R.string.installer_revision, project.revision.toString())
             }

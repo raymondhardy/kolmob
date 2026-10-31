@@ -3,7 +3,7 @@
     <!-- Script Installer -->
     <string name="installer_title">Install Scripts</string>
     <string name="installer_repo_url">Repository URL</string>
-    <string name="installer_repo_url_hint">https://github.com/... or https://svn.code.sf.net/...</string>
+    <string name="installer_repo_url_hint">user/repo [branch], a GitHub link, or an svn.code.sf.net link</string>
     <string name="installer_install">Install</string>
     <string name="installer_installing">Installing…</string>
     <string name="installer_error_unsupported">Only GitHub and SourceForge SVN repositories are supported</string>

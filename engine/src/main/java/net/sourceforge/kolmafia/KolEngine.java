@@ -165,7 +165,8 @@ public final class KolEngine {
   public static void installProject(String url, String scope) {
     java.util.Set<String> before = KolProjects.ids();
     String lower = url.toLowerCase();
-    if (lower.contains("github.com")) execute("git checkout " + url);
+    String git = gitCheckoutArgs(url);
+    if (git != null) execute("git checkout " + git);
     else if (lower.contains("svn")) execute("svn checkout " + url);
     else {
       output.accept("Only GitHub and SourceForge SVN URLs are supported.");
@@ -173,6 +174,30 @@ public final class KolEngine {
     }
     KolProjects.registerNew(before, scope, userName());
     KolProjects.reconcile(userName());
+  }
+
+  /**
+   * Turns what a person types into the arguments of KoLmafia's "git checkout": a repository and an optional branch.
+   * Accepts "user/repo", "user/repo branch", "https://github.com/user/repo", "https://github.com/user/repo branch" and
+   * "https://github.com/user/repo/tree/branch". Returns null when it is not a GitHub repository.
+   */
+  public static String gitCheckoutArgs(String input) {
+    if (input == null) return null;
+    String[] parts = input.trim().split("\\s+");
+    if (parts.length == 0 || parts[0].isEmpty()) return null;
+    String repo = parts[0];
+    String branch = parts.length > 1 ? parts[1] : null;
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("^(?:https?://)?(?:www\\.)?github\\.com/([^/\\s]+)/([^/\\s]+?)(?:\\.git)?(?:/tree/([^\\s]+?))?/?$", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(repo);
+    if (m.matches()) {
+      if (branch == null && m.group(3) != null) branch = m.group(3);
+      repo = "https://github.com/" + m.group(1) + "/" + m.group(2);
+    } else if (repo.matches("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) {
+      repo = "https://github.com/" + repo;
+    } else {
+      return null;
+    }
+    return branch == null ? repo : repo + " " + branch;
   }
 
   /** Changes a project's scope ("global" or "user" for the logged-in account). */

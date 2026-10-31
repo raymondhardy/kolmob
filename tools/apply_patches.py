@@ -85,74 +85,166 @@ PATCHES = [
      '''    for (java.lang.ref.SoftReference<ScriptRuntime> ref : KoLmafiaASH.INTERPRETERS.values()) {
       ScriptRuntime i = ref.get();
       if (i != null && i.getRelayRequest() != null) {'''),
-    # Kolmob: a character's passive-skill bonuses are cached and upstream only rebuilds them when a "changed" flag is set.
-    # If the cache is ever built from a partial skill list and the flag is cleared (seen as Ed the Undying after buying
-    # "Just One More Extra Spleen": spleen limit 25 -> 5, liver 4 -> 0 while the game still said 25/30, so KoLmafia refused
-    # every adventure as "too spleened"), nothing ever repairs it. Remember which skill ids the cache was built from and
-    # rebuild whenever the character's current skill ids differ. Costs a small in-memory set compare, no requests.
+    # Kolmob: shared passive-skill cache. Upstream keeps it in mutable statics that are rebuilt in place (reset(), then
+    # add() one skill at a time) while other threads read it without a lock, and only rebuilds when a "changed" flag is
+    # set. With the relay, script, snapshot and tick threads all recalculating bonuses, a reader can see the half-rebuilt
+    # cache (seen as Ed's spleen limit 25 -> 5 and liver 4 -> 0 after buying "Just One More Extra Spleen", so KoLmafia
+    # refused every adventure as "too spleened"), and a rebuild from a partial skill list is never repaired.
+    # Fix: build a new immutable snapshot and publish it with one volatile write; clear the flag before reading; and also
+    # rebuild whenever the character's skill ids differ from the ids the snapshot was built from.
     ('net/sourceforge/kolmafia/Modifiers.java',
-     '''  private static Modifiers cachedPassiveModifiers = null;
+     '''  private static boolean availableSkillsChanged = false;
 ''',
-     '''  private static Modifiers cachedPassiveModifiers = null;
-  private static java.util.Set<Integer> cachedPassiveSkillIds = java.util.Set.of();
+     '''  private static volatile boolean availableSkillsChanged = false;
+
+  private record KolmobPassives(
+      java.util.Set<Integer> skillIds, Modifiers constant, java.util.List<Modifiers> variable) {}
+
+  private static volatile KolmobPassives kolmobPassives = null;
+  private static final java.util.concurrent.atomic.AtomicBoolean kolmobListenerRegistered =
+      new java.util.concurrent.atomic.AtomicBoolean(false);
 '''),
     ('net/sourceforge/kolmafia/Modifiers.java',
-     '''    synchronized (Modifiers.class) {
+     '''  public void applyPassiveModifiers(final boolean debug) {
+    if (Modifiers.cachedPassiveModifiers == null) {
+      Modifiers.cachedPassiveModifiers =
+          new Modifiers(new Lookup(ModifierType.PASSIVES, "cachedPassives"));
+      PreferenceListenerRegistry.registerPreferenceListener(
+          new String[] {"(skill)", "kingLiberated", "(ronin)"},
+          () -> Modifiers.availableSkillsChanged());
+    }
+    if (KoLCharacter.getAvailableSkillIds().isEmpty()) {
+      // We probably haven't loaded the player's skills yet. Avoid populating
+      // availablePassiveSkillModifiersByVariable with two empty lists.
+      return;
+    }
+
+    synchronized (Modifiers.class) {
       if (debug
           || Modifiers.availableSkillsChanged
           || Modifiers.availablePassiveSkillModifiersByVariable.isEmpty()) {
         // Collect all passive skills currently on the character.
         Modifiers.availablePassiveSkillModifiersByVariable.putAll(
-            KoLCharacter.getAvailableSkillIds().stream()''',
-     '''    synchronized (Modifiers.class) {
-      // Kolmob: validate the cache against the skills the character has right now, not just the changed flag.
-      final java.util.Set<Integer> currentSkillIds = snapshotSkillIds();
-      final boolean skillsMismatch =
-          currentSkillIds != null && !currentSkillIds.equals(Modifiers.cachedPassiveSkillIds);
-      if (skillsMismatch
-          && !debug
-          && !Modifiers.availableSkillsChanged
-          && !Modifiers.availablePassiveSkillModifiersByVariable.isEmpty()) {
-        RequestLogger.updateDebugLog(
-            "Kolmob: passive skill bonuses were out of date ("
-                + Modifiers.cachedPassiveSkillIds.size()
-                + " cached vs "
-                + currentSkillIds.size()
-                + " current skills); rebuilt.");
-      }
-      if (debug
-          || Modifiers.availableSkillsChanged
-          || skillsMismatch
-          || Modifiers.availablePassiveSkillModifiersByVariable.isEmpty()) {
-        // Collect all passive skills currently on the character.
-        Modifiers.availablePassiveSkillModifiersByVariable.putAll(
-            (currentSkillIds != null ? currentSkillIds : KoLCharacter.getAvailableSkillIds())
-                .stream()'''),
-    ('net/sourceforge/kolmafia/Modifiers.java',
-     '''        Modifiers.availableSkillsChanged = false;
+            KoLCharacter.getAvailableSkillIds().stream()
+                .filter(SkillDatabase::isPassive)
+                .map(skill -> ModifierDatabase.getModifiers(ModifierType.SKILL, skill))
+                .filter(Objects::nonNull)
+                .collect(
+                    Collectors.partitioningBy(
+                        modifiers -> modifiers.override(modifiers.getLookup()))));
+
+        // Recompute sum of cached constant passive skills.
+        Modifiers.cachedPassiveModifiers.reset();
+        Modifiers.availablePassiveSkillModifiersByVariable
+            .get(false)
+            .forEach(
+                mods -> {
+                  Modifiers.cachedPassiveModifiers.add(mods);
+
+                  // If we are debugging, add them directly. Also add them to the cache though
+                  if (debug) {
+                    this.add(mods);
+                  }
+                });
+        Modifiers.availableSkillsChanged = false;
       }
     }
-''',
-     '''        Modifiers.availableSkillsChanged = false;
-        Modifiers.cachedPassiveSkillIds =
-            currentSkillIds != null ? currentSkillIds : java.util.Set.of();
-      }
+
+    // If we're debugging we've already added the modifiers while building the passive cache.
+    if (!debug) {
+      this.add(Modifiers.cachedPassiveModifiers);
     }
-'''),
-    ('net/sourceforge/kolmafia/Modifiers.java',
-     '''  public static void resetAvailablePassiveSkills() {''',
-     '''  private static java.util.Set<Integer> snapshotSkillIds() {
-    for (int attempt = 0; attempt < 3; ++attempt) {
-      try {
-        return new java.util.HashSet<>(KoLCharacter.getAvailableSkillIds());
-      } catch (java.util.ConcurrentModificationException e) {
-        // another thread is changing the skill list; try again
-      }
-    }
-    return null;
+
+    // Add variable modifiers.
+    Modifiers.availablePassiveSkillModifiersByVariable.get(true).forEach(this::add);
   }
 
-  public static void resetAvailablePassiveSkills() {'''),
+  public static void resetAvailablePassiveSkills() {
+    availablePassiveSkillModifiersByVariable.clear();
+  }
+''',
+     '''  public void applyPassiveModifiers(final boolean debug) {
+    if (Modifiers.kolmobListenerRegistered.compareAndSet(false, true)) {
+      PreferenceListenerRegistry.registerPreferenceListener(
+          new String[] {"(skill)", "kingLiberated", "(ronin)"},
+          () -> Modifiers.availableSkillsChanged());
+    }
+    final java.util.Set<Integer> skillIds = snapshotSkillIds();
+    if (skillIds.isEmpty()) {
+      // We probably haven't loaded the player's skills yet.
+      return;
+    }
+
+    KolmobPassives current = Modifiers.kolmobPassives;
+    if (debug
+        || current == null
+        || Modifiers.availableSkillsChanged
+        || !skillIds.equals(current.skillIds())) {
+      synchronized (Modifiers.class) {
+        current = Modifiers.kolmobPassives;
+        // Clear the flag before reading anything, so a change that lands while we build re-sets it.
+        final boolean flagged = Modifiers.availableSkillsChanged;
+        Modifiers.availableSkillsChanged = false;
+        final boolean mismatch = current != null && !skillIds.equals(current.skillIds());
+        if (debug || current == null || flagged || mismatch) {
+          if (mismatch && !flagged && !debug) {
+            RequestLogger.updateDebugLog(
+                "Kolmob: passive skill bonuses were out of date ("
+                    + current.skillIds().size()
+                    + " cached vs "
+                    + skillIds.size()
+                    + " current skills); rebuilt.");
+          }
+          // Build a brand new snapshot and publish it in one step. Published snapshots are never
+          // changed afterwards, so other threads can read them without locking.
+          final Modifiers constant = new Modifiers(new Lookup(ModifierType.PASSIVES, "cachedPassives"));
+          final java.util.List<Modifiers> variable = new java.util.ArrayList<>();
+          for (int skillId : skillIds) {
+            if (!SkillDatabase.isPassive(skillId)) continue;
+            Modifiers mods = ModifierDatabase.getModifiers(ModifierType.SKILL, skillId);
+            if (mods == null) continue;
+            if (mods.override(mods.getLookup())) {
+              variable.add(mods);
+            } else {
+              constant.add(mods);
+              // If we are debugging, add them directly. Also add them to the cache though
+              if (debug) {
+                this.add(mods);
+              }
+            }
+          }
+          current = new KolmobPassives(skillIds, constant, java.util.List.copyOf(variable));
+          Modifiers.kolmobPassives = current;
+        }
+      }
+    }
+
+    // If we're debugging we've already added the modifiers while building the passive cache.
+    if (!debug) {
+      this.add(current.constant());
+    }
+
+    // Add variable modifiers.
+    current.variable().forEach(this::add);
+  }
+
+  private static java.util.Set<Integer> snapshotSkillIds() {
+    return new java.util.HashSet<>(KoLCharacter.getAvailableSkillIds());
+  }
+
+  public static void resetAvailablePassiveSkills() {
+    Modifiers.kolmobPassives = null;
+  }
+'''),
+    # Kolmob: the skill set is written by whichever thread parses a response and read by others; make it concurrent.
+    ('net/sourceforge/kolmafia/KoLConstants.java',
+     '''Set<Integer> availableSkillsSet = new HashSet<>();''',
+     '''Set<Integer> availableSkillsSet = java.util.concurrent.ConcurrentHashMap.newKeySet();'''),
+    # Kolmob: only one thread at a time may compute and store the current bonuses, so an older computation can't
+    # overwrite a newer one.
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''  public static final void recalculateAdjustments(boolean debug) {''',
+     '''  public static final synchronized void recalculateAdjustments(boolean debug) {'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

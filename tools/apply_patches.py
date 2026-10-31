@@ -85,6 +85,27 @@ PATCHES = [
      '''    for (java.lang.ref.SoftReference<ScriptRuntime> ref : KoLmafiaASH.INTERPRETERS.values()) {
       ScriptRuntime i = ref.get();
       if (i != null && i.getRelayRequest() != null) {'''),
+    # Kolmob: a character's passive-skill bonuses are cached and only rebuilt when the skill list is flagged as changed. If
+    # that cache is ever rebuilt from a partial skill list (seen as Ed the Undying after buying "Just One More Extra Spleen":
+    # spleen limit 25 -> 5, liver 4 -> 0 while the game still said 25/30), KoLmafia calls the player overspleened and
+    # refuses every adventure. Before refusing, rebuild the cache once and check again; a really overspleened character
+    # still fails the second check.
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''  public static boolean isOverspleened() {
+    return KoLCharacter.canChew() && KoLCharacter.getSpleenUse() > KoLCharacter.getSpleenLimit();
+  }''',
+     '''  public static boolean isOverspleened() {
+    if (!KoLCharacter.canChew()) {
+      return false;
+    }
+    if (KoLCharacter.getSpleenUse() <= KoLCharacter.getSpleenLimit()) {
+      return false;
+    }
+    // Kolmob: rebuild the cached passive-skill bonuses and look again before calling the player overspleened.
+    Modifiers.availableSkillsChanged();
+    KoLCharacter.recalculateAdjustments();
+    return KoLCharacter.getSpleenUse() > KoLCharacter.getSpleenLimit();
+  }'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

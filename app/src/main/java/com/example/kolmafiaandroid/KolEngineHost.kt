@@ -55,6 +55,13 @@ object KolEngineHost {
     /** Debug hook: paths (or `js:<code>`) for the Game tab's WebView. */
     val webRequests = MutableSharedFlow<String>(extraBufferCapacity = 8)
 
+    /**
+     * Fires when something may have changed the character: a command or script finished, and every few seconds while one runs
+     * (a script can eat, chew and use things for an hour). Screens that show the character redraw on it.
+     */
+    val stateChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    private val ticker = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "kol-ticker").apply { isDaemon = true } }
+
     /** True while a character is logged in; observed by the UI. */
     val loginState = MutableStateFlow(false)
 
@@ -135,11 +142,15 @@ object KolEngineHost {
         executor.execute {
             val ctx = appContext
             if (ctx != null) ScriptService.begin(ctx, command)
+            val tick = ticker.scheduleWithFixedDelay({ stateChanged.tryEmit(Unit) }, 6, 6, java.util.concurrent.TimeUnit.SECONDS)
             try {
                 watched("cmd") { KolEngine.execute(command) }
             } catch (t: Throwable) {
                 lines.tryEmit("ERROR: $t")
             }
+            tick.cancel(false)
+            KolEngine.resync()
+            stateChanged.tryEmit(Unit)
             if (ctx != null) ScriptService.end(ctx)
             loggedIn = KolEngine.isLoggedIn()
             currentUser = if (loggedIn) KolEngine.userName() else ""

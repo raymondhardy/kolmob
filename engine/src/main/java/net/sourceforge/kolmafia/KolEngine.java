@@ -190,6 +190,20 @@ public final class KolEngine {
 
   // ---- state for the UI ----
 
+  /**
+   * Rebuilds the numbers KoLmafia derives from the character (passive-skill bonuses, so organ limits, resistances ...).
+   * They are cached and only rebuilt when the skill list is flagged as changed; if that ever goes stale the limits are wrong
+   * (seen: spleen 25/30 in the game but 25/5 in KoLmafia, which then refused to adventure). Cheap, so done after every command.
+   */
+  public static void resync() {
+    try {
+      Modifiers.availableSkillsChanged();
+      KoLCharacter.recalculateAdjustments();
+    } catch (Throwable t) {
+      // never let a refresh break the caller
+    }
+  }
+
   /** Starts KoLmafia's relay server (the "relay browser" proxy) and returns its port, or -1. */
   public static synchronized int startRelay() {
     try {

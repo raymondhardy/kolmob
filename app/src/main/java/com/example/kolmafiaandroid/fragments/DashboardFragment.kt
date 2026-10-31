@@ -90,6 +90,8 @@ class DashboardFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         viewLifecycleOwner.lifecycleScope.launch { KolEngineHost.loginState.collect { refresh() } }
+        // a script, the diet planner or any other command may have eaten, chewed or used something: redraw when it says so
+        viewLifecycleOwner.lifecycleScope.launch { KolEngineHost.stateChanged.collect { if (isResumed) refresh() } }
     }
 
     override fun onResume() {

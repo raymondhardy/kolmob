@@ -149,6 +149,13 @@ class DashboardFragment : Fragment() {
     }
 
     /** Run a KoLmafia command, then redraw with the new state. */
+    /** Remembers what you wear now (for Undo), then lets KoLmafia's maximizer put on the best gear you own for the goal. */
+    private fun equipBest(name: String, expr: String) {
+        KolEngineHost.execute("checkpoint") {
+            activity?.runOnUiThread { if (isAdded) actReport("maximize $expr", "Now wearing the best for: $name") }
+        }
+    }
+
     private fun act(command: String) {
         KolEngineHost.execute(command) { activity?.runOnUiThread { if (isAdded) refresh() } }
     }
@@ -246,6 +253,19 @@ class DashboardFragment : Fragment() {
         val eqCard = card(ctx, body, "Equipment")
         val eq = o.optJSONArray("equipment") ?: JSONArray()
         for (i in 0 until eq.length()) eqCard.addView(equipmentRow(eq.getJSONObject(i)))
+        val best = card(ctx, body, "Best gear for…")
+        best.addView(label(ctx, "Tap a goal to wear the best gear you own for it (ties go to the stronger item).", 12f, muted).apply { setPadding(0, 0, 0, dp(ctx, 6)) })
+        for ((name, expr) in com.example.kolmafiaandroid.tools.GearGoals.list) {
+            best.addView(row(ctx, name, "", { equipBest(name, expr) }, green))
+        }
+        best.addView(row(ctx, "Something else…", "Type your own goal", {
+            val input = android.widget.EditText(ctx).apply { hint = "e.g. item drop, -combat"; maxLines = 1 }
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Best gear for")
+                .setView(input)
+                .setPositiveButton("Wear it") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let { equipBest(it, it) } }
+                .setNegativeButton("Cancel", null).show()
+        }, green))
+        best.addView(row(ctx, "Undo the last change", "Back to what you wore before", { act("outfit checkpoint") }, green))
         val more = card(ctx, body, "Outfits and familiar")
         // KoLmafia lists a pseudo-outfit " - No Change - "; it is not wearable
         val outfits = (o.optJSONArray("outfits") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getString(it) } }.filter { !it.trim().startsWith("-") }

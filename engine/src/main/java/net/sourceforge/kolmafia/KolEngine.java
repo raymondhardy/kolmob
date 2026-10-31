@@ -110,6 +110,39 @@ public final class KolEngine {
     }
   }
 
+  /**
+   * What you could use, cast or do (not wear) to push a maximizer goal higher than your current gear already does, as JSON:
+   * {"ok":true,"boosts":[{"text":"...","cmd":"...","gain":1.5}]}. Uses KoLmafia's own maximizer, with equipment left out.
+   */
+  public static String boosts(String expression) {
+    try {
+      KoLmafia.forceContinue();
+      java.util.EnumSet<KoLConstants.filterType> f =
+          java.util.EnumSet.of(KoLConstants.filterType.CAST, KoLConstants.filterType.USABLE, KoLConstants.filterType.OTHER);
+      boolean ok =
+          net.sourceforge.kolmafia.maximizer.Maximizer.maximize(
+              expression,
+              0,
+              net.sourceforge.kolmafia.maximizer.PriceLevel.DONT_CHECK,
+              net.sourceforge.kolmafia.maximizer.EquipScope.SPECULATE_INVENTORY,
+              f);
+      if (!ok && !KoLmafia.permitsContinue()) return "{\"ok\":false,\"error\":\"Could not understand: " + expression.replace("\"", "'") + "\"}";
+      StringBuilder sb = new StringBuilder("{\"ok\":true,\"boosts\":[");
+      boolean first = true;
+      for (net.sourceforge.kolmafia.maximizer.Boost b : net.sourceforge.kolmafia.maximizer.Maximizer.boosts) {
+        if (b.isEquipment() || b.getCmd().isEmpty()) continue;
+        String text = b.toString().replaceAll("<[^>]*>", "").replace("&amp;", "&").trim();
+        if (!first) sb.append(',');
+        first = false;
+        sb.append("{\"text\":").append(quote(text)).append(",\"cmd\":").append(quote(b.getCmd()))
+            .append(",\"gain\":").append(b.getBoost()).append('}');
+      }
+      return sb.append("]}").toString();
+    } catch (Throwable t) {
+      return "{\"ok\":false,\"error\":" + quote(String.valueOf(t)) + "}";
+    }
+  }
+
   public static String copyRootFile(String fromRel, String toRel) {
     try {
       java.io.File root = KoLConstants.ROOT_LOCATION.getCanonicalFile();

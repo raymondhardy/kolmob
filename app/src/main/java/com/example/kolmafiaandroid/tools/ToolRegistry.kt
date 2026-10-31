@@ -31,7 +31,7 @@ object ToolRegistry {
     /** Which Character tab each tool is reached from. Everything else stays in the Tools list. */
     private val homes = mapOf(
         "mall" to "items", "npcshops" to "items", "coinmasters" to "items", "store" to "items", "items" to "hidden", "meat" to "items",
-        "maximizer" to "gear", "modifiers" to "gear",
+        "maximizer" to "hidden", "boost" to "items", "modifiers" to "gear",
         "buffrequest" to "effects", "buffbot" to "effects",
     )
     fun inTab(home: String): List<Tool> = tools.filter { it.home == home }
@@ -194,6 +194,13 @@ object ToolRegistry {
             subtitle = "Optimize equipment with maximize command",
             open = { fm -> MaximizerFragment.show(fm) },
             group = "Info and scripts"
+        ))
+        add(Tool(
+            id = "boost",
+            title = "Boost",
+            subtitle = "Potions and buffs that raise a stat or effect",
+            open = { fm -> BoostFragment.show(fm) },
+            group = "Character"
         ))
         fun page(id: String, title: String, subtitle: String, path: String, group: String = "Mazes") = add(Tool(
             id = id, title = title, subtitle = subtitle, group = group,

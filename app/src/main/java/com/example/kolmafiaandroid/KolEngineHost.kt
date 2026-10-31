@@ -219,6 +219,13 @@ object KolEngineHost {
         }
     }
 
+    /** Boosts (potions, buffs, things to use) for a maximizer goal, as JSON (see KolEngine.boosts). Runs on the engine thread. */
+    fun boosts(expression: String, done: (String) -> Unit) {
+        executor.execute {
+            done(try { KolEngine.boosts(expression) } catch (t: Throwable) { "{\"ok\":false,\"error\":\"$t\"}" })
+        }
+    }
+
     /** Starts KoLmafia's relay server (the in-game browser proxy); delivers its port or -1. */
     /**
      * Starts the relay server on its own thread. It must not queue behind the engine thread: a running script (autoscend can run for

@@ -16,6 +16,7 @@ class KolApp : Application() {
                 .metaData?.get("kolmob.hooks")?.toString() == "true")
         if (hooks) System.setProperty("kolmob.http.debug", "true")
         com.example.kolmafiaandroid.ui.KC.apply(this)
+        Thread { LogPruner.prune(this) }.start()
         KolEngineHost.start(this)
         ChatNotifier.init(this)
         // Debug builds only: `adb shell am broadcast -a com.example.kolmafiaandroid.RUN --es cmd '<command>'`

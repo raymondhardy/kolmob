@@ -195,10 +195,9 @@ class AdventureFragment : Fragment() {
             KolEngineHost.execute("mood list; restore")
         }, KC.text))
         prep.addView(uiRow(ctx, "Scripts, mana burning and item sources", "between-turn scripts, MP burning, where missing items come from", { automationDialog() }, KC.text))
-        prep.addView(uiRow(ctx, "Pick gear with the maximizer", null, {
-            com.example.kolmafiaandroid.tools.MaximizerFragment().show(parentFragmentManager, "maximizer")
-        }, green))
-        prep.addView(label("Familiar, outfits, skills and buffs are on the Character screen.", 12f, muted).apply { setPadding(0, dp(8), 0, 0) })
+        prep.addView(label("Gear, familiar, skills and buffs are on the Character screen.", 12f, muted).apply { setPadding(0, dp(8), 0, 0) })
+        val places = card(prepBox, "Places and helpers")
+        places.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, parentFragmentManager, "adventure"))
 
         val combat = card(fightsBox, "Fights")
         actionButton = outlined("Fight action") { chooseAction() }

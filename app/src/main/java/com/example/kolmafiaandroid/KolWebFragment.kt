@@ -114,6 +114,14 @@ class KolWebFragment : Fragment() {
         Shortcut("Mall", "mall.php", R.drawable.web_cart),
         Shortcut("Chat", "lchat.php", R.drawable.web_chat),
         Shortcut("Clan", "clan_hall.php", R.drawable.web_clan),
+        Shortcut("Campground", "campground.php", R.drawable.web_map),
+        Shortcut("Guild", "guild.php", R.drawable.web_bolt),
+        Shortcut("Hagnk's storage", "storage.php", R.drawable.web_bag),
+        Shortcut("Display case", "managecollection.php", R.drawable.web_bag),
+        Shortcut("Trophies", "trophies.php", R.drawable.web_quests),
+        Shortcut("Hedge maze", "hedgepuzzle.php", R.drawable.web_map),
+        Shortcut("Volcano maze", "volcanomaze.php", R.drawable.web_map),
+        Shortcut("Ascension history", "\u0000ascensions", R.drawable.web_person),
         Shortcut("KoL options", "account.php", R.drawable.web_gear),
     )
 
@@ -172,7 +180,11 @@ class KolWebFragment : Fragment() {
                     100 -> chooseTextSize()
                     in 200..202 -> (activity as? MainActivity)?.goToTab(item.itemId - 200)
                     203 -> (activity as? MainActivity)?.openMore()
-                    else -> openInGame(menu.drop(3)[item.itemId].path)
+                    else -> {
+                        val path = menu.drop(3)[item.itemId].path
+                        if (path == "\u0000ascensions") com.example.kolmafiaandroid.tools.ToolRegistry.find("ascensions")?.open?.invoke(requireActivity().supportFragmentManager)
+                        else openInGame(path)
+                    }
                 }
                 true
             }

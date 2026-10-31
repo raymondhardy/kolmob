@@ -243,6 +243,7 @@ class DashboardFragment : Fragment() {
             tile(ctx, "FAMILIAR", o.optString("familiar").ifEmpty { "none" }, if (familiars.isNotEmpty()) { { chooseFamiliar(familiars) } } else null),
             tile(ctx, "LAST ADVENTURE", o.optString("lastAdventure").ifEmpty { "-" })
         ))
+        body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "overview"))
     }
 
     /** Equipment, outfits and your familiar: everything you wear or bring along. */

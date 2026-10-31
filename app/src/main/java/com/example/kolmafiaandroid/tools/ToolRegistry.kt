@@ -31,6 +31,8 @@ object ToolRegistry {
     /** Which Character tab each tool is reached from. Everything else stays in the Tools list. */
     private val homes = mapOf(
         "mall" to "items", "npcshops" to "items", "coinmasters" to "items", "store" to "items", "items" to "hidden", "meat" to "items",
+        "mushroom" to "adventure", "train" to "adventure",
+        "scripts" to "hidden", "ascensions" to "hidden", "gains" to "overview",
         "maximizer" to "hidden", "boost" to "hidden", "modifiers" to "gear",
         "buffrequest" to "skills", "buffbot" to "skills",
     )
@@ -154,13 +156,6 @@ object ToolRegistry {
             group = "Social"
         ))
         add(Tool(
-            id = "trophies",
-            title = "Trophies",
-            subtitle = "Your trophy case, in KoL's own page",
-            page = "trophies.php",
-            group = "Character"
-        ))
-        add(Tool(
             id = "logs",
             title = "Logs",
             subtitle = "View session logs and debug files",
@@ -209,12 +204,6 @@ object ToolRegistry {
                 com.example.kolmafiaandroid.KolEngineHost.webRequests.tryEmit(path)
             }
         ))
-                page("hedge", "Hedge maze", "Sorceress' Tower hedge maze solver", "hedgepuzzle.php")
-        page("volcano", "Volcano maze", "Nemesis volcano cave maze solver", "volcanomaze.php")
-        page("campground", "Campground", "Your campground: dwelling, garden, bookshelf and furniture", "campground.php", "Character")
-        page("guild", "Guild", "Guild hall, skill trainer and class quests", "guild.php", "Character")
-        page("hagnk", "Hagnk's storage", "Pull items out of storage (pulls left are shown on the page)", "storage.php", "Character")
-        page("display", "Display case", "Arrange and show off your museum collection", "managecollection.php", "Character")
         add(Tool(
             id = "ascensions", title = "Ascension history", subtitle = "Every run you have done: path, class, days and turns",
             group = "Character",

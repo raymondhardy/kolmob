@@ -263,7 +263,11 @@ class MainActivity : AppCompatActivity() {
             if (unread > 0) "$unread new in $threads conversation${if (threads == 1) "" else "s"}" else "Channels, whispers and alerts") {
             com.example.kolmafiaandroid.tools.ChatFragment().show(supportFragmentManager, "chat")
         }
-        row(R.drawable.ic_tools, "Tools", "Items, maximizer, moods, database, logs…") { ToolsFragment.show(supportFragmentManager) }
+        for (t in com.example.kolmafiaandroid.tools.ToolRegistry.tools.filter { it.home == null && it.group == "Social" }) {
+            val icon = when (t.id) { "mail" -> R.drawable.web_chat; "clan" -> R.drawable.web_clan; else -> R.drawable.web_person }
+            row(icon, t.title, t.subtitle.substringBefore(".").take(48)) { t.open(supportFragmentManager) }
+        }
+        row(R.drawable.ic_tools, "Advanced", "Logs, preferences, database, macros") { ToolsFragment.show(supportFragmentManager) }
         row(R.drawable.ic_settings, "Settings", "KoL display options and this app") { showSettings() }
         row(R.drawable.ic_logout, "Switch account or log out", KolEngineHost.currentUser) {
             autoLoginAllowed = false
@@ -318,6 +322,25 @@ class MainActivity : AppCompatActivity() {
                 applyKeepAwake(KolEngineHost.running.value)
             }
         })
+        box.addView(note("Keep logs for", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
+        val keepSpinner = android.widget.Spinner(this).apply {
+            adapter = android.widget.ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, LogPruner.choices.map { it.second })
+            setSelection(LogPruner.choices.indexOfFirst { it.first == LogPruner.keepDays(this@MainActivity) }.coerceAtLeast(0))
+            var first = true
+            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                    if (first) { first = false; return }
+                    LogPruner.setKeepDays(this@MainActivity, LogPruner.choices[pos].first)
+                    Thread {
+                        val n = LogPruner.prune(this@MainActivity)
+                        if (n > 0) runOnUiThread { android.widget.Toast.makeText(this@MainActivity, "Deleted $n old log file${if (n == 1) "" else "s"}", android.widget.Toast.LENGTH_SHORT).show() }
+                    }.start()
+                }
+                override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+            }
+        }
+        box.addView(keepSpinner)
+        box.addView(note("Session, chat and debug logs older than this are deleted when you pick it and each time the app starts."))
         box.addView(note("KoL display options (these are your KoL account settings, so they also change the desktop site)", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
         val loading = note("Loading from KoL...")
         box.addView(loading)

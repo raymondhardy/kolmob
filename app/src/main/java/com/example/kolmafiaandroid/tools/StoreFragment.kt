@@ -108,7 +108,7 @@ class StoreFragment : DialogFragment() {
 
     private fun manage(l: Listing) {
         val ctx = requireContext()
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle(l.name)
             .setItems(arrayOf("Change price (now ${fmt.format(l.price)})", "Take back…")) { _, which ->
                 if (which == 0) askQuantity("Price for ${l.name}", "Meat each. Cheapest in the mall right now: ${fmt.format(l.lowest)}.", 999_999_999, "Set price") { p ->

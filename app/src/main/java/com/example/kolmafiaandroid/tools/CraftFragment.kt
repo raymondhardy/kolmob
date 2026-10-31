@@ -166,7 +166,7 @@ class CraftFragment : DialogFragment() {
 
     private fun make(r: Recipe) {
         if (r.needs.isNotEmpty()) {
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(r.name)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(r.name)
                 .setMessage("You have the ingredients, but making this needs ${r.needs}, which you don't have.")
                 .setPositiveButton("OK", null).show()
             return

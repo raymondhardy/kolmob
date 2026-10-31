@@ -149,7 +149,7 @@ class ScriptsFragment : DialogFragment() {
     }
 
     private fun confirmDelete(file: File) {
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle(R.string.scripts_delete)
             .setMessage(requireContext().getString(R.string.scripts_confirm_delete) + "\n\n${file.name}")
             .setPositiveButton(R.string.scripts_delete) { _, _ ->
@@ -177,7 +177,7 @@ class ScriptsFragment : DialogFragment() {
             addView(input)
         }
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle(R.string.scripts_new)
             .setView(layout)
             .setPositiveButton(R.string.scripts_save) { _, _ ->
@@ -230,7 +230,7 @@ class ScriptsFragment : DialogFragment() {
             addView(input)
         }
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle(R.string.scripts_import_url)
             .setView(layout)
             .setPositiveButton(R.string.scripts_import) { _, _ ->
@@ -325,7 +325,7 @@ class ScriptsFragment : DialogFragment() {
                 context.getString(R.string.scripts_edit),
                 context.getString(R.string.scripts_delete)
             )
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(context)
                 .setTitle(file.name)
                 .setItems(options) { _, which ->
                     when (which) {
@@ -486,7 +486,7 @@ class ScriptsFragment : DialogFragment() {
         val who = KolEngineHost.currentUser.ifEmpty { "this account" }
         val options = arrayOf("Everyone (all accounts)", "Only $who")
         val checked = if (project.scope == "user") 1 else 0
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Who gets ${project.name}?")
             .setSingleChoiceItems(options, checked) { d, which ->
                 d.dismiss()
@@ -535,7 +535,7 @@ class ScriptsFragment : DialogFragment() {
                 val input = android.widget.EditText(requireContext()).apply { setText(selected ?: ""); hint = "branch"; setSingleLine() }
                 val pad = (20 * resources.displayMetrics.density).toInt()
                 val box = android.widget.FrameLayout(requireContext()).apply { setPadding(pad, pad / 2, pad, 0); addView(input) }
-                MaterialAlertDialogBuilder(requireContext()).setTitle(title)
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(title)
                     .setMessage("Couldn't load the branch list; type one.")
                     .setView(box)
                     .setPositiveButton("OK") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onPick) }
@@ -545,7 +545,7 @@ class ScriptsFragment : DialogFragment() {
             val list = if (selected != null && selected !in names) listOf(selected) + names else names
             var idx = list.indexOf(selected ?: names[0]).coerceAtLeast(0)
             val labels = list.mapIndexed { i, n -> if (selected == null && i == 0) "$n (default)" else n }.toTypedArray()
-            MaterialAlertDialogBuilder(requireContext()).setTitle(title)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(title)
                 .setSingleChoiceItems(labels, idx) { _, which -> idx = which }
                 .setPositiveButton("OK") { _, _ -> onPick(list[idx]) }
                 .setNegativeButton(R.string.scripts_cancel, null).show()
@@ -701,7 +701,7 @@ class ScriptsFragment : DialogFragment() {
         installedRecycler: RecyclerView,
         installedEmpty: TextView
     ) {
-        MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle(R.string.installer_delete)
             .setMessage(getString(R.string.installer_confirm_delete, project.name))
             .setPositiveButton(R.string.installer_delete) { _, _ ->

@@ -124,7 +124,7 @@ class ChoiceAdvFragment : DialogFragment() {
         val decisions = mutableListOf(0)
         for (i in 0 until opts.length()) { names.add(opts.getJSONObject(i).optString("n")); decisions.add(opts.getJSONObject(i).optInt("d")) }
         val cur = decisions.indexOf(o.optInt("value")).coerceAtLeast(0)
-        MaterialAlertDialogBuilder(requireContext()).setTitle(o.optString("name"))
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(o.optString("name"))
             .setSingleChoiceItems(names.toTypedArray(), cur) { d, i ->
                 KolEngineHost.setPref(o.optString("setting"), decisions[i].toString())
                 d.dismiss()

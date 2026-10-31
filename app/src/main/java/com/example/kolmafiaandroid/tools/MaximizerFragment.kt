@@ -193,7 +193,7 @@ class MaximizerFragment : DialogFragment() {
             Toast.makeText(requireContext(), "Enter an expression", Toast.LENGTH_SHORT).show()
             return
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Confirm Equip")
             .setMessage("This will change your equipment to maximize: $expr\n\nAre you sure?")
             .setPositiveButton("Equip") { _, _ ->

@@ -173,7 +173,7 @@ class MoodFragment : DialogFragment() {
 
     private fun runCommand(cmd: String, needsConfirm: Boolean = false) {
         if (needsConfirm) {
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                 .setTitle("Confirm")
                 .setMessage("Run: $cmd ?")
                 .setPositiveButton("Run") { _, _ ->
@@ -228,7 +228,7 @@ class MoodFragment : DialogFragment() {
             addView(input)
         }
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Save current effects as mood")
             .setMessage("Enter a name for this mood:")
             .setView(layout)

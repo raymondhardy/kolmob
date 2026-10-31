@@ -128,7 +128,7 @@ class CcsEditorFragment : DialogFragment() {
         /** Ask for a name, then open the editor on a new script. */
         fun create(ctx: android.content.Context, fm: FragmentManager) {
             val input = EditText(ctx).apply { hint = "script name"; setSingleLine() }
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("New combat script").setView(input)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("New combat script").setView(input)
                 .setPositiveButton("Create") { _, _ ->
                     val n = input.text.toString().trim().replace(Regex("[^A-Za-z0-9 _-]"), "")
                     if (n.isNotEmpty()) show(fm, n)

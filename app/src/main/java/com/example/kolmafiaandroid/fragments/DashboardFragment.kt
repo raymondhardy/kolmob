@@ -130,7 +130,7 @@ class DashboardFragment : Fragment() {
                 if (!isAdded) return@runOnUiThread
                 val ctx = requireContext()
                 if (!o.optBoolean("camp", true)) {
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("No campground")
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("No campground")
                         .setMessage("KoLmafia says you don't have a campground to rest at right now.").setPositiveButton("OK", null).show()
                     return@runOnUiThread
                 }
@@ -140,7 +140,7 @@ class DashboardFragment : Fragment() {
                     (if (free > 0) "You have $free free rest${if (free == 1) "" else "s"} left today, so this should cost no adventure."
                      else "You have no free rests left, so resting will spend 1 of your ${o.optInt("adv")} adventures.") +
                     (if (full) "\n\nYou are already at full HP and MP." else "")
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Rest at your campsite?").setMessage(msg)
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Rest at your campsite?").setMessage(msg)
                     .setPositiveButton("Rest") { _, _ -> actReport("rest", "Rested") }
                     .setNegativeButton("Cancel", null).show()
             }
@@ -231,7 +231,7 @@ class DashboardFragment : Fragment() {
         val ctx = requireContext()
         val daily = card(ctx, body, "Today")
         daily.addView(row(ctx, "Run breakfast", "KoLmafia's daily free actions", {
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Run breakfast?")
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Run breakfast?")
                 .setMessage("Runs KoLmafia's breakfast: the daily free actions you have turned on in its settings (this can use items and spend turns of free effects).")
                 .setPositiveButton("Run") { _, _ -> actReport("breakfast", "Breakfast finished") }.setNegativeButton("Cancel", null).show()
         }, green))
@@ -259,7 +259,7 @@ class DashboardFragment : Fragment() {
         }
         best.addView(row(ctx, "Something else…", "Type your own goal", {
             val input = android.widget.EditText(ctx).apply { hint = "e.g. item drop, -combat"; maxLines = 1 }
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Best gear for")
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Best gear for")
                 .setView(input)
                 .setPositiveButton("Wear it") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let { equipBest(it, it) } }
                 .setNegativeButton("Cancel", null).show()
@@ -274,7 +274,7 @@ class DashboardFragment : Fragment() {
         more.addView(row(ctx, "Manage saved outfits", "Rename or delete, in KoL's outfit page", { (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage("account_manageoutfits.php") }, green))
         more.addView(row(ctx, "Save current gear as an outfit", "Name it and wear it again later", {
             val input = android.widget.EditText(ctx).apply { hint = "Outfit name"; maxLines = 1 }
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
                 .setTitle("Save outfit")
                 .setView(input)
                 .setPositiveButton("Save") { _, _ ->
@@ -307,7 +307,7 @@ class DashboardFragment : Fragment() {
                 val sid = s.optInt("id")
                 if (sid > 0) v.setOnLongClickListener {
                     KolEngineHost.describe("skill", sid) { text ->
-                        activity?.runOnUiThread { if (isAdded) com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(name).setMessage(text).setPositiveButton("Close", null).show() }
+                        activity?.runOnUiThread { if (isAdded) com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(name).setMessage(text).setPositiveButton("Close", null).show() }
                     }
                     true
                 }
@@ -503,7 +503,7 @@ class DashboardFragment : Fragment() {
     private fun chooseConsumable(verb: String, cmd: String, items: JSONArray?, used: Int, limit: Int, unit: String) {
         val list = (0 until (items?.length() ?: 0)).map { items!!.getJSONObject(it) }.sortedBy { it.getString("name").lowercase() }
         if (list.isEmpty()) {
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(verb).setMessage("Nothing in your inventory to $cmd.").setPositiveButton("OK", null).show()
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(verb).setMessage("Nothing in your inventory to $cmd.").setPositiveButton("OK", null).show()
             return
         }
         val labels = list.map {
@@ -537,12 +537,12 @@ class DashboardFragment : Fragment() {
     /** Buff skills can be cast on yourself or on another player (`cast N skill on player`). */
     private fun chooseBuffTarget(name: String, n: Int) {
         val ctx = requireContext()
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Cast $name")
             .setItems(arrayOf("On myself", "On another player…")) { _, which ->
                 if (which == 0) { act("cast $n $name"); return@setItems }
                 val input = android.widget.EditText(ctx).apply { hint = "Player name"; maxLines = 1 }
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
                     .setTitle("Cast on whom?")
                     .setView(input)
                     .setPositiveButton("Cast") { _, _ ->

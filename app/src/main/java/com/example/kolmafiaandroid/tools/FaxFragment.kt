@@ -129,7 +129,7 @@ class FaxFragment : DialogFragment() {
             val on = online[it.lowercase()]
             it + (if (on == true) "  ·  online" else if (on == false) "  ·  offline (probably won't answer)" else "") + (if (it == last) "  ·  last used" else "")
         }.toTypedArray()
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Ask which faxbot for $monster?")
             .setItems(labels) { _, which ->
                 val bot = sorted[which]

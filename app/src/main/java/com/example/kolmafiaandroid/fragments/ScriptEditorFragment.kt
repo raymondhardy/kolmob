@@ -294,7 +294,7 @@ class ScriptEditorFragment : DialogFragment() {
                 }
                 R.id.action_run_args -> {
                     val input = android.widget.EditText(requireContext()).apply { hint = "arguments passed to main()"; maxLines = 1 }
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                         .setTitle("Run with arguments")
                         .setView(input)
                         .setPositiveButton("Run") { _, _ -> runScript(input.text.toString().trim()) }
@@ -342,7 +342,7 @@ class ScriptEditorFragment : DialogFragment() {
 
     private fun onBackPressed() {
         if (hasChanges) {
-            MaterialAlertDialogBuilder(requireContext())
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                 .setTitle(R.string.scripts_cancel)
                 .setMessage("Discard changes?")
                 .setPositiveButton(R.string.scripts_cancel) { _, _ -> dismiss() }
@@ -431,7 +431,7 @@ class ScriptEditorFragment : DialogFragment() {
             .findAll(editor.text).map { it.groupValues[1].trim() }.distinct().toList()
         if (names.isEmpty()) { Toast.makeText(ctx, "This script has no imports", Toast.LENGTH_SHORT).show(); return }
         val found = names.map { n -> n to listOf(File(dir, n), File(root, n)).firstOrNull { it.isFile } }
-        MaterialAlertDialogBuilder(ctx).setTitle("Imports")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Imports")
             .setItems(found.map { it.first + if (it.second == null) "  (not found)" else "" }.toTypedArray()) { _, i ->
                 val f = found[i].second
                 if (f == null) Toast.makeText(ctx, "Not found in scripts. Is its repository installed?", Toast.LENGTH_SHORT).show()

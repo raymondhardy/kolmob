@@ -58,7 +58,7 @@ class KolWebFragment : Fragment() {
         fun apply(idx: List<Int>) {
             web?.evaluateJavascript("window.__kolSelSet&&window.__kolSelSet([${idx.joinToString(",")}])", null)
         }
-        val b = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(title)
+        val b = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(title)
         if (o.optBoolean("multiple")) {
             b.setMultiChoiceItems(labels, checked) { _, i, c -> checked[i] = c }
                 .setPositiveButton("OK") { _, _ -> apply(checked.indices.filter { checked[it] }) }
@@ -156,7 +156,7 @@ class KolWebFragment : Fragment() {
                 return row
             }
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Go to…")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Go to…")
             .setAdapter(adapter) { _, i -> openInGame(places[i].path) }
             .setNegativeButton("Cancel", null).show()
     }
@@ -332,7 +332,7 @@ class KolWebFragment : Fragment() {
                     }
                     val box = FrameLayout(c)
                     box.addView(pop, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.heightPixels * 0.45).toInt()))
-                    val d = com.google.android.material.dialog.MaterialAlertDialogBuilder(c).setView(box).setPositiveButton("Close", null).create()
+                    val d = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(c).setView(box).setPositiveButton("Close", null).create()
                     pop.webChromeClient = object : WebChromeClient() { override fun onCloseWindow(window: WebView) { d.dismiss() } }
                     d.setOnDismissListener { pop.destroy() }
                     d.show()
@@ -344,7 +344,7 @@ class KolWebFragment : Fragment() {
                 // KoL pages use alert()/confirm(); the stock WebView dialogs are blank or missing here, so show our own.
                 override fun onJsAlert(view: WebView, url: String?, message: String?, result: android.webkit.JsResult): Boolean {
                     if (!isAdded) { result.cancel(); return true }
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                         .setMessage(message).setPositiveButton("OK") { _, _ -> result.confirm() }
                         .setOnCancelListener { result.cancel() }.show()
                     return true
@@ -362,7 +362,7 @@ class KolWebFragment : Fragment() {
                         setPadding(pad, 0, pad, 0)
                         addView(input)
                     }
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                         .setMessage(message).setView(box)
                         .setPositiveButton("OK") { _, _ -> result.confirm(input.text.toString()) }
                         .setNegativeButton("Cancel") { _, _ -> result.cancel() }
@@ -372,7 +372,7 @@ class KolWebFragment : Fragment() {
 
                 override fun onJsConfirm(view: WebView, url: String?, message: String?, result: android.webkit.JsResult): Boolean {
                     if (!isAdded) { result.cancel(); return true }
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                         .setMessage(message).setPositiveButton("OK") { _, _ -> result.confirm() }
                         .setNegativeButton("Cancel") { _, _ -> result.cancel() }
                         .setOnCancelListener { result.cancel() }.show()
@@ -498,7 +498,7 @@ class KolWebFragment : Fragment() {
     private fun chooseTextSize() {
         val sizes = listOf("Small (90%)" to 90, "Normal (100%)" to 100, "Large (115%)" to 115, "Larger (135%)" to 135, "Huge (160%)" to 160, "Giant (200%)" to 200)
         val current = web?.settings?.textZoom ?: 100
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Text size in the game")
             .setSingleChoiceItems(sizes.map { it.first }.toTypedArray(), sizes.indexOfFirst { it.second == current }) { d, i ->
                 applyTextZoom(sizes[i].second)

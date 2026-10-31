@@ -54,6 +54,8 @@ object KolEngineHost {
 
     /** Debug hook: paths (or `js:<code>`) for the Game tab's WebView. */
     val webRequests = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    /** Debug only (adb `--es tool <id>`): open a tool screen by its ToolRegistry id, for layout audits. */
+    val debugOpen = MutableSharedFlow<String>(extraBufferCapacity = 8)
 
     /**
      * Fires when something may have changed the character: a command or script finished, and every few seconds while one runs

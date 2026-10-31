@@ -195,7 +195,7 @@ class PreferencesFragment : DialogFragment() {
                 setTextColor(KC.text)
             }
 
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
                 .setTitle("Edit: ${entry.name}")
                 .setMessage("Scope: ${entry.scope}\nDefault: ${entry.defaultValue}")
                 .setView(switch)
@@ -223,7 +223,7 @@ class PreferencesFragment : DialogFragment() {
                 addView(input)
             }
 
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
                 .setTitle("Edit: ${entry.name}")
                 .setMessage("Scope: ${entry.scope}\nDefault: ${entry.defaultValue}")
                 .setView(layout)

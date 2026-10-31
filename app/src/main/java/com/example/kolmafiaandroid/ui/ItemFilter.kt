@@ -96,7 +96,7 @@ class ItemFilterBar(ctx: Context, private val key: String, private val onChange:
         val all = CheckBox(ctx).apply { text = "Match all checked (otherwise any one)"; isChecked = matchAll; setTextColor(KC.soft) }
         col.addView(all)
         col.addView(TextView(ctx).apply { text = "Nothing checked shows everything."; textSize = 12f; setTextColor(KC.muted); setPadding(0, dp(ctx, 6), 0, 0) })
-        MaterialAlertDialogBuilder(ctx).setTitle("Filter items")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Filter items")
             .setView(ScrollView(ctx).apply { addView(col) })
             .setPositiveButton("Apply") { _, _ ->
                 checked = options.filterIndexed { i, _ -> boxes[i].isChecked }.map { it.first }.toMutableSet()
@@ -113,7 +113,7 @@ class ItemFilterBar(ctx: Context, private val key: String, private val onChange:
     }
 
     private fun chooseSort() {
-        MaterialAlertDialogBuilder(context).setTitle("Sort items")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(context).setTitle("Sort items")
             .setSingleChoiceItems(sorts.toTypedArray(), sort) { d, i ->
                 sort = i
                 prefs.edit().putInt("itemsort_$key", i).apply()

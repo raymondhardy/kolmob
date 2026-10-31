@@ -196,7 +196,7 @@ class MacrosFragment : DialogFragment() {
         col.addView(name); col.addView(cmds)
         col.addView(TextView(ctx).apply { text = "When to run"; textSize = 12f; setTextColor(KC.muted); setPadding(0, dp(ctx, 10), 0, 0) })
         col.addView(when_)
-        val b = MaterialAlertDialogBuilder(ctx).setTitle(if (existing == null) "New macro" else "Edit macro").setView(ScrollView(ctx).apply { addView(col) })
+        val b = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(if (existing == null) "New macro" else "Edit macro").setView(ScrollView(ctx).apply { addView(col) })
             .setPositiveButton("Save") { _, _ ->
                 val n = name.text.toString().trim()
                 if (n.isEmpty()) { Toast.makeText(ctx, "Give the macro a name", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
@@ -214,7 +214,7 @@ class MacrosFragment : DialogFragment() {
         val name = EditText(ctx).apply { hint = "Alias (one word)"; maxLines = 1 }
         val cmd = EditText(ctx).apply { hint = "Command it stands for"; maxLines = 1 }
         col.addView(name); col.addView(cmd)
-        MaterialAlertDialogBuilder(ctx).setTitle("Add alias").setView(col).setPositiveButton("Add") { _, _ ->
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Add alias").setView(col).setPositiveButton("Add") { _, _ ->
             val n = name.text.toString().trim().replace(" ", ""); val c = cmd.text.toString().trim()
             if (n.isNotEmpty() && c.isNotEmpty()) { KolEngineHost.execute("alias $n => $c"); Toast.makeText(ctx, "Alias $n added", Toast.LENGTH_SHORT).show() }
         }.setNegativeButton("Cancel", null).show()
@@ -224,7 +224,7 @@ class MacrosFragment : DialogFragment() {
         val ctx = requireContext()
         val name = EditText(ctx).apply { hint = "Alias name"; maxLines = 1 }
         val col = LinearLayout(ctx).apply { setPadding(dp(ctx, 20), dp(ctx, 8), dp(ctx, 20), 0); addView(name, LinearLayout.LayoutParams(-1, -2)) }
-        MaterialAlertDialogBuilder(ctx).setTitle("Remove alias").setView(col).setPositiveButton("Remove") { _, _ ->
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Remove alias").setView(col).setPositiveButton("Remove") { _, _ ->
             val n = name.text.toString().trim()
             if (n.isNotEmpty()) { KolEngineHost.execute("unalias $n"); Toast.makeText(ctx, "Alias $n removed", Toast.LENGTH_SHORT).show() }
         }.setNegativeButton("Cancel", null).show()

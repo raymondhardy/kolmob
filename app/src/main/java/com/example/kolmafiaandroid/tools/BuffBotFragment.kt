@@ -71,7 +71,7 @@ class BuffBotFragment : DialogFragment() {
                     row.addView(label(ctx, "${m.optInt("price")} meat", 16f, KC.text, true))
                     row.addView(label(ctx, m.optString("text"), 13f, KC.muted))
                     clickable(row) {
-                        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Remove ${m.optInt("price")} meat offer?")
+                        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Remove ${m.optInt("price")} meat offer?")
                             .setPositiveButton("Remove") { _, _ -> KolEngineHost.buffbotRemove(m.optInt("price")) { activity?.runOnUiThread { if (isAdded) load() } } }
                             .setNegativeButton("Cancel", null).show()
                     }
@@ -88,7 +88,7 @@ class BuffBotFragment : DialogFragment() {
         val price = EditText(ctx).apply { hint = "Price in meat"; inputType = InputType.TYPE_CLASS_NUMBER }
         val casts = EditText(ctx).apply { hint = "Casts per request"; inputType = InputType.TYPE_CLASS_NUMBER; setText("1") }
         box.addView(skill); box.addView(price); box.addView(casts)
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Add a buff").setView(box)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Add a buff").setView(box)
             .setPositiveButton("Add") { _, _ ->
                 val p = price.text.toString().toIntOrNull() ?: 0
                 val c = casts.text.toString().toIntOrNull() ?: 0
@@ -101,7 +101,7 @@ class BuffBotFragment : DialogFragment() {
     private fun runBot() {
         val ctx = requireContext()
         val n = EditText(ctx).apply { hint = "Rounds (each checks your inbox)"; inputType = InputType.TYPE_CLASS_NUMBER; setText("10") }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Run BuffBot").setMessage("It answers buff requests with your mana and meat. Keep the app open while it runs; stop it from the Console tab or Adventure's Stop.")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Run BuffBot").setMessage("It answers buff requests with your mana and meat. Keep the app open while it runs; stop it from the Console tab or Adventure's Stop.")
             .setView(n)
             .setPositiveButton("Run") { _, _ ->
                 val r = n.text.toString().toIntOrNull() ?: 0

@@ -75,7 +75,7 @@ class DietFragment : Fragment() {
         }
         col.addView(black)
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Diet planner")
             .setView(ScrollView(ctx).apply { addView(col) })
             .setPositiveButton("Plan") { _, _ ->
@@ -103,7 +103,7 @@ class DietFragment : Fragment() {
         val ctx = context ?: return
         val o = try { JSONObject(json) } catch (e: Exception) { null }
         if (o == null || !o.optBoolean("ok")) {
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Diet planner").setMessage("Could not plan: ${o?.optString("error") ?: json}")
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Diet planner").setMessage("Could not plan: ${o?.optString("error") ?: json}")
                 .setPositiveButton("OK", null).show()
             return
         }
@@ -154,7 +154,7 @@ class DietFragment : Fragment() {
                     // Overdrinking: the nightcap, or any drink when the liver has no room left.
                     val over = run.any { c -> c.startsWith("drink ") && (c == night?.optString("command") || o.optInt("boozeSpace") <= 0) }
                     if (over) {
-                        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Overdrink?")
+                        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Overdrink?")
                             .setMessage("This takes you past your liver limit, so you end the day drunk and cannot adventure until rollover. Are you sure?")
                             .setPositiveButton("Yes, overdrink") { _, _ -> go() }
                             .setNegativeButton("Cancel", null).show()
@@ -187,7 +187,7 @@ class DietFragment : Fragment() {
             if (boozeList.isNotEmpty()) btn("Drink all booze", boozeList)
         }
         col.addView(android.widget.Button(ctx).apply { text = "Change options"; setOnClickListener { dlg.dismiss(); showOptions() } })
-        dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Diet plan").setView(ScrollView(ctx).apply { addView(col) })
+        dlg = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Diet plan").setView(ScrollView(ctx).apply { addView(col) })
             .setNegativeButton("Close", null).create()
         dlg.show()
         (activity as? com.example.kolmafiaandroid.MainActivity)?.fitDialogAboveNav(dlg)

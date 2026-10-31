@@ -74,7 +74,7 @@ class MushroomFragment : DialogFragment() {
     private fun pickSquare() {
         val ctx = context ?: return
         val input = android.widget.EditText(ctx).apply { hint = "Square number"; inputType = android.text.InputType.TYPE_CLASS_NUMBER }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Pick a square").setView(input)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Pick a square").setView(input)
             .setPositiveButton("Pick") { _, _ ->
                 val n = input.text.toString().trim()
                 if (n.isNotEmpty()) KolEngineHost.execute("field pick $n") { activity?.runOnUiThread { if (isAdded) load() } }
@@ -83,7 +83,7 @@ class MushroomFragment : DialogFragment() {
 
     private fun confirmHarvest() {
         val ctx = context ?: return
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Harvest all?").setMessage("Picks every ripe mushroom in the plot.")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Harvest all?").setMessage("Picks every ripe mushroom in the plot.")
             .setPositiveButton("Harvest") { _, _ -> KolEngineHost.execute("field harvest") { activity?.runOnUiThread { if (isAdded) load() } } }
             .setNegativeButton("Cancel", null).show()
     }

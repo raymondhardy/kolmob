@@ -356,7 +356,7 @@ class AdventureFragment : Fragment() {
     private fun fightItem() {
         val ctx = requireContext()
         val input = android.widget.EditText(ctx).apply { hint = "Item name"; maxLines = 1 }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Throw an item").setView(input)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Throw an item").setView(input)
             .setPositiveButton("Use") { _, _ ->
                 val n = input.text.toString().trim().replace("\"", "")
                 if (n.isNotEmpty()) fightDo("ash throw_item(to_item(\"$n\"))")
@@ -503,7 +503,7 @@ class AdventureFragment : Fragment() {
     private fun chooseConditions() {
         val ctx = requireContext()
         val kinds = listOf("Get an item", "Reach a level", "Gain meat", "Choice adventures seen", "Clear all")
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Stop adventuring when…")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Stop adventuring when…")
             .setItems(kinds.toTypedArray()) { _, i ->
                 if (i == 4) { saveConditions(emptyList()); return@setItems }
                 val input = EditText(ctx).apply {
@@ -511,7 +511,7 @@ class AdventureFragment : Fragment() {
                     if (i != 0) inputType = InputType.TYPE_CLASS_NUMBER
                     maxLines = 1
                 }
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(kinds[i]).setView(input)
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(kinds[i]).setView(input)
                     .setPositiveButton("Add") { _, _ ->
                         val t = input.text.toString().trim()
                         if (t.isEmpty()) return@setPositiveButton
@@ -530,7 +530,7 @@ class AdventureFragment : Fragment() {
 
     private fun chooseLocation(initial: String = "") {
         if (locations.isEmpty()) {
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setMessage("Loading locations… try again in a moment.").setPositiveButton("OK", null).show()
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setMessage("Loading locations… try again in a moment.").setPositiveButton("OK", null).show()
             return
         }
         val prefs = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
@@ -589,7 +589,7 @@ class AdventureFragment : Fragment() {
         sources.adapter = ArrayAdapter(ctx, android.R.layout.simple_list_item_multiple_choice, names.map { it.optString("name") })
         chosen.forEachIndexed { i, c -> sources.setItemChecked(i, c) }
         box.addView(sources, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260)))
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Auto-restore " + if (hp) "HP" else "MP").setView(box)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Auto-restore " + if (hp) "HP" else "MP").setView(box)
             .setPositiveButton("Save") { _, _ ->
                 KolEngineHost.setPref(base, if (th == 0) "-0.05" else (th / 100.0).toString())
                 KolEngineHost.setPref(base + "Target", (tg / 100.0).toString())
@@ -629,7 +629,7 @@ class AdventureFragment : Fragment() {
         val checks = sources.map { (pref, text) ->
             android.widget.CheckBox(ctx).apply { this.text = text; isChecked = KolEngineHost.getPref(pref) == "true"; setTextColor(KC.text) }.also { box.addView(it) }
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Scripts, mana burning and sources")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Scripts, mana burning and sources")
             .setView(ScrollView(ctx).apply { addView(box) })
             .setPositiveButton("Save") { _, _ ->
                 sources.forEachIndexed { i, f -> KolEngineHost.setPref(f.first, checks[i].isChecked.toString()) }
@@ -645,7 +645,7 @@ class AdventureFragment : Fragment() {
             "abort" to "Stop at the first fight (look before you leap)",
             "skill" to "Cast one combat skill every round…"
         )
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Fight action")
             .setItems(options.map { it.second }.toTypedArray()) { _, i ->
                 if (options[i].first == "skill") {
@@ -683,7 +683,7 @@ class AdventureFragment : Fragment() {
             val names = (0 until arr.length()).map { arr.getJSONObject(it).optString("name") }
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                     .setTitle("Auto-attack (also used in the browser)")
                     .setSingleChoiceItems(names.toTypedArray(), ids.indexOf(o.optInt("current"))) { d, i ->
                         d.dismiss()
@@ -699,7 +699,7 @@ class AdventureFragment : Fragment() {
         val entries = listOf("default") + files.filter { it != "default" }
         val current = state.optString("ccs").ifEmpty { "default" }
         val labels = entries + listOfNotNull(if (current != "default") "✎  Edit “$current”" else null, "＋  New script…")
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Combat script")
             .setItems(labels.toTypedArray()) { _, i ->
                 when {

@@ -267,7 +267,7 @@ val chip = LinearLayout(ctx).apply {
         }
 
         // Show confirmation with full command preview
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Confirm Send")
             .setMessage("Send to $recipient?\n\n$command")
             .setPositiveButton("Send") { _, _ ->

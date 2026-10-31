@@ -126,7 +126,7 @@ class ClanFragment : DialogFragment() {
             val afford = karma / cost
             note += " Each costs $cost karma; you have $karma."
             if (afford < 1) {
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                     .setTitle("Not enough karma")
                     .setMessage("$name costs $cost clan karma each and you have $karma. Contribute meat or items to the stash to earn more.")
                     .setPositiveButton("OK", null).show()

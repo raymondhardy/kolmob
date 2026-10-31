@@ -167,7 +167,7 @@ fun Fragment.askQuantity(
         selectAll()
         setPadding(dp(ctx, 24), dp(ctx, 16), dp(ctx, 24), dp(ctx, 8))
     }
-    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
         .setTitle(title)
         .setMessage(message)
         .setView(input)

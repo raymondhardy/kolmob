@@ -38,6 +38,8 @@ class KolApp : Application() {
                     if (intent.hasExtra("snapshot")) KolEngineHost.snapshot { json ->
                         json.chunked(900).forEachIndexed { i, c -> android.util.Log.i("KolSnap", "$i: $c") }
                     }
+                    // `--es tool <id>` (debug only) opens a tool screen by its ToolRegistry id (layout audits).
+                    intent.getStringExtra("tool")?.let { KolEngineHost.debugOpen.tryEmit(it) }
                     // `--es web <path>` / `--es web js:<code>` (debug only) drives the Game tab's WebView.
                     intent.getStringExtra("web")?.let { KolEngineHost.webRequests.tryEmit(it) }
                     // `--es chat start|state|text:<key>` (debug only) exercises the chat engine; results in logcat tag KolChat.

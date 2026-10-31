@@ -245,7 +245,7 @@ class ItemsFragment : DialogFragment() {
 
     private fun confirmAutosell(item: ItemEntry) {
         askQuantity("Autosell ${item.name}", "Sell how many? (cannot be undone)", item.count, "Sell") { n ->
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                 .setTitle("Confirm autosell")
                 .setMessage("Really autosell $n ${item.name}? This cannot be undone.")
                 .setPositiveButton("Yes, autosell") { _, _ ->

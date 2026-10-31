@@ -192,7 +192,7 @@ class ScriptRunSheet : DialogFragment() {
             col.addView(spinner)
             val args = android.widget.EditText(activity).apply { hint = "Arguments (optional)"; setSingleLine() }
             col.addView(args)
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(activity).setTitle("Run a script").setView(col)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(activity).setTitle("Run a script").setView(col)
                 .setPositiveButton("Run") { _, _ ->
                     val name = names[spinner.selectedItemPosition]
                     val extra = args.text.toString().trim()

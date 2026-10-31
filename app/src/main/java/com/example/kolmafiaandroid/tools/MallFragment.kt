@@ -150,7 +150,7 @@ class MallFragment : DialogFragment() {
         com.example.kolmafiaandroid.ui.AshProbe.eval(expr) { text ->
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle("Price history: $name")
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle("Price history: $name")
                     .setMessage(text.ifBlank { "No price information available." }).setPositiveButton("OK", null).show()
             }
         }
@@ -159,7 +159,7 @@ class MallFragment : DialogFragment() {
     private fun buy(o: Offer) {
         if (o.cost.isNotEmpty()) {
             // a coinmaster such as Mr. Store: paid in its own currency, never meat
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(o.name)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(o.name)
                 .setMessage("Sold by ${o.shop} for ${o.cost}, not for meat.")
                 .setPositiveButton("OK", null).show()
             return

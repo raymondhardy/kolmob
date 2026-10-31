@@ -48,7 +48,7 @@ class TrainFragment : Fragment() {
             setPadding(pad, pad / 2, pad, 0)
             addView(group); addView(amount)
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Train familiar")
             .setMessage(arenaSummary(info) + "\n\nTrains " + (KolEngineHost.getPref("_lastFamiliarTrained").ifEmpty { "the familiar you have out" }) + " using arena matches (100 meat and an adventure per match, stops after 5 losses). Progress shows in the Console tab; Stop in the Adventure tab aborts it.")
             .setView(box)

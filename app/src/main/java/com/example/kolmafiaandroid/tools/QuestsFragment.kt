@@ -170,7 +170,7 @@ class QuestsFragment : DialogFragment() {
         val places = placesIn(text)
         val box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 20), dp(ctx, 8), dp(ctx, 20), 0) }
         box.addView(label(ctx, text.ifEmpty { "No details." }, 15f, KC.soft))
-        val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(q.optString("title")).setView(box)
+        val dlg = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(q.optString("title")).setView(box)
         places.forEach { name ->
             box.addView(label(ctx, "Open the map: $name  ›", 15f, 0xFF4CAF50.toInt(), true).apply {
                 setPadding(0, dp(ctx, 14), 0, dp(ctx, 4))

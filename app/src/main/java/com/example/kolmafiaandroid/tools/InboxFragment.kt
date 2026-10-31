@@ -88,7 +88,7 @@ class InboxFragment : DialogFragment() {
                 row.addView(icon, LinearLayout.LayoutParams(dp(ctx, 30), dp(ctx, 30)).apply { marginEnd = dp(ctx, 10) })
                 row.addView(label(ctx, it.name + if (it.count.isNotEmpty()) " ×" + it.count else "", 15f, 0xFF4CAF50.toInt()))
                 clickable(row) {
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(it.name)
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(it.name)
                         .setItems(arrayOf("Check price in the mall", "Open in the KoL wiki")) { _, i ->
                             if (i == 0) ItemActions.checkMallPrice(this, it.name) else ItemActions.openWiki(ctx, it.name)
                         }.show()
@@ -102,7 +102,7 @@ class InboxFragment : DialogFragment() {
     private fun reply(to: String) {
         val ctx = context ?: return
         val input = android.widget.EditText(ctx).apply { hint = "Message"; minLines = 3 }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Reply to $to")
             .setView(input)
             .setPositiveButton("Send") { _, _ ->
@@ -143,7 +143,7 @@ class InboxFragment : DialogFragment() {
             row.addView(label(ctx, text.lineSequence().firstOrNull { it.isNotBlank() }?.take(90) ?: "(no text)", 13f, KC.muted))
             clickable(row) {
                 markSeen(ctx, listOf(m.optString("id")))
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
                     .setTitle("From " + plain(m.optString("sender")))
                     .setView(messageView(ctx, text, attachedItems(m.optString("html"))))
                     .setPositiveButton("Reply") { _, _ -> reply(plain(m.optString("sender"))) }

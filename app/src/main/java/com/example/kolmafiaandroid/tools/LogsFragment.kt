@@ -203,7 +203,7 @@ class LogsFragment : DialogFragment() {
         val ctx = requireContext()
         if (files.isEmpty()) { Toast.makeText(ctx, "Nothing to delete", Toast.LENGTH_SHORT).show(); return }
         val bytes = files.sumOf { it.size }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Delete logs?")
             .setMessage("Delete $what (${formatSize(bytes)})? This cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
@@ -331,7 +331,7 @@ class LogsFragment : DialogFragment() {
         buttonRow.addView(shareBtn)
         view.addView(buttonRow)
 
-        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        val dialog = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setView(android.widget.ScrollView(ctx).apply { addView(view) })
             .setNegativeButton("Close", null)
             .create()

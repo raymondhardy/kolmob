@@ -173,7 +173,7 @@ class MeatFragment : DialogFragment() {
     }
 
     private fun confirmAndRun(message: String, command: String) {
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Confirm")
             .setMessage(message)
             .setPositiveButton("Yes") { _, _ ->

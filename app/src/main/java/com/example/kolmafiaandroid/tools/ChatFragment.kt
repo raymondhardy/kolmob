@@ -544,7 +544,7 @@ class ChatFragment : DialogFragment() {
     }
 
     private fun playerMenu(name: String) {
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(name)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(name)
             .setItems(arrayOf("Whisper", "View profile")) { _, i ->
                 if (i == 0) {
                     val key = name.lowercase().replace(' ', '_')
@@ -555,14 +555,14 @@ class ChatFragment : DialogFragment() {
     }
 
     private fun addMenu() {
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setItems(arrayOf("Join a channel…", "Whisper to a player…")) { _, i -> if (i == 0) joinChannel() else whisper() }
             .show()
     }
 
     private fun joinChannel() {
         val common = listOf("normal", "newbie", "trade", "games", "haiku", "hardcore", "clan", "Other…")
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle("Join a channel")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle("Join a channel")
             .setItems(common.toTypedArray()) { _, i ->
                 if (common[i] == "Other…") ask("Channel name") { join(it.trimStart('/')) } else join(common[i])
             }.setNegativeButton("Cancel", null).show()
@@ -580,7 +580,7 @@ class ChatFragment : DialogFragment() {
 
     private fun ask(title: String, onOk: (String) -> Unit) {
         val box = EditText(requireContext()).apply { inputType = InputType.TYPE_CLASS_TEXT; setPadding(dp(24), dp(16), dp(24), dp(8)) }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(title).setView(box)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(title).setView(box)
             .setPositiveButton("OK") { _, _ -> onOk(box.text.toString()) }
             .setNegativeButton("Cancel", null).show()
     }
@@ -594,12 +594,12 @@ class ChatFragment : DialogFragment() {
         val colours = listOf("Red" to "#FF5252", "Yellow" to "#FFD54F", "Green" to "#66BB6A", "Blue" to "#64B5F6", "Pink" to "#F48FB1")
         fun show() {
             val items = pairs.map { p -> p[0] + "   (" + (colours.firstOrNull { it.second.equals(p[1], true) }?.first ?: p[1]) + ")" }.toTypedArray()
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Highlight words")
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Highlight words")
                 .setItems(items) { _, i -> pairs.removeAt(i); save(); show() }
                 .setPositiveButton("Add a word") { _, _ ->
                     ask("Word to highlight") { w ->
                         if (w.isBlank()) return@ask
-                        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Colour for \"" + w.trim() + "\"")
+                        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Colour for \"" + w.trim() + "\"")
                             .setItems(colours.map { it.first }.toTypedArray()) { _, c -> pairs.add(listOf(w.trim().lowercase(), colours[c].second)); save(); show() }.show()
                     }
                 }
@@ -644,7 +644,7 @@ class ChatFragment : DialogFragment() {
             text = "Add a channel…"
             setOnClickListener { ask("Channel name") { n -> if (n.isNotBlank()) addChannel("/" + n.trim().trimStart('/').lowercase(), true) } }
         })
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Chat alerts").setView(android.widget.ScrollView(ctx).apply { addView(box) })
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Chat alerts").setView(android.widget.ScrollView(ctx).apply { addView(box) })
             .setPositiveButton("Save") { _, _ ->
                 val c = com.example.kolmafiaandroid.ChatNotifier.Config(
                     master.isChecked, dms.isChecked, mentions.isChecked, all.isChecked,
@@ -661,7 +661,7 @@ class ChatFragment : DialogFragment() {
 
     private fun leave(key: String) {
         if (!key.startsWith("/")) return
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle("Leave ${label(key)}?")
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle("Leave ${label(key)}?")
             .setPositiveButton("Leave") { _, _ ->
                 KolEngineHost.chatSend("", "/leave ${key.removePrefix("/")}") {
                     ui { if (selected == key) closeConvo() ; handler.postDelayed({ refresh() }, 1200) }

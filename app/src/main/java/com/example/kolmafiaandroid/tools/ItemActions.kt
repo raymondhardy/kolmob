@@ -38,7 +38,7 @@ object ItemActions {
                         "Cheapest: ${nf.format(offers[0].optLong("price"))} meat\n\n$shown" + if (offers.size > 5) "\n… and ${offers.size - 5} more offers" else ""
                     }
                 }
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle(name).setMessage(msg).setPositiveButton("Close", null).show()
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(name).setMessage(msg).setPositiveButton("Close", null).show()
             }
         }
     }

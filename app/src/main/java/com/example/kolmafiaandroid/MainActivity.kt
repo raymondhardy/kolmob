@@ -68,6 +68,12 @@ class MainActivity : AppCompatActivity() {
         com.example.kolmafiaandroid.ui.Eula.showIfNeeded(this, findViewById(android.R.id.content))
         // Chat, Tools and the other full-screen dialogs must not cover the main navigation
         supportFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+            override fun onFragmentViewCreated(fm: androidx.fragment.app.FragmentManager, f: Fragment, v: View, savedInstanceState: android.os.Bundle?) {
+                // landscape is short: let screens built for portrait scroll as one instead of squeezing their list (see LandscapeFit)
+                if ((f is androidx.fragment.app.DialogFragment || f.parentFragment is androidx.fragment.app.DialogFragment) && resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+                    com.example.kolmafiaandroid.ui.LandscapeFit.apply(v)
+                }
+            }
             override fun onFragmentStarted(fm: androidx.fragment.app.FragmentManager, f: Fragment) {
                 (f as? androidx.fragment.app.DialogFragment)?.dialog?.let { fitDialogAboveNav(it) }
             }
@@ -91,6 +97,22 @@ class MainActivity : AppCompatActivity() {
         }
         // anything that asks for a KoL page (tools, quest helpers, ...) lands in the Game tab
         lifecycleScope.launch { KolEngineHost.webRequests.collect { dismissOpenDialogs(); openTab(2) } }
+        lifecycleScope.launch {
+            KolEngineHost.debugOpen.collect { id ->
+                dismissOpenDialogs()
+                val fm = supportFragmentManager
+                val found = com.example.kolmafiaandroid.tools.ToolRegistry.find(id)
+                if (found != null) found.open.invoke(fm) else when (id) {
+                    "diet" -> com.example.kolmafiaandroid.tools.DietFragment.show(fm)
+                    "quests" -> com.example.kolmafiaandroid.tools.QuestsFragment.show(fm)
+                    "moods" -> com.example.kolmafiaandroid.tools.MoodFragment.show(fm)
+                    "craft" -> com.example.kolmafiaandroid.tools.CraftFragment.show(fm)
+                    "synth" -> com.example.kolmafiaandroid.tools.SynthesizeFragment.show(fm)
+                    "fax" -> com.example.kolmafiaandroid.tools.FaxFragment.show(fm)
+                    "chat" -> openChatPanel()
+                }
+            }
+        }
     }
 
     private var promptDialog: androidx.appcompat.app.AlertDialog? = null
@@ -112,7 +134,7 @@ class MainActivity : AppCompatActivity() {
             .filter { it.isNotBlank() && !it.startsWith("Preference ") && !it.contains(" => ") && !it.startsWith("(Y/N") && !it.startsWith("(type your") && !it.startsWith("(leave blank") && !it.startsWith("Press enter") && !it.startsWith("Returned:") }
             .takeLast(3).joinToString("\n")
         val dp = resources.displayMetrics.density
-        val b = com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("A script is asking").setMessage(shown).setCancelable(false)
+        val b = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(this).setTitle("A script is asking").setMessage(shown).setCancelable(false)
         when (kind) {
             "confirm" -> b.setPositiveButton("Yes") { _, _ -> KolEngineHost.answerPrompt("y") }
                 .setNegativeButton("No") { _, _ -> KolEngineHost.answerPrompt("n") }
@@ -195,7 +217,9 @@ class MainActivity : AppCompatActivity() {
         val dm = resources.displayMetrics
         w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         w.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
-        if (com.example.kolmafiaandroid.tools.ChatFragment.panelFull) {
+        // landscape is short: a lower panel would leave a few lines for messages, so chat takes the whole height there
+        val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        if (com.example.kolmafiaandroid.tools.ChatFragment.panelFull || landscape) {
             w.setGravity(android.view.Gravity.TOP)
             w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, navTop)
             val lp = w.attributes; lp.y = 0; w.attributes = lp
@@ -397,7 +421,7 @@ class MainActivity : AppCompatActivity() {
         box.addView(note("KoL display options (these are your KoL account settings, so they also change the desktop site)", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
         val loading = note("Loading from KoL...")
         box.addView(loading)
-        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        val dialog = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(this)
             .setTitle("Settings")
             .setView(android.widget.ScrollView(this).apply { addView(box) })
             .setPositiveButton("Open console") { _, _ -> openTab(3) }
@@ -542,7 +566,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         setOnLongClickListener {
                             val options = (if (a.remembered) arrayOf("Forget the saved password", "Remove this account") else arrayOf("Remove this account"))
-                            com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MainActivity)
+                            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(this@MainActivity)
                                 .setTitle(a.name)
                                 .setItems(options) { _, i ->
                                     if (options[i].startsWith("Forget")) accounts.forgetPassword(a.name) else accounts.remove(a.name)
@@ -701,7 +725,7 @@ class MainActivity : AppCompatActivity() {
         var downY = 0f; var startMargin = 0; var moved = false; var longFired = false
         val longPress = Runnable {
             longFired = true
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(this)
                 .setTitle("Hide the chat button?")
                 .setMessage("You can still open Chat from the More menu, or bring the button back in Settings.")
                 .setPositiveButton("Hide") { _, _ -> setChatHandleVisible(false) }

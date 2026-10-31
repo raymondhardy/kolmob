@@ -55,13 +55,13 @@ class BuffRequestFragment : Fragment() {
             orientation = android.widget.LinearLayout.VERTICAL; setPadding(pad, pad / 2, pad, 0)
             addView(name); addView(meat); addView(msg)
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Ask a buffbot").setView(box)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Ask a buffbot").setView(box)
             .setPositiveButton("Next") { _, _ ->
                 val n = name.text.toString().trim()
                 val m = meat.text.toString().toIntOrNull() ?: 0
                 if (n.isEmpty() || m <= 0) { Toast.makeText(ctx, "Enter a name and a meat amount.", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
                 val note = msg.text.toString().trim()
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Send $m meat to $n?")
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Send $m meat to $n?")
                     .setMessage("This sends real meat. The bot should cast on you shortly after.")
                     .setPositiveButton("Send") { _, _ ->
                         KolEngineHost.execute("send $m meat to $n" + if (note.isNotEmpty()) " || $note" else "")
@@ -81,7 +81,7 @@ class BuffRequestFragment : Fragment() {
                 pickList("$bot sells", offers.map { PickRow(it.optString("text"), "${it.optInt("price")} meat" + (if (it.optBoolean("free")) " (free/charity)" else ""), tag = it) }) { r ->
                     val offer = r.tag as JSONObject
                     val price = offer.optInt("price")
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                         .setTitle("Send $price meat to $bot?")
                         .setMessage(offer.optString("text") + "\n\nThis sends real meat. The bot should cast on you shortly after.")
                         .setPositiveButton("Send") { _, _ ->

@@ -229,7 +229,7 @@ class DatabaseFragment : DialogFragment() {
         com.example.kolmafiaandroid.ui.AshProbe.eval(expr) { text ->
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
                     .setTitle("Fight odds: $monster")
                     .setMessage(text.ifBlank { "Could not work that out. Are you logged in?" })
                     .setPositiveButton("OK", null).show()
@@ -272,7 +272,7 @@ class DatabaseFragment : DialogFragment() {
             ViewGroup.LayoutParams.MATCH_PARENT
         ).apply { weight = 1f })
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle(title)
             .setView(view)
             .setNegativeButton("Close", null)

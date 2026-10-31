@@ -98,7 +98,7 @@ class ConsoleFragment : Fragment() {
                 setSingleLine()
             }.also { col.addView(it) }
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Arguments for ${rel(f)}").setView(col)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Arguments for ${rel(f)}").setView(col)
             .setPositiveButton("Save") { _, _ ->
                 argValues = boxes.map { it.text.toString() }
                 prefs?.edit()?.putString("args_" + rel(f), argValues.joinToString("\u001f"))?.apply()
@@ -491,7 +491,7 @@ class ConsoleFragment : Fragment() {
                 }
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = (6 * dp).toInt() })
         }
-        dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+        dialog = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Terminal colours")
             .setView(ScrollView(ctx).apply { addView(list) })
             .setNegativeButton("Close", null)
@@ -562,7 +562,7 @@ class ConsoleFragment : Fragment() {
             return
         }
         val labels = history.reversed().toTypedArray()
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
             .setTitle("Command History")
             .setItems(labels) { _, which ->
                 val cmd = history[history.size - 1 - which]

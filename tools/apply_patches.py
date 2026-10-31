@@ -85,27 +85,74 @@ PATCHES = [
      '''    for (java.lang.ref.SoftReference<ScriptRuntime> ref : KoLmafiaASH.INTERPRETERS.values()) {
       ScriptRuntime i = ref.get();
       if (i != null && i.getRelayRequest() != null) {'''),
-    # Kolmob: a character's passive-skill bonuses are cached and only rebuilt when the skill list is flagged as changed. If
-    # that cache is ever rebuilt from a partial skill list (seen as Ed the Undying after buying "Just One More Extra Spleen":
-    # spleen limit 25 -> 5, liver 4 -> 0 while the game still said 25/30), KoLmafia calls the player overspleened and
-    # refuses every adventure. Before refusing, rebuild the cache once and check again; a really overspleened character
-    # still fails the second check.
-    ('net/sourceforge/kolmafia/KoLCharacter.java',
-     '''  public static boolean isOverspleened() {
-    return KoLCharacter.canChew() && KoLCharacter.getSpleenUse() > KoLCharacter.getSpleenLimit();
-  }''',
-     '''  public static boolean isOverspleened() {
-    if (!KoLCharacter.canChew()) {
-      return false;
+    # Kolmob: a character's passive-skill bonuses are cached and upstream only rebuilds them when a "changed" flag is set.
+    # If the cache is ever built from a partial skill list and the flag is cleared (seen as Ed the Undying after buying
+    # "Just One More Extra Spleen": spleen limit 25 -> 5, liver 4 -> 0 while the game still said 25/30, so KoLmafia refused
+    # every adventure as "too spleened"), nothing ever repairs it. Remember which skill ids the cache was built from and
+    # rebuild whenever the character's current skill ids differ. Costs a small in-memory set compare, no requests.
+    ('net/sourceforge/kolmafia/Modifiers.java',
+     '''  private static Modifiers cachedPassiveModifiers = null;
+''',
+     '''  private static Modifiers cachedPassiveModifiers = null;
+  private static java.util.Set<Integer> cachedPassiveSkillIds = java.util.Set.of();
+'''),
+    ('net/sourceforge/kolmafia/Modifiers.java',
+     '''    synchronized (Modifiers.class) {
+      if (debug
+          || Modifiers.availableSkillsChanged
+          || Modifiers.availablePassiveSkillModifiersByVariable.isEmpty()) {
+        // Collect all passive skills currently on the character.
+        Modifiers.availablePassiveSkillModifiersByVariable.putAll(
+            KoLCharacter.getAvailableSkillIds().stream()''',
+     '''    synchronized (Modifiers.class) {
+      // Kolmob: validate the cache against the skills the character has right now, not just the changed flag.
+      final java.util.Set<Integer> currentSkillIds = snapshotSkillIds();
+      final boolean skillsMismatch =
+          currentSkillIds != null && !currentSkillIds.equals(Modifiers.cachedPassiveSkillIds);
+      if (skillsMismatch
+          && !debug
+          && !Modifiers.availableSkillsChanged
+          && !Modifiers.availablePassiveSkillModifiersByVariable.isEmpty()) {
+        RequestLogger.updateDebugLog(
+            "Kolmob: passive skill bonuses were out of date ("
+                + Modifiers.cachedPassiveSkillIds.size()
+                + " cached vs "
+                + currentSkillIds.size()
+                + " current skills); rebuilt.");
+      }
+      if (debug
+          || Modifiers.availableSkillsChanged
+          || skillsMismatch
+          || Modifiers.availablePassiveSkillModifiersByVariable.isEmpty()) {
+        // Collect all passive skills currently on the character.
+        Modifiers.availablePassiveSkillModifiersByVariable.putAll(
+            (currentSkillIds != null ? currentSkillIds : KoLCharacter.getAvailableSkillIds())
+                .stream()'''),
+    ('net/sourceforge/kolmafia/Modifiers.java',
+     '''        Modifiers.availableSkillsChanged = false;
+      }
     }
-    if (KoLCharacter.getSpleenUse() <= KoLCharacter.getSpleenLimit()) {
-      return false;
+''',
+     '''        Modifiers.availableSkillsChanged = false;
+        Modifiers.cachedPassiveSkillIds =
+            currentSkillIds != null ? currentSkillIds : java.util.Set.of();
+      }
     }
-    // Kolmob: rebuild the cached passive-skill bonuses and look again before calling the player overspleened.
-    Modifiers.availableSkillsChanged();
-    KoLCharacter.recalculateAdjustments();
-    return KoLCharacter.getSpleenUse() > KoLCharacter.getSpleenLimit();
-  }'''),
+'''),
+    ('net/sourceforge/kolmafia/Modifiers.java',
+     '''  public static void resetAvailablePassiveSkills() {''',
+     '''  private static java.util.Set<Integer> snapshotSkillIds() {
+    for (int attempt = 0; attempt < 3; ++attempt) {
+      try {
+        return new java.util.HashSet<>(KoLCharacter.getAvailableSkillIds());
+      } catch (java.util.ConcurrentModificationException e) {
+        // another thread is changing the skill list; try again
+      }
+    }
+    return null;
+  }
+
+  public static void resetAvailablePassiveSkills() {'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

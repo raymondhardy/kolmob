@@ -218,11 +218,16 @@ class MainActivity : AppCompatActivity() {
             decor.getLocationOnScreen(loc)
             val limit = nav[1] - (8 * resources.displayMetrics.density).toInt()
             if (nav[1] > 0 && loc[1] + decor.height > limit) {
-                // centred dialogs shrink around their middle: pin the top where it is and cut the bottom
+                // re-centre what fits in the space above the bar; what is taller starts at the top of the screen and is cut at the bar
+                // (its list scrolls). Landscape is short, so pinning the top where a centred dialog started left only a sliver.
                 val lp = w.attributes
                 lp.gravity = android.view.Gravity.TOP
-                lp.y = loc[1]
-                lp.height = limit - loc[1]
+                if (decor.height <= limit) {
+                    lp.y = ((limit - decor.height) / 2).coerceAtLeast(0)
+                } else {
+                    lp.y = 0
+                    lp.height = limit
+                }
                 w.attributes = lp
             }
         }

@@ -70,17 +70,20 @@ class ItemsFragment : DialogFragment() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 16))
         }
+        // landscape has no room for the controls above the list: they get their own scrolling pane on the left
+        val land = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val controls = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
 
         // Header with meat info
         headerText = label(ctx, "", 13f, KC.muted)
-        view.addView(headerText)
+        controls.addView(headerText)
 
         // Tab buttons
         val tabs = listOf(Tab.INVENTORY, Tab.CLOSET, Tab.STORAGE, Tab.DISPLAY)
-        view.addView(com.example.kolmafiaandroid.ui.textTabs(ctx, listOf("Inventory", "Closet", "Storage", "Display"), tabs.indexOf(currentTab)) { switchTab(tabs[it]) })
+        controls.addView(com.example.kolmafiaandroid.ui.textTabs(ctx, listOf("Inventory", "Closet", "Storage", "Display"), tabs.indexOf(currentTab)) { switchTab(tabs[it]) })
 
         // Crafting and shopping live with the items they use
-        view.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "items",
+        controls.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "items",
             listOf("Craft items" to { CraftFragment.show(requireActivity().supportFragmentManager, "items") })))
 
         // Search box
@@ -94,13 +97,13 @@ class ItemsFragment : DialogFragment() {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-        view.addView(searchEdit)
+        controls.addView(searchEdit)
         filterBar = com.example.kolmafiaandroid.ui.ItemFilterBar(ctx, "items") { updateList() }
-        view.addView(filterBar)
+        controls.addView(filterBar)
 
         // List
         listView = ListView(ctx)
-        view.addView(TextView(ctx).apply {
+        controls.addView(TextView(ctx).apply {
             textSize = 11f
             setPadding(com.example.kolmafiaandroid.ui.dp(ctx, 12), 0, com.example.kolmafiaandroid.ui.dp(ctx, 12), com.example.kolmafiaandroid.ui.dp(ctx, 4))
             val sp = android.text.SpannableStringBuilder()
@@ -112,10 +115,17 @@ class ItemsFragment : DialogFragment() {
             }
             text = sp
         })
-        view.addView(listView, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ).apply { weight = 1f })
+        if (land) {
+            view.orientation = LinearLayout.HORIZONTAL
+            view.addView(android.widget.ScrollView(ctx).apply { addView(controls) }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 5f).apply { marginEnd = dp(ctx, 12) })
+            view.addView(listView, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 5f))
+        } else {
+            view.addView(controls)
+            view.addView(listView, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ).apply { weight = 1f })
+        }
 
         refreshData()
         return view

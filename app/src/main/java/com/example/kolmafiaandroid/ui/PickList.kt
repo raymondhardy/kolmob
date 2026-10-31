@@ -114,7 +114,10 @@ fun Fragment.pickList(
         box.addView(sw, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(ctx, 16); gravity = Gravity.START })
     }
     val list = ListView(ctx).apply { this.adapter = adapter; divider = null }
-    box.addView(list, LinearLayout.LayoutParams(-1, if (rows.size <= 6) -2 else dp(ctx, 440)))
+    // landscape is short: the list may only take part of the height so the title and search stay on screen
+    val landscape = ctx.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val listHeight = if (landscape) minOf(dp(ctx, 440), (ctx.resources.displayMetrics.heightPixels * 0.40f).toInt()) else dp(ctx, 440)
+    box.addView(list, LinearLayout.LayoutParams(-1, if (rows.size <= 6 && !landscape) -2 else listHeight))
     list.setOnItemClickListener { _, _, pos, _ ->
         (items[pos] as? PickRow)?.let { sheet.dismiss(); onPick(it) }
     }
@@ -128,6 +131,8 @@ fun Fragment.pickList(
     })
     rebuild()
     sheet.setContentView(box)
+    sheet.behavior.skipCollapsed = true // a sheet that opens half-collapsed shows only a sliver in landscape
+    sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
     sheet.show()
     // the sheet ends where the bottom nav starts, so the nav stays usable
     var host: android.content.Context = ctx

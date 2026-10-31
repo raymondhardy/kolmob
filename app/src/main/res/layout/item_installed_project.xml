@@ -59,6 +59,15 @@
             android:gravity="end">
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/installed_branch_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Branch"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:textColor="@color/colorPrimary"
+                android:layout_marginEnd="8dp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/installed_update_btn"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

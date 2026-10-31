@@ -884,6 +884,7 @@ class ScriptsFragment : DialogFragment() {
             val details: TextView = view.findViewById(R.id.installed_details)
             val updateBtn: MaterialButton = view.findViewById(R.id.installed_update_btn)
             val deleteBtn: MaterialButton = view.findViewById(R.id.installed_delete_btn)
+            val branchBtn: MaterialButton = view.findViewById(R.id.installed_branch_btn)
             val progressBar: ProgressBar = view.findViewById(R.id.installed_progress)
         }
 
@@ -901,9 +902,8 @@ class ScriptsFragment : DialogFragment() {
             holder.source.setTextColor(context.getColor(if (project.isGit) R.color.colorPrimary else R.color.colorSecondary))
             
             if (project.isGit) {
-                holder.details.text = context.getString(R.string.installer_branch, project.branch) + " ▾ • " + 
+                holder.details.text = context.getString(R.string.installer_branch, project.branch) + " • " + 
                     context.getString(R.string.installer_commit, project.commit)
-                holder.details.setOnClickListener { onAction(project, InstalledAction.BRANCH) }
             } else {
                 holder.details.text = context.getString(R.string.installer_revision, project.revision.toString())
             }
@@ -918,6 +918,9 @@ class ScriptsFragment : DialogFragment() {
             holder.updateBtn.text = if (isUpdating) context.getString(R.string.installer_updating) else context.getString(R.string.installer_update)
             holder.deleteBtn.text = if (isDeleting) context.getString(R.string.installer_deleting) else context.getString(R.string.installer_delete)
 
+            holder.branchBtn.visibility = if (project.isGit) View.VISIBLE else View.GONE
+            holder.branchBtn.isEnabled = !isBusy
+            holder.branchBtn.setOnClickListener { onAction(project, InstalledAction.BRANCH) }
             holder.updateBtn.setOnClickListener { onAction(project, InstalledAction.UPDATE) }
             holder.deleteBtn.setOnClickListener { onAction(project, InstalledAction.DELETE) }
         }

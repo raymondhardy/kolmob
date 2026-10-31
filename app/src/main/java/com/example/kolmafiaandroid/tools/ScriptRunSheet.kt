@@ -71,11 +71,11 @@ class ScriptRunSheet : DialogFragment() {
         }
         levelRow.addView(levelSpinner, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = (8 * dp).toInt() })
         followBtn = Button(ctx).apply {
-            text = "Hold scroll"
+            text = "Scroll: on"
             textSize = 12f
             setOnClickListener {
                 follow = !follow
-                text = if (follow) "Hold scroll" else "Follow"
+                text = if (follow) "Scroll: on" else "Scroll: off"
                 if (follow) scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
             }
         }
@@ -100,7 +100,7 @@ class ScriptRunSheet : DialogFragment() {
             Toast.makeText(ctx, "Output copied", Toast.LENGTH_SHORT).show()
         }
         scroll.setOnTouchListener { _, ev ->
-            if (ev.action == android.view.MotionEvent.ACTION_MOVE && follow) { follow = false; followBtn.text = "Follow" }
+            if (ev.action == android.view.MotionEvent.ACTION_MOVE && follow) { follow = false; followBtn.text = "Scroll: off" }
             false
         }
         btn("Hide") { dismissAllowingStateLoss() }

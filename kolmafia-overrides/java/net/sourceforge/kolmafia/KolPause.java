@@ -27,7 +27,9 @@ public final class KolPause {
 
   /** Called at the start of every request. Only the script thread ever waits here. */
   public static void awaitResume() {
-    if (!paused || !SCRIPT_THREAD.equals(Thread.currentThread().getName())) {
+    if (!paused
+        || !SCRIPT_THREAD.equals(Thread.currentThread().getName())
+        || net.sourceforge.kolmafia.request.LoginRequest.kolmobTimingIn()) {
       return;
     }
     waiting = true;

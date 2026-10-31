@@ -256,6 +256,149 @@ PATCHES = [
     net.sourceforge.kolmafia.KolPause.awaitResume();
     if (GenericRequest.sessionId == null
         && !(this instanceof LoginRequest)'''),
+    # Kolmob: KoLmafia keeps its fullness / drunkenness / spleen counts by adding each item's size to its own running total
+    # and only corrects them when the game refuses ("too full"), so a wrong item size makes it think you are less full than
+    # you are and a script keeps eating. After every eat, drink or chew, re-read the real numbers from the game (one status
+    # call per item used, in the same request thread).
+    ('net/sourceforge/kolmafia/request/UseItemRequest.java',
+     '''  public void run() {
+    if (GenericRequest.abortIfInFightOrChoice()) {
+      return;
+    }
+
+    // Hide memento items from your familiars''',
+     '''  public void run() {
+    try {
+      this.kolmobRunItem();
+    } finally {
+      this.kolmobReconcileConsumption();
+    }
+  }
+
+  private void kolmobReconcileConsumption() {
+    if ((this.consumptionType == ConsumptionType.EAT
+            || this.consumptionType == ConsumptionType.DRINK
+            || this.consumptionType == ConsumptionType.SPLEEN)
+        && GenericRequest.sessionId != null) {
+      ApiRequest.updateStatus(true);
+    }
+  }
+
+  private void kolmobRunItem() {
+    if (GenericRequest.abortIfInFightOrChoice()) {
+      return;
+    }
+
+    // Hide memento items from your familiars'''),
+    # Kolmob: re-login after KoL times the session out. Upstream assumes one request thread; with the script, Game tab and
+    # chat threads all hitting the expired session, each logs in again and overlapping logins can leave requests holding a stale session
+    # (seen as "Too many server redirects ... login.php?invalid=1" and scripts aborting). One thread logs in, the others
+    # wait and then retry their request on the new session.
+    ('net/sourceforge/kolmafia/request/LoginRequest.java',
+     '''  public static final boolean executeTimeInRequest(
+      final String requestLocation, final String redirectLocation) {
+    if (LoginRequest.lastRequest == null || LoginRequest.isTimingIn) {
+      return false;
+    }
+
+    // If it's been less than 30 seconds since the last login
+    // attempt, we could be responding to the flurry of login.php
+    // redirects KoL gives us when the Relay Browser tries to open
+    // game.php, topmenu.php, chatlaunch.php, etc.
+
+    if (System.currentTimeMillis() - 30000 < LoginRequest.lastLoginAttempt) {
+      return LoginRequest.completedLogin;
+    }
+
+    if (LoginRequest.isInstanceRunning()) {
+      StaticEntity.printStackTrace(requestLocation + " => " + redirectLocation);
+      KoLmafia.quit();
+    }
+
+    return LoginRequest.retimein();
+  }
+
+  public static final boolean retimein() {
+    if (LoginRequest.lastRequest == null) {
+      return false;
+    }
+
+    LoginRequest.isTimingIn = true;
+    RequestThread.postRequest(LoginRequest.lastRequest);
+    LoginRequest.isTimingIn = false;
+
+    return LoginRequest.completedLogin;
+  }
+''',
+     '''  private static final Object KOLMOB_TIMEIN_LOCK = new Object();
+  private static volatile long kolmobLoginDoneAt = 0;
+
+  /** True while a thread is logging in again after KoL timed the session out. */
+  public static boolean kolmobTimingIn() {
+    return Thread.holdsLock(KOLMOB_TIMEIN_LOCK) || LoginRequest.isTimingIn;
+  }
+
+  public static final boolean executeTimeInRequest(
+      final String requestLocation, final String redirectLocation) {
+    if (LoginRequest.lastRequest == null || Thread.holdsLock(KOLMOB_TIMEIN_LOCK)) {
+      return false;
+    }
+
+    // Kolmob: several threads (script, Game tab, chat) can hit the expired session at once. Only one
+    // logs in again; the rest wait here, then retry on the new session instead of logging in again
+    // (two overlapping logins can leave requests holding a stale session).
+    synchronized (KOLMOB_TIMEIN_LOCK) {
+      if (LoginRequest.completedLogin
+          && System.currentTimeMillis() - 30000 < LoginRequest.kolmobLoginDoneAt) {
+        return true;
+      }
+
+      // If it's been less than 30 seconds since the last login
+      // attempt, we could be responding to the flurry of login.php
+      // redirects KoL gives us when the Relay Browser tries to open
+      // game.php, topmenu.php, chatlaunch.php, etc.
+
+      if (System.currentTimeMillis() - 30000 < LoginRequest.lastLoginAttempt) {
+        return LoginRequest.completedLogin;
+      }
+
+      if (LoginRequest.isInstanceRunning()) {
+        StaticEntity.printStackTrace(requestLocation + " => " + redirectLocation);
+        KoLmafia.quit();
+      }
+
+      return LoginRequest.retimein();
+    }
+  }
+
+  public static final boolean retimein() {
+    if (LoginRequest.lastRequest == null) {
+      return false;
+    }
+
+    synchronized (KOLMOB_TIMEIN_LOCK) {
+      LoginRequest.isTimingIn = true;
+      try {
+        RequestThread.postRequest(LoginRequest.lastRequest);
+      } finally {
+        LoginRequest.isTimingIn = false;
+      }
+
+      return LoginRequest.completedLogin;
+    }
+  }
+'''),
+    ('net/sourceforge/kolmafia/request/LoginRequest.java',
+     '''    LoginRequest.completedLogin = true;
+    NamedListenerRegistry.fireChange("(login)");''',
+     '''    LoginRequest.completedLogin = true;
+    LoginRequest.kolmobLoginDoneAt = System.currentTimeMillis();
+    NamedListenerRegistry.fireChange("(login)");'''),
+    ('net/sourceforge/kolmafia/request/LoginRequest.java',
+     '''  private static boolean completedLogin = false;
+''',
+     '''  private static volatile boolean completedLogin = false;
+'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

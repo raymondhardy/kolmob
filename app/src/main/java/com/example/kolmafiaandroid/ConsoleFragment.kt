@@ -624,12 +624,12 @@ class ConsoleFragment : Fragment() {
     /** On: the output follows new lines. Off: it stays where you are reading. */
     private fun setAutoScroll(on: Boolean) {
         autoScroll = on
-        autoScrollBtn.text = if (on) "Hold" else "Follow"
+        autoScrollBtn.text = if (on) "Scroll: on" else "Scroll: off"
         if (on && ::scroll.isInitialized) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun updateLevelNote() {
-        levelNote?.text = listOfNotNull(if (pausedNow) "Paused" else null, if (hiddenCount > 0) "$hiddenCount hidden" else null).joinToString(" · ")
+        levelNote?.text = listOfNotNull(if (pausedNow) "Paused (tap pause to resume)" else null, if (hiddenCount > 0) "$hiddenCount hidden" else null).joinToString(" · ")
     }
 
     private fun clearOutput() {

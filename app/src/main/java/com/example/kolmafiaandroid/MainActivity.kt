@@ -77,6 +77,10 @@ class MainActivity : AppCompatActivity() {
             }
         }, true)
         pendingChatKey = intent?.getStringExtra("open_chat")
+        try {
+            val night = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            net.sourceforge.kolmafia.KolEngine.setDarkTheme(night)
+        } catch (_: Throwable) { }
         lifecycleScope.launch { KolEngineHost.prompts.collect { showScriptPrompt(it) } }
         // keep the screen on while a script runs (the phone would otherwise go dark mid-script); can be switched off in Settings
         lifecycleScope.launch {

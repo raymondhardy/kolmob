@@ -522,6 +522,11 @@ public final class KolEngine {
     KolPause.setPaused(paused);
   }
 
+  /** Tells scripts (is_dark_mode()) whether the app is showing its dark theme. */
+  public static void setDarkTheme(boolean dark) {
+    KoLmafiaGUI.kolmobDark = dark;
+  }
+
   public static boolean isWaitingPaused() {
     return KolPause.isWaiting();
   }

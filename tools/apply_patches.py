@@ -477,6 +477,18 @@ PATCHES = [
     KoLCharacter.kolmobInputs = kolmobSeen;
   }
 '''),
+    # Kolmob: there is no Swing look-and-feel here, so isDarkTheme() (used by scripts through is_dark_mode() and by
+    # libraries such as libram) crashed with a null pointer and any script calling it died. The app tells us instead.
+    ('net/sourceforge/kolmafia/KoLmafiaGUI.java',
+     '''  public static Boolean isDarkTheme() {
+    String currentTheme = UIManager.getLookAndFeel().getClass().getName();
+    return KoLGUIConstants.FLATMAP_DARK_LOOKS.containsValue(currentTheme);
+  }''',
+     '''  public static volatile boolean kolmobDark = true;
+
+  public static Boolean isDarkTheme() {
+    return kolmobDark;
+  }'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

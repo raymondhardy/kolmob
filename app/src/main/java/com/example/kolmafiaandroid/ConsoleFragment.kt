@@ -39,7 +39,7 @@ class ConsoleFragment : Fragment() {
     private lateinit var input: EditText
     private lateinit var copyBtn: Button
     private lateinit var clearBtn: Button
-    private lateinit var autoScrollCheck: CheckBox
+    private lateinit var autoScrollBtn: Button
     private lateinit var historyPrevBtn: ImageButton
     private lateinit var historyNextBtn: ImageButton
 
@@ -47,6 +47,15 @@ class ConsoleFragment : Fragment() {
     private var historyIndex = -1
     private var prefs: SharedPreferences? = null
     private var autoScroll = true
+
+    /** Every line received (as HTML), so changing the log level can bring back lines that were hidden. */
+    private val entries = ArrayDeque<Pair<Int, String>>()
+    private var minLevel = 1
+    private var hiddenCount = 0
+    private var trimmed = 0
+    private var levelNote: TextView? = null
+    private var pauseButton: ImageButton? = null
+    private var pausedNow = false
 
     private var pendingBlank = false
     private var argsView: TextView? = null
@@ -134,6 +143,7 @@ class ConsoleFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
         prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         loadHistory()
+        entries.clear(); hiddenCount = 0; trimmed = 0
 
         val ctx = requireContext()
         val dp = resources.displayMetrics.density
@@ -173,6 +183,10 @@ class ConsoleFragment : Fragment() {
             }
         }, side)
         topRow.addView(iconBtn(R.drawable.ic_s_stop, "Stop script") { KolEngineHost.abort() }, side)
+        pauseButton = iconBtn(R.drawable.ic_s_pause, "Pause or resume the script (it waits before its next request)") {
+            KolEngineHost.setPaused(!KolEngineHost.paused.value)
+        }
+        topRow.addView(pauseButton, side)
         val btnRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, (6 * dp).toInt(), 0, (6 * dp).toInt()) }
         fun small(icon: Int, desc: String, onClick: () -> Unit) =
             btnRow.addView(iconBtn(icon, desc, onClick), LinearLayout.LayoutParams(0, (48 * dp).toInt(), 1f).apply { marginEnd = (6 * dp).toInt() })
@@ -189,6 +203,32 @@ class ConsoleFragment : Fragment() {
         root.addView(topRow)
         root.addView(argsRow)
         root.addView(btnRow)
+
+        // Log level: lines a script tags [DEBUG] stay hidden unless you pick Debug.
+        minLevel = (prefs?.getInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, 1) ?: 1).coerceIn(0, 3)
+        val levelRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((6 * dp).toInt(), 0, (6 * dp).toInt(), (4 * dp).toInt())
+        }
+        levelRow.addView(TextView(ctx).apply { text = "Log level"; textSize = 13f; setTextColor(KC.muted) })
+        val levelSpinner = android.widget.Spinner(ctx).apply {
+            adapter = android.widget.ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, com.example.kolmafiaandroid.ui.LogLevels.labels)
+            setSelection(minLevel)
+            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                    if (pos == minLevel || !::output.isInitialized) return
+                    minLevel = pos
+                    prefs?.edit()?.putInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, pos)?.apply()
+                    rebuildOutput()
+                }
+                override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+            }
+        }
+        levelRow.addView(levelSpinner, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = (8 * dp).toInt() })
+        levelNote = TextView(ctx).apply { textSize = 12f; setTextColor(KC.muted) }
+        levelRow.addView(levelNote)
+        root.addView(levelRow)
         reloadScripts()
 
         // Output area
@@ -227,13 +267,17 @@ class ConsoleFragment : Fragment() {
             setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
             setOnClickListener { clearOutput() }
         }
-        autoScrollCheck = CheckBox(ctx).apply {
-            text = "Auto-scroll"
-            isChecked = true
-            setTextColor(KC.muted)
-            setButtonDrawable(null)
-            setPadding((16 * dp).toInt(), 0, 0, 0)
-            setOnCheckedChangeListener { _, checked -> autoScroll = checked }
+        autoScrollBtn = Button(ctx).apply {
+            setTextColor(KC.onAccent)
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(ctx.getColor(R.color.colorSecondary)))
+            setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
+            setOnClickListener { setAutoScroll(!autoScroll) }
+        }
+        setAutoScroll(true)
+        // dragging the output up to read it pauses following; Follow jumps back to the newest line
+        scroll.setOnTouchListener { _, ev ->
+            if (ev.action == android.view.MotionEvent.ACTION_MOVE && autoScroll) setAutoScroll(false)
+            false
         }
         toolbarRow.addView(copyBtn)
         toolbarRow.addView(clearBtn)
@@ -244,7 +288,7 @@ class ConsoleFragment : Fragment() {
             setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
             setOnClickListener { showThemePicker() }
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = (8 * dp).toInt() })
-        toolbarRow.addView(autoScrollCheck, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        toolbarRow.addView(autoScrollBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = (8 * dp).toInt() })
         root.addView(toolbarRow)
 
         // Input row with history buttons
@@ -444,14 +488,16 @@ class ConsoleFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         viewLifecycleOwner.lifecycleScope.launch {
+            KolEngineHost.paused.collect { p ->
+                pausedNow = p
+                val ctx = context ?: return@collect
+                pauseButton?.setColorFilter(if (p) ctx.getColor(R.color.colorPrimary) else KC.text)
+                updateLevelNote()
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
             KolEngineHost.lines.collect { line ->
-                withContext(Dispatchers.Main) {
-                    output.append(ConsoleThemes.themed(Html.fromHtml(line, Html.FROM_HTML_MODE_COMPACT), theme()))
-                    output.append("\n")
-                    if (autoScroll) {
-                        scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
-                    }
-                }
+                withContext(Dispatchers.Main) { addLine(line) }
             }
         }
     }
@@ -522,7 +568,7 @@ class ConsoleFragment : Fragment() {
         val cmds = if (isScriptBlock) listOf(text) else text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         for (cmd in cmds) {
             addToHistory(cmd)
-            output.append("> $cmd\n")
+            addLine(android.text.TextUtils.htmlEncode("> $cmd"))
             KolEngineHost.execute(cmd)
         }
     }
@@ -538,7 +584,59 @@ class ConsoleFragment : Fragment() {
         Toast.makeText(requireContext(), "Copied to clipboard", Toast.LENGTH_SHORT).show()
     }
 
+    /** Adds one received line (HTML) to the history and, if its level is shown, to the screen. */
+    private fun addLine(html: String) {
+        val spanned = Html.fromHtml(html, Html.FROM_HTML_MODE_COMPACT)
+        val level = com.example.kolmafiaandroid.ui.LogLevels.of(spanned)
+        entries.addLast(level to html)
+        if (entries.size > 5000) {
+            entries.removeFirst()
+            // drop old lines from the screen in batches rather than on every line
+            if (++trimmed >= 1000) { rebuildOutput(); return }
+        }
+        if (level >= minLevel) {
+            output.append(ConsoleThemes.themed(spanned, theme()))
+            output.append("\n")
+            if (autoScroll) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+        } else {
+            hiddenCount++
+            updateLevelNote()
+        }
+    }
+
+    /** Redraws the screen from the history for the chosen log level. */
+    private fun rebuildOutput() {
+        if (!::output.isInitialized) return
+        val t = theme()
+        val sb = android.text.SpannableStringBuilder()
+        hiddenCount = 0
+        trimmed = 0
+        for ((level, html) in entries) {
+            if (level >= minLevel) {
+                sb.append(ConsoleThemes.themed(Html.fromHtml(html, Html.FROM_HTML_MODE_COMPACT), t)).append("\n")
+            } else hiddenCount++
+        }
+        output.setText(sb, TextView.BufferType.EDITABLE)
+        updateLevelNote()
+        if (autoScroll) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    /** On: the output follows new lines. Off: it stays where you are reading. */
+    private fun setAutoScroll(on: Boolean) {
+        autoScroll = on
+        autoScrollBtn.text = if (on) "Hold" else "Follow"
+        if (on && ::scroll.isInitialized) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    private fun updateLevelNote() {
+        levelNote?.text = listOfNotNull(if (pausedNow) "Paused" else null, if (hiddenCount > 0) "$hiddenCount hidden" else null).joinToString(" · ")
+    }
+
     private fun clearOutput() {
+        entries.clear()
+        hiddenCount = 0
+        trimmed = 0
+        updateLevelNote()
         output.setText("")
         Toast.makeText(requireContext(), "Output cleared", Toast.LENGTH_SHORT).show()
     }

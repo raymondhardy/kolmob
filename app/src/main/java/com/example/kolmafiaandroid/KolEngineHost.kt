@@ -65,6 +65,14 @@ object KolEngineHost {
     /** True while a character is logged in; observed by the UI. */
     val loginState = MutableStateFlow(false)
 
+    /** True while the running script is paused (it waits just before its next request). */
+    val paused = MutableStateFlow(false)
+
+    fun setPaused(value: Boolean) {
+        paused.value = value
+        try { KolEngine.setPaused(value) } catch (t: Throwable) { lines.tryEmit("ERROR: $t") }
+    }
+
     /** True once the engine has started and warmed up. */
     val readyState = MutableStateFlow(false)
 
@@ -149,6 +157,7 @@ object KolEngineHost {
                 lines.tryEmit("ERROR: $t")
             }
             tick.cancel(false)
+            setPaused(false)
             KolEngine.resync()
             stateChanged.tryEmit(Unit)
             if (ctx != null) ScriptService.end(ctx)
@@ -387,6 +396,7 @@ object KolEngineHost {
 
     /** Stops the running adventure/script immediately (not queued behind it). */
     fun abort() {
+        paused.value = false
         try { KolEngine.abort() } catch (t: Throwable) { lines.tryEmit("ERROR: $t") }
     }
 

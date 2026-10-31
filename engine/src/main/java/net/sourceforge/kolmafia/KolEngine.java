@@ -517,8 +517,18 @@ public final class KolEngine {
     Preferences.setString(name, value);
   }
 
+  /** Pauses or resumes the running script; it waits just before its next request. Safe from any thread. */
+  public static void setPaused(boolean paused) {
+    KolPause.setPaused(paused);
+  }
+
+  public static boolean isWaitingPaused() {
+    return KolPause.isWaiting();
+  }
+
   /** Cancels whatever is running (like pressing the stop button in KoLmafia). Safe from any thread. */
   public static void abort() {
+    KolPause.setPaused(false);
     RequestThread.declareWorldPeace();
     KolStdin.INSTANCE.feed(" "); // also releases a script that is waiting for an answer (a blank line would be ignored)
   }

@@ -245,6 +245,17 @@ PATCHES = [
     ('net/sourceforge/kolmafia/KoLCharacter.java',
      '''  public static final void recalculateAdjustments(boolean debug) {''',
      '''  public static final synchronized void recalculateAdjustments(boolean debug) {'''),
+    # Kolmob: pause button. The script thread waits here, just before its next request, while paused (see KolPause).
+    ('net/sourceforge/kolmafia/request/GenericRequest.java',
+     '''  @Override
+  public void run() {
+    if (GenericRequest.sessionId == null
+        && !(this instanceof LoginRequest)''',
+     '''  @Override
+  public void run() {
+    net.sourceforge.kolmafia.KolPause.awaitResume();
+    if (GenericRequest.sessionId == null
+        && !(this instanceof LoginRequest)'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

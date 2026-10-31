@@ -444,6 +444,8 @@ public final class KolEngine {
         sb.append('{');
         kv(sb, "name", u.getSkillName());
         kv(sb, "id", id);
+        String simg = net.sourceforge.kolmafia.persistence.SkillDatabase.getSkillImage(id);
+        kv(sb, "img", simg == null ? "" : simg);
         kv(sb, "mpCost", net.sourceforge.kolmafia.persistence.SkillDatabase.getMPConsumptionById(id));
         kv(sb, "buff", net.sourceforge.kolmafia.persistence.SkillDatabase.isBuff(id));
         kv(sb, "kind", (net.sourceforge.kolmafia.persistence.SkillDatabase.isSong(id) || (id / 1000 == 6 

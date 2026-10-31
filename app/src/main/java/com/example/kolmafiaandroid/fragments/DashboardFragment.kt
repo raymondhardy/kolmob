@@ -311,7 +311,12 @@ class DashboardFragment : Fragment() {
                     }
                     true
                 }
-                card.addView(v)
+                val box = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+                val icon = android.widget.ImageView(ctx)
+                com.example.kolmafiaandroid.ui.KolImages.load(icon, s.optString("img"))
+                box.addView(icon, LinearLayout.LayoutParams(dp(ctx, 30), dp(ctx, 30)).apply { marginEnd = dp(ctx, 10) })
+                box.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                card.addView(box)
             }
         }
         val special = skills.filter { it.optString("kind").isNotEmpty() }

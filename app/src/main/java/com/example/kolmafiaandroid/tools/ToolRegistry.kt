@@ -34,7 +34,7 @@ object ToolRegistry {
         "mushroom" to "adventure", "train" to "adventure",
         "scripts" to "hidden", "ascensions" to "hidden", "gains" to "overview",
         "maximizer" to "hidden", "boost" to "hidden", "modifiers" to "gear",
-        "buffrequest" to "skills", "buffbot" to "skills",
+        "buffrequest" to "hidden", "buffbot" to "skills",
     )
     fun inTab(home: String): List<Tool> = tools.filter { it.home == home }
     fun find(id: String): Tool? = tools.firstOrNull { it.id == id }

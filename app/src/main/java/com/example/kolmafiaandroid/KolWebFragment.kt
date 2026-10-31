@@ -116,30 +116,48 @@ class KolWebFragment : Fragment() {
         Shortcut("KoL options", "account.php", R.drawable.web_gear),
     )
 
-    /** The places people go most, one tap away: opens the game page for it. */
+    /** The places people go most, one tap away: label, game page, and the KoL icon (null = no good picture). */
+    private data class Place(val name: String, val path: String, val img: String?)
     private val places = listOf(
-        "Town map" to "place.php?whichplace=town",
-        "Market Square" to "place.php?whichplace=town_market",
-        "Seaside Town (right side)" to "place.php?whichplace=town_right",
-        "Wrong side of the tracks" to "place.php?whichplace=town_wrong",
-        "The Distant Woods" to "place.php?whichplace=woods",
-        "The Nearby Plains" to "place.php?whichplace=plains",
-        "The Big Mountains" to "place.php?whichplace=mountains",
-        "The Desert Beach" to "place.php?whichplace=desertbeach",
-        "Council of Loathing" to "council.php",
-        "Campground" to "campground.php",
-        "Guild" to "guild.php",
-        "The Mall" to "mall.php",
-        "Clan hall" to "clan_hall.php",
-        "Hagnk's storage" to "storage.php",
-        "Display case" to "managecollection.php",
-        "Hedge maze" to "hedgepuzzle.php",
-        "Volcano maze" to "volcanomaze.php",
+        Place("Town map", "place.php?whichplace=town", "map.gif"),
+        Place("Market Square", "place.php?whichplace=town_market", "meat.gif"),
+        Place("Seaside Town (right side)", "place.php?whichplace=town_right", null),
+        Place("Wrong side of the tracks", "place.php?whichplace=town_wrong", null),
+        Place("The Distant Woods", "place.php?whichplace=woods", "firewood.gif"),
+        Place("The Nearby Plains", "place.php?whichplace=plains", null),
+        Place("The Big Mountains", "place.php?whichplace=mountains", "goatcheese.gif"),
+        Place("The Desert Beach", "place.php?whichplace=desertbeach", "sandcastle.gif"),
+        Place("Council of Loathing", "council.php", "compass.gif"),
+        Place("Campground", "campground.php", "tent1.gif"),
+        Place("Guild", "guild.php", "guildapp.gif"),
+        Place("The Mall", "mall.php", "2002catalog.gif"),
+        Place("Clan hall", "clan_hall.php", "vipkey.gif"),
+        Place("Hagnk's storage", "storage.php", "chest.gif"),
+        Place("Display case", "managecollection.php", "trophy.gif"),
+        Place("Hedge maze", "hedgepuzzle.php", "puzzle.gif"),
+        Place("Volcano maze", "volcanomaze.php", "hotash.gif"),
     )
 
     private fun showGoTo() {
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle("Go to…")
-            .setItems(places.map { it.first }.toTypedArray()) { _, i -> openInGame(places[i].second) }
+        val ctx = requireContext()
+        val dp = resources.displayMetrics.density
+        val adapter = object : android.widget.BaseAdapter() {
+            override fun getCount() = places.size
+            override fun getItem(i: Int) = places[i]
+            override fun getItemId(i: Int) = i.toLong()
+            override fun getView(i: Int, convert: View?, parent: ViewGroup): View {
+                val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding((20 * dp).toInt(), (10 * dp).toInt(), (20 * dp).toInt(), (10 * dp).toInt()) }
+                val icon = android.widget.ImageView(ctx)
+                val pl = places[i]
+                if (pl.img != null) com.example.kolmafiaandroid.ui.KolImages.load(icon, pl.img)
+                else { icon.setImageResource(R.drawable.web_map); icon.setColorFilter(KC.muted) }
+                row.addView(icon, LinearLayout.LayoutParams((32 * dp).toInt(), (32 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
+                row.addView(TextView(ctx).apply { text = pl.name; textSize = 16f; setTextColor(KC.text) })
+                return row
+            }
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx).setTitle("Go to…")
+            .setAdapter(adapter) { _, i -> openInGame(places[i].path) }
             .setNegativeButton("Cancel", null).show()
     }
 
@@ -238,6 +256,7 @@ class KolWebFragment : Fragment() {
                 }
             }
         }
+        val openDiet: () -> Unit = { com.example.kolmafiaandroid.tools.DietFragment.show(requireActivity().supportFragmentManager) }
         fun restoreTap(command: String, what: String): () -> Unit = {
             android.widget.Toast.makeText(ctx, "Restoring $what...", android.widget.Toast.LENGTH_SHORT).show()
             KolEngineHost.execute(command) { activity?.runOnUiThread { if (isAdded) refreshVitals() } }
@@ -249,11 +268,11 @@ class KolWebFragment : Fragment() {
             setPadding((8 * dp).toInt(), (3 * dp).toInt(), (8 * dp).toInt(), (3 * dp).toInt())
             addView(vitalItem("hp", R.drawable.ic_vital_hp, "Hit points. Tap to restore", restoreTap("restore hp", "HP")))
             addView(vitalItem("mp", R.drawable.ic_vital_mp, "Mana. Tap to restore", restoreTap("restore mp", "MP")))
-            addView(vitalItem("adv", R.drawable.ic_vital_adv, "Adventures left"))
-            addView(vitalItem("food", R.drawable.ic_vital_food, "Fullness"))
-            addView(vitalItem("drink", R.drawable.ic_vital_drink, "Liver"))
-            addView(vitalItem("spleen", R.drawable.ic_vital_spleen, "Spleen"))
-            addView(vitalItem("meat", R.drawable.ic_vital_meat, "Meat"))
+            addView(vitalItem("adv", R.drawable.ic_vital_adv, "Adventures left. Tap to go adventuring") { (activity as? MainActivity)?.goToTab(1) })
+            addView(vitalItem("food", R.drawable.ic_vital_food, "Fullness. Tap for the diet planner", openDiet))
+            addView(vitalItem("drink", R.drawable.ic_vital_drink, "Liver. Tap for the diet planner", openDiet))
+            addView(vitalItem("spleen", R.drawable.ic_vital_spleen, "Spleen. Tap for the diet planner", openDiet))
+            addView(vitalItem("meat", R.drawable.ic_vital_meat, "Meat. Tap for the meat tool") { com.example.kolmafiaandroid.tools.MeatFragment.show(requireActivity().supportFragmentManager) })
             visibility = if (panePref().getInt("web_panes", 0) == paneCols.size - 1) View.VISIBLE else View.GONE
         }
         if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {

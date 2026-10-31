@@ -526,6 +526,48 @@ public final class KolEngine {
     return KolPause.isWaiting();
   }
 
+  /** Call when a command is handed to the engine, so the hang watchdog starts counting from now. */
+  public static void markActive() {
+    KolPause.touch();
+    hangReportedAt = 0;
+  }
+
+  private static volatile long hangReportedAt = 0;
+
+  /**
+   * Hang watchdog, called every few seconds while a command runs. If the script has not started a request for
+   * thresholdMillis (and is not paused), saves every thread's stack to hang_dump.txt once and returns a one-line
+   * message for the console; otherwise returns null.
+   */
+  public static String dumpIfHung(long thresholdMillis) {
+    if (KolPause.isPaused() || KolPause.isWaiting()) return null;
+    long idle = KolPause.idleMillis();
+    if (idle < thresholdMillis) {
+      hangReportedAt = 0;
+      return null;
+    }
+    if (hangReportedAt != 0) return null;
+    hangReportedAt = System.currentTimeMillis();
+    try {
+      StringBuilder sb = new StringBuilder();
+      sb.append("=== ").append(new java.util.Date()).append(": no request for ").append(idle / 1000).append(" s ===\n");
+      for (java.util.Map.Entry<Thread, StackTraceElement[]> e : Thread.getAllStackTraces().entrySet()) {
+        Thread t = e.getKey();
+        sb.append("\"").append(t.getName()).append("\" ").append(t.getState()).append('\n');
+        StackTraceElement[] st = e.getValue();
+        for (int i = 0; i < Math.min(st.length, 40); i++) sb.append("    at ").append(st[i]).append('\n');
+      }
+      File f = new File(net.sourceforge.kolmafia.KoLConstants.ROOT_LOCATION, "hang_dump.txt");
+      try (java.io.FileWriter w = new java.io.FileWriter(f, true)) {
+        w.write(sb.toString());
+        w.write("\n");
+      }
+      return "Kolmob: no game request for " + (idle / 1000) + " s; thread stacks saved to hang_dump.txt";
+    } catch (Throwable t) {
+      return "Kolmob: no game request for " + (idle / 1000) + " s (could not save stacks: " + t + ")";
+    }
+  }
+
   /** Cancels whatever is running (like pressing the stop button in KoLmafia). Safe from any thread. */
   public static void abort() {
     KolPause.setPaused(false);

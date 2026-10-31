@@ -24,6 +24,10 @@ class ScriptService : Service() {
             KolEngineHost.abort()
             return START_NOT_STICKY
         }
+        if (intent?.action == ACTION_FORCE_QUIT) {
+            forceQuit(this)
+            return START_NOT_STICKY
+        }
         val label = intent?.getStringExtra("label") ?: "a script"
         // always promote at once (Android kills the app if a started foreground service does not), then step down if the command already ended
         startForeground(NOTIF_ID, build(this, label), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -40,6 +44,16 @@ class ScriptService : Service() {
         private const val NOTIF_ID = 1002
         private const val DONE_ID = 1003
         const val ACTION_STOP = "com.example.kolmafiaandroid.STOP_SCRIPT"
+        const val ACTION_FORCE_QUIT = "com.example.kolmafiaandroid.FORCE_QUIT"
+
+        /**
+         * Last resort for a hung script: swiping the app away does not end it (this service keeps the process alive
+         * while a script runs), so kill the whole process. The next launch starts clean and logs in again.
+         */
+        fun forceQuit(ctx: Context) {
+            try { ctx.getSystemService(NotificationManager::class.java).cancelAll() } catch (_: Throwable) {}
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
         private val active = AtomicInteger(0)
         @Volatile private var startedAt = 0L
         @Volatile private var lastLabel = ""
@@ -56,6 +70,7 @@ class ScriptService : Service() {
             channel(ctx)
             val open = PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
             val stop = PendingIntent.getService(ctx, 1, Intent(ctx, ScriptService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE)
+            val kill = PendingIntent.getService(ctx, 2, Intent(ctx, ScriptService::class.java).setAction(ACTION_FORCE_QUIT), PendingIntent.FLAG_IMMUTABLE)
             return NotificationCompat.Builder(ctx, CHANNEL)
                 .setSmallIcon(R.drawable.tab_prep)
                 .setContentTitle("Running: $label")
@@ -63,6 +78,7 @@ class ScriptService : Service() {
                 .setContentIntent(open)
                 .setOngoing(true)
                 .addAction(0, "Stop", stop)
+                .addAction(0, "Force quit", kill)
                 .build()
         }
 

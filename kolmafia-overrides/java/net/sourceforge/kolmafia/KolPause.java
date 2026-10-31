@@ -10,7 +10,19 @@ public final class KolPause {
   private static volatile boolean paused = false;
   private static volatile boolean waiting = false;
 
+  private static volatile long lastRequestAt = System.currentTimeMillis();
+
   private KolPause() {}
+
+  /** Marks "something just happened" (a request started, or a command was handed to the engine). */
+  public static void touch() {
+    lastRequestAt = System.currentTimeMillis();
+  }
+
+  /** Milliseconds since the last request started, or since touch(). */
+  public static long idleMillis() {
+    return System.currentTimeMillis() - lastRequestAt;
+  }
 
   public static void setPaused(boolean value) {
     paused = value;
@@ -27,6 +39,7 @@ public final class KolPause {
 
   /** Called at the start of every request. Only the script thread ever waits here. */
   public static void awaitResume() {
+    lastRequestAt = System.currentTimeMillis();
     if (!paused
         || !SCRIPT_THREAD.equals(Thread.currentThread().getName())
         || net.sourceforge.kolmafia.request.LoginRequest.kolmobTimingIn()) {

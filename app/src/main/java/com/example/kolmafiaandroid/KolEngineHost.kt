@@ -91,6 +91,13 @@ object KolEngineHost {
 
     private var started = false
 
+    /** True while a script or command is running (the screen is kept on for it). */
+    val running = MutableStateFlow(false)
+    private val runningCount = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /** Seconds without a game request before the hang watchdog saves thread stacks. */
+    @Volatile var hangSeconds = 90
+
     // Read-only state queries run on their own thread so they do not queue behind a long adventure.
     private val reader = Executors.newSingleThreadExecutor { r -> Thread(r, "kol-reader").apply { isDaemon = true } }
 
@@ -150,13 +157,19 @@ object KolEngineHost {
         executor.execute {
             val ctx = appContext
             if (ctx != null) ScriptService.begin(ctx, command)
-            val tick = ticker.scheduleWithFixedDelay({ stateChanged.tryEmit(Unit) }, 6, 6, java.util.concurrent.TimeUnit.SECONDS)
+            KolEngine.markActive()
+            runningCount.incrementAndGet(); running.value = true
+            val tick = ticker.scheduleWithFixedDelay({
+                stateChanged.tryEmit(Unit)
+                try { KolEngine.dumpIfHung(hangSeconds * 1000L)?.let { lines.tryEmit(it) } } catch (_: Throwable) {}
+            }, 6, 6, java.util.concurrent.TimeUnit.SECONDS)
             try {
                 watched("cmd") { KolEngine.execute(command) }
             } catch (t: Throwable) {
                 lines.tryEmit("ERROR: $t")
             }
             tick.cancel(false)
+            if (runningCount.decrementAndGet() <= 0) { runningCount.set(0); running.value = false }
             setPaused(false)
             KolEngine.resync()
             stateChanged.tryEmit(Unit)

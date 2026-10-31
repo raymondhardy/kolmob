@@ -399,6 +399,84 @@ PATCHES = [
 ''',
      '''  private static volatile boolean completedLogin = false;
 '''),
+    # Kolmob: leaving a limit mode (Ed's Underworld trip, etc.) must recalculate the character's bonuses. Upstream only
+    # does that for modes that reset skills, so after the Underworld Ed's stomach, liver and spleen limits stayed
+    # at their in-Underworld values (tummy 0, liver 0, spleen 5) until something else happened to recalculate.
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''    KoLCharacter.limitMode = limitmode;
+
+    if (resetAfter) {
+      KoLmafia.resetAfterLimitmode();
+    }''',
+     '''    final LimitMode kolmobPreviousMode = KoLCharacter.limitMode;
+    KoLCharacter.limitMode = limitmode;
+
+    if (resetAfter) {
+      KoLmafia.resetAfterLimitmode();
+    } else if (kolmobPreviousMode != limitmode) {
+      KoLCharacter.recalculateAdjustments();
+    }'''),
+    # Kolmob: the character's bonuses (stomach/liver/spleen limits, etc.) are only recomputed when something calls
+    # recalculateAdjustments(). When some change forgets to (limit modes, skill refreshes, ...), scripts read stale
+    # numbers. Remember what the bonuses were computed from; if it differs when a script reads them, recompute.
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''  public static final double currentNumericModifier(final Modifier modifier) {
+    return KoLCharacter.currentModifiers.getNumeric(modifier);
+  }
+
+  public static final double currentNumericModifier(final DoubleModifier modifier) {
+    return KoLCharacter.currentModifiers.getDouble(modifier);
+  }''',
+     '''  private static volatile int kolmobInputs = Integer.MIN_VALUE;
+
+  private static int kolmobInputsNow() {
+    return java.util.Objects.hash(
+        KoLCharacter.limitMode,
+        KoLCharacter.ascensionPath,
+        KoLCharacter.ascensionClass,
+        KoLCharacter.effectiveFamiliar,
+        KoLConstants.availableSkillsSet.size(),
+        KoLConstants.activeEffects.size());
+  }
+
+  /** Only the script thread recomputes (never while already inside a recalculation); other threads read as is. */
+  private static void kolmobEnsureFresh() {
+    if (KoLCharacter.kolmobInputs == kolmobInputsNow()
+        || Thread.holdsLock(KoLCharacter.class)
+        || !"kol-engine".equals(Thread.currentThread().getName())) {
+      return;
+    }
+    RequestLogger.updateDebugLog(
+        "Kolmob: character bonuses were out of date (limit mode, skills, effects, class or familiar changed"
+            + " without a recalculation); recalculated.");
+    KoLCharacter.recalculateAdjustments();
+  }
+
+  public static final double currentNumericModifier(final Modifier modifier) {
+    kolmobEnsureFresh();
+    return KoLCharacter.currentModifiers.getNumeric(modifier);
+  }
+
+  public static final double currentNumericModifier(final DoubleModifier modifier) {
+    kolmobEnsureFresh();
+    return KoLCharacter.currentModifiers.getDouble(modifier);
+  }'''),
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''  public static final synchronized void recalculateAdjustments(boolean debug) {
+    KoLCharacter.currentModifiers.set(''',
+     '''  public static final synchronized void recalculateAdjustments(boolean debug) {
+    final int kolmobSeen = kolmobInputsNow();
+    KoLCharacter.currentModifiers.set('''),
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''            Modeable.getStateMap(),
+            false));
+  }
+''',
+     '''            Modeable.getStateMap(),
+            false));
+    KoLCharacter.kolmobInputs = kolmobSeen;
+  }
+'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

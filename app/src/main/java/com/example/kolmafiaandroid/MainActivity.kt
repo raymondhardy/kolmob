@@ -78,6 +78,10 @@ class MainActivity : AppCompatActivity() {
         }, true)
         pendingChatKey = intent?.getStringExtra("open_chat")
         lifecycleScope.launch { KolEngineHost.prompts.collect { showScriptPrompt(it) } }
+        // keep the screen on while a script runs (the phone would otherwise go dark mid-script); can be switched off in Settings
+        lifecycleScope.launch {
+            KolEngineHost.running.collect { applyKeepAwake(it) }
+        }
         // anything that asks for a KoL page (tools, quest helpers, ...) lands in the Game tab
         lifecycleScope.launch { KolEngineHost.webRequests.collect { dismissOpenDialogs(); openTab(2) } }
     }
@@ -219,9 +223,13 @@ class MainActivity : AppCompatActivity() {
         binding.viewPager.currentItem = index
     }
 
+    private var moreSheet: com.google.android.material.bottomsheet.BottomSheetDialog? = null
+
     private fun showMoreSheet() {
+        if (moreSheet?.isShowing == true) return // a second tap on the menu button must not stack another sheet
         val dp = resources.displayMetrics.density
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        moreSheet = sheet
         val box = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(0, (8 * dp).toInt(), 0, (16 * dp).toInt())
@@ -262,6 +270,12 @@ class MainActivity : AppCompatActivity() {
         fitDialogAboveNav(sheet)
     }
 
+    private fun applyKeepAwake(running: Boolean) {
+        val wanted = running && getSharedPreferences("kolmob", MODE_PRIVATE).getBoolean("keep_awake", true)
+        if (wanted) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
     private fun showSettings() {
         val root = filesDir.resolve("kolmafia").absolutePath
         val version = try {
@@ -291,6 +305,15 @@ class MainActivity : AppCompatActivity() {
             })
         }
         box.addView(themeGroup)
+        box.addView(com.google.android.material.checkbox.MaterialCheckBox(this).apply {
+            text = "Keep the screen on while a script runs"
+            setTextColor(KC.soft)
+            isChecked = getSharedPreferences("kolmob", MODE_PRIVATE).getBoolean("keep_awake", true)
+            setOnCheckedChangeListener { _, on ->
+                getSharedPreferences("kolmob", MODE_PRIVATE).edit().putBoolean("keep_awake", on).apply()
+                applyKeepAwake(KolEngineHost.running.value)
+            }
+        })
         box.addView(note("KoL display options (these are your KoL account settings, so they also change the desktop site)", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
         val loading = note("Loading from KoL...")
         box.addView(loading)

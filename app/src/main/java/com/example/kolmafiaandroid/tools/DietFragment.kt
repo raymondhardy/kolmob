@@ -162,14 +162,22 @@ class DietFragment : Fragment() {
                 }
             })
         }
-        // First step of a list, up to and including the first command that starts with a verb, with the count cut to one.
+        // The first item of a kind, count cut to one, with ONLY what that item needs: its own buy/create step, plus the helper
+        // that goes with its kind (milk of magnesium before food, Ode to Booze before drink). Never the other items in the plan.
         fun next(cmds: List<String>, verbs: List<String>): Pair<String, List<String>>? {
             val idx = cmds.indexOfFirst { c -> verbs.any { c.startsWith("$it ") } }
             if (idx < 0) return null
             val m = Regex("^(\\w+)\\s+(\\d+)\\s+(.*)$").find(cmds[idx])
             val one = if (m != null) "${m.groupValues[1]} 1 ${m.groupValues[3]}" else cmds[idx]
             val name = m?.groupValues?.get(3) ?: cmds[idx]
-            return name to (cmds.subList(0, idx) + one)
+            val before = cmds.subList(0, idx)
+            var p = before.size
+            while (p > 0 && (before[p - 1].startsWith("buy ") || before[p - 1].startsWith("create "))) p--
+            val prep = before.subList(p, before.size)
+            val helpers = before.subList(0, p).filter { c ->
+                (verbs.contains("eat") && c.startsWith("use ")) || (verbs.contains("drink") && c.startsWith("cast "))
+            }
+            return name to (helpers + prep + one)
         }
         if (live) {
             next(list, listOf("eat"))?.let { btn("Eat next: ${it.first}", it.second) }

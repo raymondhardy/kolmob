@@ -93,16 +93,28 @@ class BoostFragment : DialogFragment() {
         if (o == null || !o.optBoolean("ok")) { status.text = "Couldn't work that out: ${o?.optString("error") ?: json}"; return }
         val arr = o.optJSONArray("boosts")
         if (arr == null || arr.length() == 0) { status.text = "Nothing in your inventory or skills adds to that right now."; return }
-        status.text = "Tap one to do it. Best first."
+        status.text = "Tap a line to cast the skill or use the item. Best first."
         for (i in 0 until arr.length()) {
             val b = arr.getJSONObject(i)
-            results.addView(TextView(ctx).apply {
-                text = b.getString("text")
-                textSize = 14f
-                setTextColor(KC.soft)
-                setPadding(dp(ctx, 8), dp(ctx, 12), dp(ctx, 8), dp(ctx, 12))
-                setOnClickListener { use(b.getString("cmd")) }
-            })
+            val cmd = b.getString("cmd")
+            val verb = cmd.trim().substringBefore(' ').lowercase()
+            val kind = when (verb) {
+                "cast" -> "CAST SKILL"
+                "use" -> "USE ITEM"
+                "eat" -> "EAT"
+                "drink" -> "DRINK"
+                "chew" -> "CHEW"
+                "buy" -> "BUY"
+                else -> verb.uppercase()
+            }
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(ctx, 8), dp(ctx, 10), dp(ctx, 8), dp(ctx, 10))
+                setOnClickListener { use(cmd) }
+                addView(TextView(ctx).apply { text = kind; textSize = 11f; setTextColor(0xFF4CAF50.toInt()); setTypeface(typeface, android.graphics.Typeface.BOLD) })
+                addView(TextView(ctx).apply { text = b.getString("text"); textSize = 14f; setTextColor(KC.soft) })
+            }
+            results.addView(row)
         }
     }
 

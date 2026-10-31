@@ -296,7 +296,7 @@ class DashboardFragment : Fragment() {
     private fun skillsTab(o: JSONObject) {
         val ctx = requireContext()
         val skills = (o.optJSONArray("skills") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
-        if (skills.isEmpty()) { body.addView(label(ctx, "No castable skills.", 15f, muted)); return }
+        if (skills.isEmpty()) { body.addView(label(ctx, "No castable skills.", 15f, muted)); body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "skills")); return }
         val mp = o.optLong("mp")
         fun add(card: LinearLayout, list: List<JSONObject>) {
             for (s in list.sortedBy { it.getString("name") }) {
@@ -327,6 +327,7 @@ class DashboardFragment : Fragment() {
         if (passives.isNotEmpty()) {
             card(ctx, body, "Always on").addView(row(ctx, "Passive skills", "${passives.size} · tap to browse", { pick("Passive skills", passives) { } }))
         }
+        body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "skills"))
     }
 
     private fun effectsTab(o: JSONObject) {

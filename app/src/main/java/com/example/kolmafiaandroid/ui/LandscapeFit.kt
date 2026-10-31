@@ -17,6 +17,14 @@ import java.util.WeakHashMap
  *  - there is no scrolling body and the content is taller than the screen -> everything goes into one ScrollView.
  */
 object LandscapeFit {
+    /** In landscape the keyboard otherwise opens its own full-screen editor and hides the app; keep typing in the field itself. */
+    fun noExtractUi(v: View?) {
+        when (v) {
+            is android.widget.EditText -> v.imeOptions = v.imeOptions or android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
+            is ViewGroup -> for (i in 0 until v.childCount) noExtractUi(v.getChildAt(i))
+        }
+    }
+
     private val done: MutableSet<View> = Collections.newSetFromMap(WeakHashMap())
 
     fun apply(root: View) {

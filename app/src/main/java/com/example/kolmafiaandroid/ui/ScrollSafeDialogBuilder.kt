@@ -17,6 +17,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 class ScrollSafeDialogBuilder(context: Context) : MaterialAlertDialogBuilder(context) {
     override fun setView(view: View?): MaterialAlertDialogBuilder {
         val v = view ?: return super.setView(view)
+        LandscapeFit.noExtractUi(v)
         val scrolls = v is ScrollView || v is HorizontalScrollView || v is AbsListView || v is WebView ||
             v is androidx.core.widget.NestedScrollView || v is androidx.recyclerview.widget.RecyclerView
         if (scrolls) return super.setView(v)

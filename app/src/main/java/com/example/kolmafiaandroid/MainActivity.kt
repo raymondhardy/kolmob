@@ -64,11 +64,16 @@ class MainActivity : AppCompatActivity() {
             updateChatHandleBadge(n)
         }
         setupLoginOverlay()
+        // fields that appear later (chat input, forms): clear the full-screen keyboard editor as soon as one takes focus
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, nf ->
+            if (nf is android.widget.EditText) com.example.kolmafiaandroid.ui.LandscapeFit.noExtractUi(nf)
+        }
         // first run: the use-at-your-own-risk agreement covers everything, including the login screen
         com.example.kolmafiaandroid.ui.Eula.showIfNeeded(this, findViewById(android.R.id.content))
         // Chat, Tools and the other full-screen dialogs must not cover the main navigation
         supportFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
             override fun onFragmentViewCreated(fm: androidx.fragment.app.FragmentManager, f: Fragment, v: View, savedInstanceState: android.os.Bundle?) {
+                com.example.kolmafiaandroid.ui.LandscapeFit.noExtractUi(v)
                 // landscape is short: let screens built for portrait scroll as one instead of squeezing their list (see LandscapeFit)
                 if ((f is androidx.fragment.app.DialogFragment || f.parentFragment is androidx.fragment.app.DialogFragment) && resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
                     com.example.kolmafiaandroid.ui.LandscapeFit.apply(v)

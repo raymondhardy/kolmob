@@ -64,6 +64,9 @@ class ChatFragment : DialogFragment() {
     private lateinit var composer: LinearLayout
     private lateinit var input: EditText
     private lateinit var tabsScroll: android.widget.HorizontalScrollView
+    private var headerRow: View? = null
+    private var statusRow: View? = null
+    private var compact = false
     private lateinit var tabsBox: LinearLayout
     private lateinit var jumpPill: TextView
     private lateinit var sendBtn: TextView
@@ -126,8 +129,10 @@ class ChatFragment : DialogFragment() {
         expandRef = expandBtn
         for (b in listOf(newBtn, alertsBtn, closeChatBtn, expandBtn, doneBtn)) header.addView(b)
         root.addView(header)
+        headerRow = header
         status = TextView(ctx).apply { textSize = 12f; setTextColor(muted); setPadding(dp(16), 0, dp(16), dp(6)); text = "Starting chat…" }
         root.addView(status)
+        statusRow = status
         // quick switcher between open conversations, with unread dots
         tabsBox = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(8), 0, dp(8), dp(6)) }
         tabsScroll = android.widget.HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(tabsBox) }
@@ -178,6 +183,19 @@ class ChatFragment : DialogFragment() {
         sendBtn.alpha = 0.4f
         root.addView(composer)
         showMode()
+        // landscape + keyboard leaves ~1/3 of the screen: drop the title, status and tabs so the messages and the input stay visible
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val land = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val ime = androidx.core.view.ViewCompat.getRootWindowInsets(root)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+            val c = land && ime
+            if (c != compact) {
+                compact = c
+                headerRow?.visibility = if (c) View.GONE else View.VISIBLE
+                statusRow?.visibility = if (c) View.GONE else View.VISIBLE
+                showMode()
+                if (c) convoScroll.post { convoScroll.fullScroll(View.FOCUS_DOWN) }
+            }
+        }
         return com.example.kolmafiaandroid.ui.SwipeDismissLayout(ctx, dp(64)) {
             // swiping down: full screen first shrinks to the lower panel, then the panel closes
             if (panelFull) {
@@ -200,7 +218,7 @@ class ChatFragment : DialogFragment() {
         convoScroll.visibility = if (inConvo) View.VISIBLE else View.GONE
         composer.visibility = if (inConvo) View.VISIBLE else View.GONE
         title.text = if (inConvo) label(selected!!) else "Chat"
-        tabsScroll.visibility = if (inConvo) View.VISIBLE else View.GONE
+        tabsScroll.visibility = if (inConvo && !compact) View.VISIBLE else View.GONE
         if (inConvo) {
             input.hint = "Message " + label(selected!!)
             val d = drafts[selected!!] ?: ""

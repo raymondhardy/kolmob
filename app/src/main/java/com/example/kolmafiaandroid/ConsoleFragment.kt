@@ -153,6 +153,18 @@ class ConsoleFragment : Fragment() {
         val ctx = requireContext()
         val dp = resources.displayMetrics.density
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding((8 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt()) }
+        // landscape: script controls on the left, the log (output, buttons, command line) on the right
+        val land = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val controls = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        val log = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        if (land) {
+            root.orientation = LinearLayout.HORIZONTAL
+            root.addView(ScrollView(ctx).apply { addView(controls) }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 4f).apply { marginEnd = (8 * dp).toInt() })
+            root.addView(log, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 6f))
+        } else {
+            root.addView(controls, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            root.addView(log, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        }
 
         // Script bar: pick an installed script, run it, edit it, add or install new ones. Output shows right below.
         val picker = android.widget.Spinner(ctx)
@@ -205,9 +217,9 @@ class ConsoleFragment : Fragment() {
         small(R.drawable.ic_s_import, "Import a script from a link or file") { manager("import") }
         small(R.drawable.ic_s_cloud, "Install from GitHub or SVN") { manager("install") }
         small(R.drawable.ic_s_folder, "Manage scripts") { manager(null) }
-        root.addView(topRow)
-        root.addView(argsRow)
-        root.addView(btnRow)
+        controls.addView(topRow)
+        controls.addView(argsRow)
+        controls.addView(btnRow)
 
         // Log level: lines a script tags [DEBUG] stay hidden unless you pick Debug.
         minLevel = (prefs?.getInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, 1) ?: 1).coerceIn(0, 3)
@@ -233,7 +245,7 @@ class ConsoleFragment : Fragment() {
         levelRow.addView(levelSpinner, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = (8 * dp).toInt() })
         levelNote = TextView(ctx).apply { textSize = 12f; setTextColor(KC.muted) }
         levelRow.addView(levelNote)
-        root.addView(levelRow)
+        controls.addView(levelRow)
         reloadScripts()
 
         // Output area
@@ -249,7 +261,7 @@ class ConsoleFragment : Fragment() {
             setBackgroundResource(R.drawable.bg_console_output)
             setPadding((12 * dp).toInt(), (12 * dp).toInt(), (12 * dp).toInt(), (12 * dp).toInt())
         }
-        root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        log.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         applyTheme()
 
         // Toolbar row: Copy, Clear, Auto-scroll
@@ -294,7 +306,7 @@ class ConsoleFragment : Fragment() {
             setOnClickListener { showThemePicker() }
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = (8 * dp).toInt() })
         toolbarRow.addView(autoScrollBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = (8 * dp).toInt() })
-        root.addView(toolbarRow)
+        log.addView(toolbarRow)
 
         // Input row with history buttons
         val inputRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -339,7 +351,7 @@ class ConsoleFragment : Fragment() {
         // command-name suggestions for the first word
         val suggestRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding((4 * dp).toInt(), 0, (4 * dp).toInt(), 0) }
         val suggest = android.widget.HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; visibility = View.GONE; addView(suggestRow) }
-        root.addView(suggest)
+        log.addView(suggest)
         input.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(e: android.text.Editable?) {
                 val t = e?.toString() ?: ""
@@ -372,7 +384,7 @@ class ConsoleFragment : Fragment() {
         inputRow.addView(historyNextBtn)
         inputRow.addView(input, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         inputRow.addView(run)
-        root.addView(inputRow)
+        log.addView(inputRow)
 
         // Enter key handler
         input.setOnEditorActionListener { _, actionId, _ ->

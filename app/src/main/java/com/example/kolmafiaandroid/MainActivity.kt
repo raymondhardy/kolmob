@@ -304,7 +304,9 @@ class MainActivity : AppCompatActivity() {
             autoLoginAllowed = false
             KolEngineHost.logout()
         }
-        sheet.setContentView(box)
+        sheet.setContentView(android.widget.ScrollView(this).apply { addView(box) }) // scrolls when the screen is short (landscape)
+        sheet.behavior.skipCollapsed = true
+        sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
         sheet.show()
         fitDialogAboveNav(sheet)
     }

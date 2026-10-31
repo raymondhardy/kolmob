@@ -51,7 +51,7 @@ class DashboardFragment : Fragment() {
     private val itemsHostId = View.generateViewId()
     private var snapshot: JSONObject? = null
     private var tabIndex = 0
-    private val tabNames = listOf("Overview", "Gear", "Skills", "Effects", "Appetite", "Items")
+    private val tabNames = listOf("Overview", "Gear", "Skills", "Appetite", "Items")
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
         val ctx = requireContext()
@@ -60,8 +60,7 @@ class DashboardFragment : Fragment() {
         tabs = com.example.kolmafiaandroid.ui.iconTabs(ctx, listOf(
             R.drawable.tab_overview to "Overview",
             R.drawable.tab_gear to "Gear",
-            R.drawable.web_bolt to "Skills",
-            R.drawable.tab_effects to "Effects",
+            R.drawable.web_bolt to "Skills & buffs",
             R.drawable.tab_appetite to "Appetite",
             R.drawable.nav_inventory to "Items",
         ), tabIndex) { tabIndex = it; renderBody() }
@@ -221,8 +220,7 @@ class DashboardFragment : Fragment() {
             0 -> overviewTab(o)
             1 -> gearTab(o)
             2 -> skillsTab(o)
-            3 -> effectsTab(o)
-            4 -> appetiteTab(o)
+            3 -> appetiteTab(o)
         }
     }
 
@@ -295,6 +293,7 @@ class DashboardFragment : Fragment() {
     /** Castable skills, buffs first. */
     private fun skillsTab(o: JSONObject) {
         val ctx = requireContext()
+        buffsSection(o)
         val skills = (o.optJSONArray("skills") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
         if (skills.isEmpty()) { body.addView(label(ctx, "No castable skills.", 15f, muted)); body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "skills")); return }
         val mp = o.optLong("mp")
@@ -321,7 +320,7 @@ class DashboardFragment : Fragment() {
         }
         val buffs = skills.filter { it.optBoolean("buff") && it.optString("kind").isEmpty() }
         val others = skills.filter { !it.optBoolean("buff") && it.optString("kind").isEmpty() }
-        if (buffs.isNotEmpty()) add(card(ctx, body, "Buffs"), buffs)
+        if (buffs.isNotEmpty()) add(card(ctx, body, "Buffs you can cast"), buffs)
         if (others.isNotEmpty()) add(card(ctx, body, "Other skills"), others)
         val passives = (o.optJSONArray("passives") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getString(it) } }.sorted()
         if (passives.isNotEmpty()) {
@@ -330,17 +329,30 @@ class DashboardFragment : Fragment() {
         body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "skills"))
     }
 
-    private fun effectsTab(o: JSONObject) {
+    /** Your active effects (with icons) and ways to add more; the top of the Skills & buffs tab. */
+    private fun buffsSection(o: JSONObject) {
         val ctx = requireContext()
         val fx = (o.optJSONArray("effects") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
         val fm = requireActivity().supportFragmentManager
-        body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, fm, "effects", listOf("Moods" to { com.example.kolmafiaandroid.tools.MoodFragment.show(fm) })))
-        if (fx.isEmpty()) { body.addView(label(ctx, "No active effects.", 15f, muted)); return }
-        val fxCard = card(ctx, body, "Active effects  ·  tap one to extend or remove it")
-        for (e in fx) {
-            val extendable = e.optString("action").isNotEmpty()
-            fxCard.addView(row(ctx, e.getString("name"), "${e.getInt("turns")} turns", { effectDialog(e, o.optLong("mp")) }, if (extendable) KC.text else muted))
+        if (fx.isEmpty()) {
+            body.addView(label(ctx, "No active effects.", 15f, muted))
+        } else {
+            val fxCard = card(ctx, body, "Active effects  ·  tap one to extend or remove it")
+            for (e in fx) {
+                val extendable = e.optString("action").isNotEmpty()
+                val line = row(ctx, e.getString("name"), "${e.getInt("turns")} turns", { effectDialog(e, o.optLong("mp")) }, if (extendable) KC.text else muted)
+                val box = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+                val icon = android.widget.ImageView(ctx)
+                com.example.kolmafiaandroid.ui.KolImages.load(icon, e.optString("img"))
+                box.addView(icon, LinearLayout.LayoutParams(dp(ctx, 30), dp(ctx, 30)).apply { marginEnd = dp(ctx, 10) })
+                box.addView(line, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                fxCard.addView(box)
+            }
         }
+        val add = card(ctx, body, "Add a buff  ·  your own buff skills are listed below")
+        add.addView(row(ctx, "Find buffs for a goal", "Skills to cast and items to use", { com.example.kolmafiaandroid.tools.BoostFragment.show(fm) }, green))
+        add.addView(row(ctx, "Ask a buffbot", "Buy buffs from a public bot", { com.example.kolmafiaandroid.tools.BuffRequestFragment.show(fm) }, green))
+        add.addView(row(ctx, "Moods", "Buffs kept up automatically", { com.example.kolmafiaandroid.tools.MoodFragment.show(fm) }, green))
     }
 
     /** Stomach, liver and spleen with pickers for what to eat, drink and chew. */
@@ -371,8 +383,8 @@ class DashboardFragment : Fragment() {
     }
 
     private companion object {
-        const val ITEMS_TAB = 5
-        const val QUESTS_TAB = 6
+        const val ITEMS_TAB = 4
+        const val QUESTS_TAB = 5
     }
 
     private fun equipmentRow(slot: JSONObject): View {

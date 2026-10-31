@@ -2117,6 +2117,12 @@ public final class KolEngine {
         sb.append('{');
         kv(sb, "name", r.getName());
         kv(sb, "turns", r.getCount());
+        String effImg = "";
+        try {
+          effImg = net.sourceforge.kolmafia.persistence.EffectDatabase.getImageName(r.getEffectId());
+        } catch (Throwable ignored) {
+        }
+        kv(sb, "img", effImg);
         String action = "";
         try {
           String a = net.sourceforge.kolmafia.persistence.EffectDatabase.getDefaultAction(r.getEffectId());

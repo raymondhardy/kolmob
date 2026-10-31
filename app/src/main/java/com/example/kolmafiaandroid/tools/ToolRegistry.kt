@@ -31,8 +31,8 @@ object ToolRegistry {
     /** Which Character tab each tool is reached from. Everything else stays in the Tools list. */
     private val homes = mapOf(
         "mall" to "items", "npcshops" to "items", "coinmasters" to "items", "store" to "items", "items" to "hidden", "meat" to "items",
-        "maximizer" to "hidden", "boost" to "skills", "modifiers" to "gear",
-        "buffrequest" to "effects", "buffbot" to "effects",
+        "maximizer" to "hidden", "boost" to "hidden", "modifiers" to "gear",
+        "buffrequest" to "skills", "buffbot" to "skills",
     )
     fun inTab(home: String): List<Tool> = tools.filter { it.home == home }
     fun find(id: String): Tool? = tools.firstOrNull { it.id == id }

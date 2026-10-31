@@ -184,7 +184,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Chat is a panel on the right edge: most of the width, ending where the bottom bar starts; the bar stays usable. */
+    /** Chat is a panel on the lower part of the screen (the game stays playable above it) or full screen; the bottom bar always shows. */
     private fun fitChatPanel(dialog: android.app.Dialog) {
         val w = dialog.window ?: return
         val loc = IntArray(2)
@@ -193,12 +193,18 @@ class MainActivity : AppCompatActivity() {
         if (navTop <= 0) navTop = resources.displayMetrics.heightPixels - binding.bottomNavigation.height - (48 * resources.displayMetrics.density).toInt()
         if (navTop <= 0) return
         val dm = resources.displayMetrics
-        val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val width = if (com.example.kolmafiaandroid.tools.ChatFragment.panelFull) dm.widthPixels else (dm.widthPixels * (if (landscape) 0.55f else 0.85f)).toInt()
-        w.setGravity(android.view.Gravity.TOP or android.view.Gravity.END)
-        w.setLayout(width, navTop)
-        w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH)
-        w.setDimAmount(0.25f)
+        w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        w.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+        if (com.example.kolmafiaandroid.tools.ChatFragment.panelFull) {
+            w.setGravity(android.view.Gravity.TOP)
+            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, navTop)
+            val lp = w.attributes; lp.y = 0; w.attributes = lp
+        } else {
+            val h = (navTop * 0.5f).toInt().coerceAtLeast((190 * dm.density).toInt()).coerceAtMost(navTop)
+            w.setGravity(android.view.Gravity.TOP)
+            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, h)
+            val lp = w.attributes; lp.y = navTop - h; w.attributes = lp
+        }
     }
 
     /** For tall centred dialogs (not full-screen): trim the height so the dialog ends above the bottom bar. */
@@ -666,8 +672,8 @@ class MainActivity : AppCompatActivity() {
         }
         tab.addView(badge, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, (18 * dp).toInt(), android.view.Gravity.TOP or android.view.Gravity.START).apply { topMargin = (2 * dp).toInt() })
         val lp = android.widget.FrameLayout.LayoutParams((30 * dp).toInt(), (60 * dp).toInt(), android.view.Gravity.END or android.view.Gravity.TOP)
-        content.post { lp.topMargin = prefs.getInt("chat_handle_y", (content.height * 0.35f).toInt()).coerceIn(0, (content.height - (130 * dp)).toInt().coerceAtLeast(0)); tab.layoutParams = lp }
-        lp.topMargin = prefs.getInt("chat_handle_y", (240 * dp).toInt())
+        content.post { lp.topMargin = prefs.getInt("chat_handle_y", (content.height * 0.68f).toInt()).coerceIn(0, (content.height - (130 * dp)).toInt().coerceAtLeast(0)); tab.layoutParams = lp }
+        lp.topMargin = prefs.getInt("chat_handle_y", (480 * dp).toInt())
         content.addView(tab, lp)
         chatHandle = tab
         chatBadge = badge

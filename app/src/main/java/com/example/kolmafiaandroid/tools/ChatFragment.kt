@@ -75,7 +75,7 @@ class ChatFragment : DialogFragment() {
     override fun onCreateDialog(savedInstanceState: Bundle?): android.app.Dialog =
         super.onCreateDialog(savedInstanceState).also {
             it.window?.setWindowAnimations(R.style.ChatPanelAnim)
-            it.setCanceledOnTouchOutside(true)
+            it.setCanceledOnTouchOutside(false) // the lower panel leaves the game playable above it
             panelDialog = it
         }
 
@@ -90,7 +90,9 @@ class ChatFragment : DialogFragment() {
 
     private fun textBtn(label: String, onClick: () -> Unit) =
         MaterialButton(requireContext(), null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
-            text = label; isAllCaps = false; minWidth = 0; setOnClickListener { onClick() }
+            text = label; isAllCaps = false; minWidth = 0; minimumWidth = 0; setOnClickListener { onClick() }
+            // snug padding so the title keeps room next to four buttons on a phone
+            setPadding(dp(8), 0, dp(8), 0); insetLeft = 0; insetRight = 0
         }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -104,7 +106,7 @@ class ChatFragment : DialogFragment() {
         header.addView(backBtn)
         title = TextView(ctx).apply { text = "Chat"; textSize = 20f; setTextColor(KC.text); setTypeface(typeface, android.graphics.Typeface.BOLD); maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(dp(8), 0, 0, 0) }
         header.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        newBtn = textBtn("＋ New") { addMenu() }
+        newBtn = textBtn("＋") { addMenu() }.apply { textSize = 20f; contentDescription = "New chat" }
         alertsBtn = textBtn("Alerts") { showAlertSettings() }
         doneBtn = textBtn("✕") { dismiss() }.apply { textSize = 20f; contentDescription = "Close chat panel" }
         closeChatBtn = textBtn("Close thread") { selected?.let { closeThread(it) } }
@@ -115,7 +117,7 @@ class ChatFragment : DialogFragment() {
             requireContext().getSharedPreferences("kolmob", android.content.Context.MODE_PRIVATE).edit().putBoolean("chat_panel_full", panelFull).apply()
             expandRef?.text = if (panelFull) "⤡" else "⤢"
             dialog?.let { d -> (activity as? com.example.kolmafiaandroid.MainActivity)?.fitDialogAboveNav(d) }
-        }.apply { textSize = 20f; contentDescription = "Make the chat panel bigger or smaller" }
+        }.apply { textSize = 20f; contentDescription = "Full screen or lower panel" }
         expandRef = expandBtn
         for (b in listOf(newBtn, alertsBtn, closeChatBtn, expandBtn, doneBtn)) header.addView(b)
         root.addView(header)
@@ -144,7 +146,14 @@ class ChatFragment : DialogFragment() {
         composer.addView(MaterialButton(ctx).apply { text = "Send"; setOnClickListener { send() } })
         root.addView(composer)
         showMode()
-        return com.example.kolmafiaandroid.ui.SwipeDismissLayout(ctx) { dismiss() }.apply { addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)) }
+        return com.example.kolmafiaandroid.ui.SwipeDismissLayout(ctx, dp(64)) {
+            // swiping down: full screen first shrinks to the lower panel, then the panel closes
+            if (panelFull) {
+                panelFull = false
+                requireContext().getSharedPreferences("kolmob", android.content.Context.MODE_PRIVATE).edit().putBoolean("chat_panel_full", false).apply()
+                dialog?.let { d -> (activity as? com.example.kolmafiaandroid.MainActivity)?.fitDialogAboveNav(d) }
+            } else dismiss()
+        }.apply { addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)) }
     }
 
     /** List view or conversation view: shows the matching header buttons and body. */

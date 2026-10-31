@@ -433,10 +433,9 @@ class DashboardFragment : Fragment() {
 
     private fun chooseFamiliar(familiars: List<JSONObject>) {
         val prefs = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
-        val byWeight = prefs.getString("fam_sort", "name") == "weight"
         val favs = (prefs.getString("fam_favs", "") ?: "").split("|").filter { it.isNotEmpty() }.toSet()
-        val sorted = if (byWeight) familiars.sortedWith(compareByDescending<JSONObject> { it.optInt("weight") }.thenBy { it.getString("race") })
-            else familiars.sortedBy { it.getString("race") }
+        // two sections: favorites first, then everything else; each by level (highest first), then A-Z
+        val sorted = familiars.sortedWith(compareByDescending<JSONObject> { it.optInt("weight") }.thenBy { it.getString("race").lowercase() })
         fun rowFor(f: JSONObject, group: String): com.example.kolmafiaandroid.ui.PickRow {
             val name = f.optString("name")
             return com.example.kolmafiaandroid.ui.PickRow(
@@ -444,23 +443,20 @@ class DashboardFragment : Fragment() {
                 (if (name.isNotEmpty()) "$name · " else "") + "${f.optInt("weight")} lb",
                 group = group, tag = f.getString("race"), img = f.optString("img"))
         }
-        val rows = mutableListOf(com.example.kolmafiaandroid.ui.PickRow("⇅ Sorted by " + (if (byWeight) "weight (tap for A–Z)" else "name (tap for weight)"),
-            "Long-press a familiar to star it as a favorite", tag = "\u0000sort"))
+        val rows = mutableListOf(com.example.kolmafiaandroid.ui.PickRow("Sorted by level, then name",
+            "Long-press a familiar to add or remove it from Favorites", tag = "\u0000sort"))
         sorted.filter { it.getString("race") in favs }.forEach { rows += rowFor(it, "★ Favorites") }
-        sorted.forEach { rows += rowFor(it, "All familiars") }
+        sorted.filter { it.getString("race") !in favs }.forEach { rows += rowFor(it, "All other familiars") }
         pickList("Choose a familiar", rows, onLongPick = { r ->
             val race = r.tag as? String ?: return@pickList
             if (race == "\u0000sort") return@pickList
             val now = (prefs.getString("fam_favs", "") ?: "").split("|").filter { it.isNotEmpty() }
             val next = if (race in now) now - race else now + race
             prefs.edit().putString("fam_favs", next.joinToString("|")).apply()
-            android.widget.Toast.makeText(requireContext(), if (race in now) "Removed $race from favorites" else "Starred $race (shows under Favorites next time)", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(requireContext(), if (race in now) "Removed $race from favorites" else "Added $race to Favorites", android.widget.Toast.LENGTH_SHORT).show()
         }) { r ->
             val race = r.tag as String
-            if (race == "\u0000sort") {
-                prefs.edit().putString("fam_sort", if (byWeight) "name" else "weight").apply()
-                chooseFamiliar(familiars)
-            } else act("familiar $race")
+            if (race == "\u0000sort") chooseFamiliar(familiars) else act("familiar $race")
         }
     }
 

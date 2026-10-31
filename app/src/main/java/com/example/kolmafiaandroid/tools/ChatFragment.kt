@@ -63,6 +63,11 @@ class ChatFragment : DialogFragment() {
     private lateinit var convoBox: LinearLayout
     private lateinit var composer: LinearLayout
     private lateinit var input: EditText
+    private lateinit var tabsScroll: android.widget.HorizontalScrollView
+    private lateinit var tabsBox: LinearLayout
+    private lateinit var jumpPill: TextView
+    private lateinit var sendBtn: TextView
+    private val drafts = mutableMapOf<String, String>()
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
     private fun ui(block: () -> Unit) { activity?.runOnUiThread { if (isAdded && view != null) block() } }
@@ -123,6 +128,10 @@ class ChatFragment : DialogFragment() {
         root.addView(header)
         status = TextView(ctx).apply { textSize = 12f; setTextColor(muted); setPadding(dp(16), 0, dp(16), dp(6)); text = "Starting chat…" }
         root.addView(status)
+        // quick switcher between open conversations, with unread dots
+        tabsBox = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(8), 0, dp(8), dp(6)) }
+        tabsScroll = android.widget.HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(tabsBox) }
+        root.addView(tabsScroll)
         // conversation list
         listBox = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), 0, dp(8), dp(8)) }
         listScroll = ScrollView(ctx).apply { addView(listBox) }
@@ -130,20 +139,43 @@ class ChatFragment : DialogFragment() {
         // conversation (bubbles)
         convoBox = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), dp(6), dp(10), dp(10)) }
         convoScroll = ScrollView(ctx).apply { addView(convoBox) }
-        root.addView(convoScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val convoFrame = android.widget.FrameLayout(ctx)
+        convoFrame.addView(convoScroll, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        jumpPill = TextView(ctx).apply {
+            text = "↓ New messages"; textSize = 13f; setTextColor(Color.BLACK); visibility = View.GONE
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            background = roundBg(green, 20); setPadding(dp(14), dp(7), dp(14), dp(7)); elevation = dp(4).toFloat()
+            setOnClickListener { convoScroll.post { convoScroll.fullScroll(View.FOCUS_DOWN) }; visibility = View.GONE }
+        }
+        convoFrame.addView(jumpPill, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(10) })
+        convoScroll.viewTreeObserver.addOnScrollChangedListener { if (!convoScroll.canScrollVertically(1)) jumpPill.visibility = View.GONE }
+        root.addView(convoFrame, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         // composer
         composer = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8)) }
         input = EditText(ctx).apply {
             hint = "Message"
             setHintTextColor(KC.hint)
             setTextColor(KC.text)
+            background = roundBg(KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt()), 22)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             imeOptions = EditorInfo.IME_ACTION_SEND
             maxLines = 4
             setOnEditorActionListener { _, _, _ -> send(); true }
         }
         composer.addView(input, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        composer.addView(MaterialButton(ctx).apply { text = "Send"; setOnClickListener { send() } })
+        sendBtn = TextView(ctx).apply {
+            text = "▲"; textSize = 16f; gravity = Gravity.CENTER; setTextColor(Color.BLACK); contentDescription = "Send"
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(green) }
+            setOnClickListener { send(); performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY) }
+        }
+        composer.addView(sendBtn, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(8) })
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(e: android.text.Editable?) { sendBtn.alpha = if (e.isNullOrBlank()) 0.4f else 1f; selected?.let { drafts[it] = e?.toString() ?: "" } }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+        sendBtn.alpha = 0.4f
         root.addView(composer)
         showMode()
         return com.example.kolmafiaandroid.ui.SwipeDismissLayout(ctx, dp(64)) {
@@ -168,6 +200,37 @@ class ChatFragment : DialogFragment() {
         convoScroll.visibility = if (inConvo) View.VISIBLE else View.GONE
         composer.visibility = if (inConvo) View.VISIBLE else View.GONE
         title.text = if (inConvo) label(selected!!) else "Chat"
+        tabsScroll.visibility = if (inConvo) View.VISIBLE else View.GONE
+        if (inConvo) {
+            input.hint = "Message " + label(selected!!)
+            val d = drafts[selected!!] ?: ""
+            if (input.text.toString() != d) input.setText(d)
+            input.setSelection(input.text.length)
+            renderTabs()
+        }
+    }
+
+    /** Chips for every open conversation so you can hop between them without going back to the list. */
+    private fun renderTabs() {
+        if (!::tabsBox.isInitialized) return
+        tabsBox.removeAllViews()
+        val ctx = requireContext()
+        val open = keys.filter { !ChatNotifier.isHidden(it) || it == selected }
+            .sortedWith(compareBy<String> { it.startsWith("/").not() }.thenBy { it })
+        for (k in open) {
+            val unread = ChatNotifier.unreadByKey[k] ?: 0
+            val on = k == selected
+            val chip = TextView(ctx).apply {
+                text = label(k) + if (unread > 0 && !on) "  ●" else ""
+                textSize = 13f; maxLines = 1
+                setTextColor(if (on) Color.BLACK else KC.soft)
+                if (unread > 0 || on) setTypeface(typeface, android.graphics.Typeface.BOLD)
+                background = roundBg(if (on) green else KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt()), 16)
+                setPadding(dp(12), dp(6), dp(12), dp(6))
+                setOnClickListener { if (!on) { drafts[selected ?: ""] = input.text.toString(); openThread(k) } }
+            }
+            tabsBox.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -376,6 +439,8 @@ class ChatFragment : DialogFragment() {
                 val atBottom = !convoScroll.canScrollVertically(1) || convoBox.childCount == 0
                 renderBubbles(key, body)
                 if (atBottom) convoScroll.post { convoScroll.fullScroll(View.FOCUS_DOWN) }
+                else jumpPill.visibility = View.VISIBLE
+                renderTabs()
             }
         }
     }
@@ -414,6 +479,11 @@ class ChatFragment : DialogFragment() {
                     background = roundBg(KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt()), 18)
                 }
                 if (!event) setPadding(dp(12), dp(8), dp(12), dp(8))
+                setOnLongClickListener {
+                    val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("chat", plain))
+                    android.widget.Toast.makeText(ctx, "Message copied", android.widget.Toast.LENGTH_SHORT).show(); true
+                }
                 this.maxWidth = if (event) resources.displayMetrics.widthPixels else maxW
             }
             convoBox.addView(tv, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -587,7 +657,7 @@ class ChatFragment : DialogFragment() {
         val text = input.text.toString().trim()
         val key = selected ?: return
         if (text.isEmpty()) return
-        input.setText("")
+        input.setText(""); drafts.remove(key)
         KolEngineHost.chatSend(key, text) { ui { handler.postDelayed({ refresh() }, 900) } }
     }
 

@@ -697,6 +697,15 @@ class MainActivity : AppCompatActivity() {
     fun setChatHandleVisible(show: Boolean) {
         getSharedPreferences("kolmob", MODE_PRIVATE).edit().putBoolean("chat_handle", show).apply()
         chatHandle?.visibility = if (show && KolEngineHost.currentUser.isNotEmpty()) View.VISIBLE else View.GONE
+        reserveChatHandleStrip()
+    }
+
+    /** Landscape: the floating chat button would sit over the right edge of every screen (row arrows, the Run button), so leave it a strip of its own. */
+    private fun reserveChatHandleStrip() {
+        val lp = binding.viewPager.layoutParams as? android.view.ViewGroup.MarginLayoutParams ?: return
+        val land = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val want = if (land && chatHandle?.visibility == View.VISIBLE) (30 * resources.displayMetrics.density).toInt() else 0
+        if (lp.marginEnd != want) { lp.marginEnd = want; binding.viewPager.layoutParams = lp }
     }
 
     private fun setupChatHandle() {
@@ -761,6 +770,7 @@ class MainActivity : AppCompatActivity() {
             KolEngineHost.loginState.collect {
                 val show = prefs.getBoolean("chat_handle", true) && KolEngineHost.currentUser.isNotEmpty()
                 tab.visibility = if (show) View.VISIBLE else View.GONE
+                reserveChatHandleStrip()
             }
         }
     }

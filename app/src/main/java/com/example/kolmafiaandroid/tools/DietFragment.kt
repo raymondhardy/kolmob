@@ -136,7 +136,7 @@ class DietFragment : Fragment() {
         val list = (0 until (cmds?.length() ?: 0)).map { cmds!!.getString(it) }
         val bc = o.optJSONArray("boozeCommands")
         val boozeList = (0 until (bc?.length() ?: 0)).map { bc!!.getString(it) }.toMutableList()
-        if (night != null) boozeList.add(night.optString("command")) // nightcap goes last
+        // "Drink all booze" fills the liver up to its limit and stops; the overdrink is its own button below
         val live = !o.optBoolean("simulated")
         val dp = ctx.resources.displayMetrics.density
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), 0) }
@@ -184,7 +184,8 @@ class DietFragment : Fragment() {
             next(list, listOf("chew"))?.let { btn("Chew next: ${it.first}", it.second) }
             next(boozeList, listOf("drink"))?.let { btn("Drink next: ${it.first}", it.second) }
             if (list.isNotEmpty()) btn("Run all food & spleen", list)
-            if (boozeList.isNotEmpty()) btn("Drink all booze", boozeList)
+            if (boozeList.isNotEmpty()) btn("Drink all booze (up to the liver limit)", boozeList)
+            if (night != null) btn("Overdrink: ${night.optString("name")} (ends the day)", listOf(night.optString("command")))
         }
         col.addView(android.widget.Button(ctx).apply { text = "Change options"; setOnClickListener { dlg.dismiss(); showOptions() } })
         dlg = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Diet plan").setView(ScrollView(ctx).apply { addView(col) })

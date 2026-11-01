@@ -489,6 +489,64 @@ PATCHES = [
   public static Boolean isDarkTheme() {
     return kolmobDark;
   }'''),
+    # Kolmob: after Ed's Underworld trip scripts have seen tummy 0 / liver 0 / spleen 5, as if his skills were gone. Cause
+    # not pinned down yet, so: remember that we just left the Underworld, and before the next adventure (never inside a
+    # fight or choice) re-read the character sheet, recalculate, and print what the limits looked like before and after.
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''    final LimitMode kolmobPreviousMode = KoLCharacter.limitMode;
+    KoLCharacter.limitMode = limitmode;
+''',
+     '''    final LimitMode kolmobPreviousMode = KoLCharacter.limitMode;
+    KoLCharacter.limitMode = limitmode;
+    if (kolmobPreviousMode == LimitMode.ED && limitmode == LimitMode.NONE) {
+      KoLCharacter.kolmobAfterUnderworld = true;
+    }
+'''),
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''  public static LimitMode getLimitMode() {''',
+     '''  public static volatile boolean kolmobAfterUnderworld = false;
+
+  private static String kolmobLimitsSummary() {
+    return "mode="
+        + KoLCharacter.limitMode
+        + " ed="
+        + KoLCharacter.isEd()
+        + " class="
+        + KoLCharacter.ascensionClass
+        + " path="
+        + KoLCharacter.ascensionPath
+        + " skills="
+        + KoLConstants.availableSkillsSet.size()
+        + " stomachSkill="
+        + KoLCharacter.hasSkill(SkillPool.REPLACEMENT_STOMACH)
+        + " tummy="
+        + KoLCharacter.getStomachCapacity()
+        + " liver="
+        + KoLCharacter.getLiverCapacity()
+        + " spleen="
+        + KoLCharacter.getSpleenLimit();
+  }
+
+  /** Called before an adventure: once after each trip to the Underworld, refresh what Ed's skills and limits are. */
+  public static void kolmobCheckAfterUnderworld() {
+    if (!KoLCharacter.kolmobAfterUnderworld || GenericRequest.abortIfInFightOrChoice(true)) {
+      return;
+    }
+    KoLCharacter.kolmobAfterUnderworld = false;
+    RequestLogger.printLine("[kolmob] back from the Underworld: " + KoLCharacter.kolmobLimitsSummary());
+    RequestThread.postRequest(new CharSheetRequest());
+    KoLCharacter.recalculateAdjustments();
+    RequestLogger.printLine("[kolmob] after refreshing the character sheet: " + KoLCharacter.kolmobLimitsSummary());
+  }
+
+  public static LimitMode getLimitMode() {'''),
+    ('net/sourceforge/kolmafia/KoLAdventure.java',
+     '''  public boolean preValidateAdventure() {
+''',
+     '''  public boolean preValidateAdventure() {
+    KoLCharacter.kolmobCheckAfterUnderworld();
+
+'''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

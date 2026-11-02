@@ -9,11 +9,8 @@ PATCHES = [
      '\tpublic static final File ROOT_LOCATION =\n\t\tSystem.getProperty( "kolmob.root" ) != null ?\n\t\tnew File( System.getProperty( "kolmob.root" ) ).getAbsoluteFile() :\n\t\tBoolean.getBoolean( "useCWDasROOT" ) ?'),
     # java.lang.Runtime.version() does not exist on Android; the "old Java" warnings are meaningless there.
     ('net/sourceforge/kolmafia/KoLmafia.java',
-     'if (Runtime.version().feature() >= MINIMUM_JAVA_VERSION) return List.of();',
+     'if (Runtime.version().feature() >= UPCOMING_MINIMUM_JAVA_VERSION) return List.of();',
      'if (true) return List.of(); // Android: no Runtime.version()'),
-    ('net/sourceforge/kolmafia/session/LoginManager.java',
-     '    var version = Runtime.version();\n    if (version.feature() < 21) {',
-     '    if (false) { // Android: no Runtime.version()'),
     # The Maximizer keeps its expression in a Swing combo box owned by the GUI; there is no GUI here, so a
     # plain field replaces it (headless desktop KoLmafia has a real combo box, so this never failed there).
     ('net/sourceforge/kolmafia/maximizer/Maximizer.java',

@@ -399,84 +399,6 @@ PATCHES = [
 ''',
      '''  private static volatile boolean completedLogin = false;
 '''),
-    # Kolmob: leaving a limit mode (Ed's Underworld trip, etc.) must recalculate the character's bonuses. Upstream only
-    # does that for modes that reset skills, so after the Underworld Ed's stomach, liver and spleen limits stayed
-    # at their in-Underworld values (tummy 0, liver 0, spleen 5) until something else happened to recalculate.
-    ('net/sourceforge/kolmafia/KoLCharacter.java',
-     '''    KoLCharacter.limitMode = limitmode;
-
-    if (resetAfter) {
-      KoLmafia.resetAfterLimitmode();
-    }''',
-     '''    final LimitMode kolmobPreviousMode = KoLCharacter.limitMode;
-    KoLCharacter.limitMode = limitmode;
-
-    if (resetAfter) {
-      KoLmafia.resetAfterLimitmode();
-    } else if (kolmobPreviousMode != limitmode) {
-      KoLCharacter.recalculateAdjustments();
-    }'''),
-    # Kolmob: the character's bonuses (stomach/liver/spleen limits, etc.) are only recomputed when something calls
-    # recalculateAdjustments(). When some change forgets to (limit modes, skill refreshes, ...), scripts read stale
-    # numbers. Remember what the bonuses were computed from; if it differs when a script reads them, recompute.
-    ('net/sourceforge/kolmafia/KoLCharacter.java',
-     '''  public static final double currentNumericModifier(final Modifier modifier) {
-    return KoLCharacter.currentModifiers.getNumeric(modifier);
-  }
-
-  public static final double currentNumericModifier(final DoubleModifier modifier) {
-    return KoLCharacter.currentModifiers.getDouble(modifier);
-  }''',
-     '''  private static volatile int kolmobInputs = Integer.MIN_VALUE;
-
-  private static int kolmobInputsNow() {
-    return java.util.Objects.hash(
-        KoLCharacter.limitMode,
-        KoLCharacter.ascensionPath,
-        KoLCharacter.ascensionClass,
-        KoLCharacter.effectiveFamiliar,
-        KoLConstants.availableSkillsSet.size(),
-        KoLConstants.activeEffects.size());
-  }
-
-  /** Only the script thread recomputes (never while already inside a recalculation); other threads read as is. */
-  private static void kolmobEnsureFresh() {
-    if (KoLCharacter.kolmobInputs == kolmobInputsNow()
-        || Thread.holdsLock(KoLCharacter.class)
-        || !"kol-engine".equals(Thread.currentThread().getName())) {
-      return;
-    }
-    RequestLogger.updateDebugLog(
-        "Kolmob: character bonuses were out of date (limit mode, skills, effects, class or familiar changed"
-            + " without a recalculation); recalculated.");
-    KoLCharacter.recalculateAdjustments();
-  }
-
-  public static final double currentNumericModifier(final Modifier modifier) {
-    kolmobEnsureFresh();
-    return KoLCharacter.currentModifiers.getNumeric(modifier);
-  }
-
-  public static final double currentNumericModifier(final DoubleModifier modifier) {
-    kolmobEnsureFresh();
-    return KoLCharacter.currentModifiers.getDouble(modifier);
-  }'''),
-    ('net/sourceforge/kolmafia/KoLCharacter.java',
-     '''  public static final synchronized void recalculateAdjustments(boolean debug) {
-    KoLCharacter.currentModifiers.set(''',
-     '''  public static final synchronized void recalculateAdjustments(boolean debug) {
-    final int kolmobSeen = kolmobInputsNow();
-    KoLCharacter.currentModifiers.set('''),
-    ('net/sourceforge/kolmafia/KoLCharacter.java',
-     '''            Modeable.getStateMap(),
-            false));
-  }
-''',
-     '''            Modeable.getStateMap(),
-            false));
-    KoLCharacter.kolmobInputs = kolmobSeen;
-  }
-'''),
     # Kolmob: there is no Swing look-and-feel here, so isDarkTheme() (used by scripts through is_dark_mode() and by
     # libraries such as libram) crashed with a null pointer and any script calling it died. The app tells us instead.
     ('net/sourceforge/kolmafia/KoLmafiaGUI.java',
@@ -489,67 +411,65 @@ PATCHES = [
   public static Boolean isDarkTheme() {
     return kolmobDark;
   }'''),
-    # Kolmob: after Ed's Underworld trip scripts have seen tummy 0 / liver 0 / spleen 5, as if his skills were gone. Cause
-    # not pinned down yet, so: remember that we just left the Underworld, and before the next adventure (never inside a
-    # fight or choice) re-read the character sheet, recalculate, and print what the limits looked like before and after.
+    # Kolmob: the character's bonuses (stomach/liver/spleen limits, etc.) are only recomputed when something calls
+    # recalculateAdjustments(). KolmobCharacterGuard (our own file) keeps track of that: it recomputes stale bonuses
+    # when a script reads them, recalculates when a limit mode ends, and, for Ed, re-reads the character sheet after
+    # each Underworld trip and logs anything that recalculates inside the Underworld. These patches only call into it.
     ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''    KoLCharacter.limitMode = limitmode;
+
+    if (resetAfter) {
+      KoLmafia.resetAfterLimitmode();
+    }''',
      '''    final LimitMode kolmobPreviousMode = KoLCharacter.limitMode;
     KoLCharacter.limitMode = limitmode;
+    KolmobCharacterGuard.modeChanged(kolmobPreviousMode, limitmode);
+
+    if (resetAfter) {
+      KoLmafia.resetAfterLimitmode();
+    } else if (kolmobPreviousMode != limitmode) {
+      KoLCharacter.recalculateAdjustments();
+    }'''),
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''  public static final double currentNumericModifier(final Modifier modifier) {
+    return KoLCharacter.currentModifiers.getNumeric(modifier);
+  }
+
+  public static final double currentNumericModifier(final DoubleModifier modifier) {
+    return KoLCharacter.currentModifiers.getDouble(modifier);
+  }''',
+     '''  public static final double currentNumericModifier(final Modifier modifier) {
+    KolmobCharacterGuard.ensureFresh();
+    return KoLCharacter.currentModifiers.getNumeric(modifier);
+  }
+
+  public static final double currentNumericModifier(final DoubleModifier modifier) {
+    KolmobCharacterGuard.ensureFresh();
+    return KoLCharacter.currentModifiers.getDouble(modifier);
+  }'''),
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''  public static final synchronized void recalculateAdjustments(boolean debug) {
+    KoLCharacter.currentModifiers.set(''',
+     '''  public static final synchronized void recalculateAdjustments(boolean debug) {
+    final int kolmobSeen = KolmobCharacterGuard.recalculationStarting();
+    KoLCharacter.currentModifiers.set('''),
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '''            Modeable.getStateMap(),
+            false));
+  }
 ''',
-     '''    final LimitMode kolmobPreviousMode = KoLCharacter.limitMode;
-    KoLCharacter.limitMode = limitmode;
-    if (kolmobPreviousMode == LimitMode.ED && limitmode == LimitMode.NONE) {
-      KoLCharacter.kolmobAfterUnderworld = true;
-    }
+     '''            Modeable.getStateMap(),
+            false));
+    KolmobCharacterGuard.recalculationDone(kolmobSeen);
+  }
 '''),
-    ('net/sourceforge/kolmafia/KoLCharacter.java',
-     '''  public static LimitMode getLimitMode() {''',
-     '''  public static volatile boolean kolmobAfterUnderworld = false;
-
-  private static String kolmobLimitsSummary() {
-    return "mode="
-        + KoLCharacter.limitMode
-        + " ed="
-        + KoLCharacter.isEd()
-        + " class="
-        + KoLCharacter.ascensionClass
-        + " path="
-        + KoLCharacter.ascensionPath
-        + " skills="
-        + KoLConstants.availableSkillsSet.size()
-        + " stomachSkill="
-        + KoLCharacter.hasSkill(SkillPool.REPLACEMENT_STOMACH)
-        + " tummy="
-        + KoLCharacter.getStomachCapacity()
-        + " liver="
-        + KoLCharacter.getLiverCapacity()
-        + " spleen="
-        + KoLCharacter.getSpleenLimit();
-  }
-
-  /** Called before an adventure: once after each trip to the Underworld, refresh what Ed's skills and limits are. */
-  public static void kolmobCheckAfterUnderworld() {
-    if (!KoLCharacter.kolmobAfterUnderworld || GenericRequest.abortIfInFightOrChoice(true)) {
-      return;
-    }
-    KoLCharacter.kolmobAfterUnderworld = false;
-    RequestLogger.printLine("[kolmob] back from the Underworld: " + KoLCharacter.kolmobLimitsSummary());
-    RequestThread.postRequest(new CharSheetRequest());
-    KoLCharacter.recalculateAdjustments();
-    RequestLogger.printLine("[kolmob] after refreshing the character sheet: " + KoLCharacter.kolmobLimitsSummary());
-  }
-
-  public static LimitMode getLimitMode() {'''),
     ('net/sourceforge/kolmafia/KoLAdventure.java',
      '''  public boolean preValidateAdventure() {
 ''',
      '''  public boolean preValidateAdventure() {
-    KoLCharacter.kolmobCheckAfterUnderworld();
+    KolmobCharacterGuard.checkAfterUnderworld();
 
 '''),
-    ('net/sourceforge/kolmafia/KoLCharacter.java',
-     '    final int kolmobSeen = kolmobInputsNow();\n',
-     '    final int kolmobSeen = kolmobInputsNow();\n    if (KoLCharacter.limitMode == LimitMode.ED) {\n      // Kolmob: record what recalculates the character while Ed is in the Underworld (and from where)\n      final StackTraceElement[] kolmobStack = new Throwable().getStackTrace();\n      final StringBuilder kolmobFrom = new StringBuilder();\n      for (int i = 1; i < Math.min(kolmobStack.length, 6); ++i) {\n        kolmobFrom.append(\' \').append(kolmobStack[i].getClassName().replaceAll(".*[.]", "")).append(\'.\').append(kolmobStack[i].getMethodName());\n      }\n      RequestLogger.printLine("[kolmob] recalculation inside the Underworld, thread " + Thread.currentThread().getName() + ", from" + kolmobFrom);\n    }\n'),
 ]
 bad = 0
 for rel, old, new in PATCHES:

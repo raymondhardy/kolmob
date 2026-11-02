@@ -127,6 +127,16 @@ object KolEngineHost {
     @Volatile private var appContext: Context? = null
 
     @Synchronized
+    /** Which build wrote a log: version, Android release and device model (no account data). */
+    private fun buildLine(): String {
+        val ver = try {
+            appContext?.let { it.packageManager.getPackageInfo(it.packageName, 0).versionName }
+        } catch (_: Exception) { null } ?: "?"
+        return "Kolmob $ver (Android ${android.os.Build.VERSION.RELEASE}, ${android.os.Build.MODEL})"
+    }
+
+    private var versionLogged = false
+
     fun start(context: Context) {
         if (started) return
         started = true
@@ -147,7 +157,7 @@ object KolEngineHost {
                 // after warm-up: touching KoLmafiaCLI earlier makes its class initializer run before KoLmafia's and wedges the start
                 KolEngine.setPromptListener { text -> prompts.tryEmit(text) }
                 readyState.value = true
-                lines.tryEmit("KoLmafia core ready (data root: ${root.absolutePath})")
+                lines.tryEmit("${buildLine()} - KoLmafia core ready (data root: ${root.absolutePath})")
             } catch (t: Throwable) {
                 lines.tryEmit("ENGINE FAILED TO START: $t")
             }
@@ -160,6 +170,7 @@ object KolEngineHost {
             val ctx = appContext
             if (ctx != null) ScriptService.begin(ctx, command)
             KolEngine.markActive()
+            if (!versionLogged) { versionLogged = true; lines.tryEmit(buildLine()) }
             runningCount.incrementAndGet(); running.value = true
             val tick = ticker.scheduleWithFixedDelay({
                 stateChanged.tryEmit(Unit)

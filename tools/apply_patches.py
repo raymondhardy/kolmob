@@ -236,6 +236,9 @@ PATCHES = [
     Modifiers.kolmobPassives = null;
   }
 '''),
+    ('net/sourceforge/kolmafia/Modifiers.java',
+     '    KolmobPassives current = Modifiers.kolmobPassives;\n    if (debug\n        || current == null\n        || Modifiers.availableSkillsChanged\n        || !skillIds.equals(current.skillIds())) {\n      synchronized (Modifiers.class) {\n        current = Modifiers.kolmobPassives;\n        // Clear the flag before reading anything, so a change that lands while we build re-sets it.\n        final boolean flagged = Modifiers.availableSkillsChanged;\n        Modifiers.availableSkillsChanged = false;\n        final boolean mismatch = current != null && !skillIds.equals(current.skillIds());\n        if (debug || current == null || flagged || mismatch) {\n',
+     '    KolmobPassives current = Modifiers.kolmobPassives;\n    // Kolmob: the passive bonuses are rebuilt on every recalculation. A cached copy saved only ~30\n    // lookups and any missed invalidation left Ed with no stomach, liver or spleen bonuses.\n    {\n      synchronized (Modifiers.class) {\n        current = Modifiers.kolmobPassives;\n        // Clear the flag before reading anything, so a change that lands while we build re-sets it.\n        final boolean flagged = Modifiers.availableSkillsChanged;\n        Modifiers.availableSkillsChanged = false;\n        final boolean mismatch = current != null && !skillIds.equals(current.skillIds());\n        if (true) {\n'),
     # Kolmob: the skill set is written by whichever thread parses a response and read by others; make it concurrent.
     ('net/sourceforge/kolmafia/KoLConstants.java',
      '''Set<Integer> availableSkillsSet = new HashSet<>();''',

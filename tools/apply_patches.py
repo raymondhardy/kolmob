@@ -550,6 +550,9 @@ PATCHES = [
     KoLCharacter.kolmobCheckAfterUnderworld();
 
 '''),
+    ('net/sourceforge/kolmafia/KoLCharacter.java',
+     '    final int kolmobSeen = kolmobInputsNow();\n',
+     '    final int kolmobSeen = kolmobInputsNow();\n    if (KoLCharacter.limitMode == LimitMode.ED) {\n      // Kolmob: record what recalculates the character while Ed is in the Underworld (and from where)\n      final StackTraceElement[] kolmobStack = new Throwable().getStackTrace();\n      final StringBuilder kolmobFrom = new StringBuilder();\n      for (int i = 1; i < Math.min(kolmobStack.length, 6); ++i) {\n        kolmobFrom.append(\' \').append(kolmobStack[i].getClassName().replaceAll(".*[.]", "")).append(\'.\').append(kolmobStack[i].getMethodName());\n      }\n      RequestLogger.printLine("[kolmob] recalculation inside the Underworld, thread " + Thread.currentThread().getName() + ", from" + kolmobFrom);\n    }\n'),
 ]
 bad = 0
 for rel, old, new in PATCHES:

@@ -99,6 +99,7 @@ class SettingsFragment : DialogFragment() {
             "app" -> "App and account"
             "breakfast" -> "Breakfast"
             "recovery" -> "HP and MP recovery"
+            "automation" -> "Automation and buying"
             "relay" -> "Relay browser"
             else -> "Settings"
         }
@@ -106,6 +107,7 @@ class SettingsFragment : DialogFragment() {
             "app" -> appPage(col)
             "breakfast" -> breakfastPage(col)
             "recovery" -> recoveryPage(col)
+            "automation" -> automationPage(col)
             "relay" -> relayPage(col)
             else -> homePage(col)
         }
@@ -119,6 +121,7 @@ class SettingsFragment : DialogFragment() {
         navRow(c, "App and account", "Theme, screen, chat and logs") { open("app") }
         navRow(c, "Breakfast", "What KoLmafia does each day: skills, clan, garden, items") { open("breakfast") }
         navRow(c, "HP and MP recovery", "When and how KoLmafia restores health and mana, and mana burning") { open("recovery") }
+        navRow(c, "Automation and buying", "When scripts stop, what KoLmafia may buy, buffs and gear, session log") { open("automation") }
         navRow(c, "Relay browser", "How the Game tab looks, links, warnings and helper scripts") { open("relay") }
         navRow(c, "All preferences", "Every KoLmafia preference, searchable") {
             PreferencesFragment.show(parentFragmentManager)
@@ -187,16 +190,18 @@ class SettingsFragment : DialogFragment() {
         multiRow(always, "Skills to cast", "Skills that cost no MP, so they are safe to use every time", "breakfastAlways", strings(l, "always"))
     }
 
+    private val pctSteps = listOf("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0")
+
+    private fun pctRow(parent: LinearLayout, title: String, desc: String, key: String, withOff: Boolean) {
+        val labels = (if (withOff) listOf("Off") else emptyList()) + pctSteps.map { "${(it.toDouble() * 100).toInt()}%" }
+        val values = (if (withOff) listOf("-0.05") else emptyList()) + pctSteps
+        val cur = KolEngineHost.getPref(key).toDoubleOrNull() ?: values.last().toDouble()
+        val i = values.indices.minByOrNull { Math.abs(values[it].toDouble() - cur) } ?: 0
+        spinnerRow(parent, title, desc, labels, i) { pos -> KolEngineHost.setPref(key, values[pos]) }
+    }
+
     private fun recoveryPage(col: LinearLayout) {
         val ctx = requireContext()
-        val steps = listOf("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0")
-        fun pctRow(parent: LinearLayout, title: String, desc: String, key: String, withOff: Boolean) {
-            val labels = (if (withOff) listOf("Off") else emptyList()) + steps.map { "${(it.toDouble() * 100).toInt()}%" }
-            val values = (if (withOff) listOf("-0.05") else emptyList()) + steps
-            val cur = KolEngineHost.getPref(key).toDoubleOrNull() ?: values.last().toDouble()
-            val i = values.indices.minByOrNull { Math.abs(values[it].toDouble() - cur) } ?: 0
-            spinnerRow(parent, title, desc, labels, i) { pos -> KolEngineHost.setPref(key, values[pos]) }
-        }
         val hp = card(ctx, col, "Health")
         pctRow(hp, "Restore HP when it falls below", "KoLmafia heals before an adventure or fight if your HP is under this", "hpAutoRecovery", true)
         pctRow(hp, "Restore HP up to", "How full to heal once it starts", "hpAutoRecoveryTarget", false)
@@ -221,6 +226,54 @@ class SettingsFragment : DialogFragment() {
                 textRow(items, "Between-battle script", "A script to run before each adventure", "betweenBattleScript")
             }
         }
+    }
+
+    private fun automationPage(col: LinearLayout) {
+        val ctx = requireContext()
+        val stop = card(ctx, col, "When automation stops")
+        pctRow(stop, "Stop if HP falls below", "Scripts and adventures abort when your HP drops under this", "autoAbortThreshold", true)
+        toggleRow(stop, "Stop for an ultra-rare", "Stop automation when you meet an ultra-rare monster", "stopForUltraRare")
+        toggleRow(stop, "Stop for a fixed wanderer", "Stop (or warn) when a wandering monster with a fixed turn arrives", "stopForFixedWanderer")
+        toggleRow(stop, "Keep going when counters expire", "Do not stop automation when a counter runs out", "dontStopForCounters")
+        toggleRow(stop, "Protect memento items", "Prevent accidentally destroying items on your memento list", "mementoListActive")
+        val buy = card(ctx, col, "Getting items")
+        buy.addView(label(ctx, "Where KoLmafia may look when it needs an item. Buying from the mall spends your Meat.", 12f, KC.muted).apply { setPadding(0, 0, 0, dp(ctx, 6)) })
+        toggleRow(buy, "Buy from the mall", "Buy items from the mall whenever needed", "autoSatisfyWithMall")
+        numberRow(buy, "Most to pay per item", "Never buy an item from the mall above this price (Meat)", "autoBuyPriceLimit")
+        toggleRow(buy, "Take from the clan stash", "Take items from the clan stash whenever needed", "autoSatisfyWithStash")
+        toggleRow(buy, "Use your store's stock", "Take items from your own mall store instead of buying elsewhere", "autoSatisfyWithShop")
+        toggleRow(buy, "Pull from Hagnk's storage", "Take items from storage whenever needed", "autoSatisfyWithStorage")
+        toggleRow(buy, "Use the closet", "Take items from your closet whenever needed", "autoSatisfyWithCloset")
+        toggleRow(buy, "Buy from NPC stores", "Buy from the game's own stores whenever needed", "autoSatisfyWithNPCs")
+        toggleRow(buy, "Use coinmasters", "Trade at coinmasters whenever needed", "autoSatisfyWithCoinmasters")
+        toggleRow(buy, "Craft automatically", "Make items from ingredients when that is the way to get one", "autoCraft")
+        toggleRow(buy, "Require box servants", "Do not cook or mix fancy items without a chef or bartender in the box", "requireBoxServants")
+        toggleRow(buy, "Repair box servants", "Rebuild a chef or bartender in the box if it explodes", "autoRepairBoxServants")
+        toggleRow(buy, "Wear selling shorts", "Put on selling shorts when autoselling (5% more Meat)", "autoSellingShorts")
+        val mall = card(ctx, col, "Mall")
+        toggleRow(mall, "Share price data", "Share recent mall prices with other KoLmafia users", "sharePriceData")
+        toggleRow(mall, "Show stores ignoring you", "Show prices in stores that ignore you", "showIgnoringStorePrices")
+        val buffs = card(ctx, col, "Buffs and gear")
+        toggleRow(buffs, "Remove malignant effects", "Automatically remove bad status effects", "removeMalignantEffects")
+        toggleRow(buffs, "Change gear to cast buffs", "Allow equipment changes when casting buffs", "switchEquipmentForBuffs")
+        toggleRow(buffs, "Burn mana on other buffs", "Cast buffs that are not in a mood while using up spare mana", "allowNonMoodBurning")
+        toggleRow(buffs, "Burn mana on summons", "Cast summoning skills while using up spare mana", "allowSummonBurning")
+        toggleRow(buffs, "Rest at the Chateau", "Rest at the Chateau Mantegna instead of your campsite", "restUsingChateau")
+        toggleRow(buffs, "Wear the tuxedo", "Wear the tuxedo shirt when it helps", "autoTuxedo")
+        toggleRow(buffs, "Wear the Pinky Ring", "Wear the Mafia pinky ring when it helps", "autoPinkyRing")
+        toggleRow(buffs, "Use the Field Gar potion", "Use a Potion of the Field Gar when it helps", "autoGarish")
+        toggleRow(buffs, "Fill the Mayo Minder", "Fill your Mayo Minder automatically", "autoFillMayoMinder")
+        val log = card(ctx, col, "Session log")
+        toggleRow(log, "Log fight actions", "Record each attack and skill used", "logBattleAction")
+        toggleRow(log, "Log familiar actions", "Record what your familiar does", "logFamiliarActions")
+        toggleRow(log, "Log monster health", "Record monster HP changes", "logMonsterHealth")
+        toggleRow(log, "Log HP, MP and Meat changes", "Record gains and losses", "logGainMessages")
+        toggleRow(log, "Log stat gains", "Record stat gains", "logStatGains")
+        toggleRow(log, "Log items acquired", "Record items you get", "logAcquiredItems")
+        toggleRow(log, "Log effects gained", "Record status effects you gain", "logStatusEffects")
+        toggleRow(log, "Log your status on login", "Record your character's state when you sign in", "logStatusOnLogin")
+        toggleRow(log, "Log preference changes", "Record whenever a preference changes", "logPreferenceChange")
+        toggleRow(log, "Count adventures left", "Log adventures left instead of adventures used", "logReverseOrder")
     }
 
     private fun relayPage(col: LinearLayout) {

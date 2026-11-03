@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid
 
+import com.example.kolmafiaandroid.ui.stopFollowingOnDragUp
 import com.example.kolmafiaandroid.ui.KC
 import com.example.kolmafiaandroid.ui.ConsoleThemes
 
@@ -292,10 +293,7 @@ class ConsoleFragment : Fragment() {
         }
         setAutoScroll(true)
         // dragging the output up to read it pauses following; Follow jumps back to the newest line
-        scroll.setOnTouchListener { _, ev ->
-            if (ev.action == android.view.MotionEvent.ACTION_MOVE && autoScroll) setAutoScroll(false)
-            false
-        }
+        scroll.stopFollowingOnDragUp { if (autoScroll) setAutoScroll(false) }
         toolbarRow.addView(copyBtn)
         toolbarRow.addView(clearBtn)
         toolbarRow.addView(Button(ctx).apply {
@@ -512,6 +510,10 @@ class ConsoleFragment : Fragment() {
                 updateLevelNote()
             }
         }
+        // every new command or script starts with scrolling on, whatever an earlier run left it at
+        viewLifecycleOwner.lifecycleScope.launch {
+            KolEngineHost.running.collect { on -> if (on && !autoScroll) setAutoScroll(true) }
+        }
         viewLifecycleOwner.lifecycleScope.launch {
             KolEngineHost.lines.collect { line ->
                 withContext(Dispatchers.Main) { addLine(line) }
@@ -576,6 +578,8 @@ class ConsoleFragment : Fragment() {
         val text = input.text.toString().trim()
         if (text.isEmpty()) return
         input.setText("")
+        // a typed command always follows its output, even while an earlier run is still going
+        setAutoScroll(true)
         KolEngineHost.blankParams = pendingBlank
         pendingBlank = false
         // A pasted block of several commands (one per line) must run as separate commands, not as one command

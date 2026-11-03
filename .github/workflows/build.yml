@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write   # needed to attach APKs to a release on tag pushes
 
+# A newer push to the same branch or PR makes an older, still-running build pointless.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,7 +37,9 @@ jobs:
           git -C "$RUNNER_TEMP/kolmafia" checkout "$SHA"
           tools/sync-upstream.sh "$RUNNER_TEMP/kolmafia"
 
+      # A release tag builds the release APK below, which compiles the same code: no separate debug build.
       - name: Debug APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: ./gradlew :app:assembleDebug --stacktrace
 
       # Optional release signing: add these four repository secrets to get a signed release APK.

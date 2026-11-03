@@ -31,7 +31,7 @@ object ToolRegistry {
     /** Which Character tab each tool is reached from. Everything else stays in the Tools list. */
     private val homes = mapOf(
         "mall" to "items", "npcshops" to "items", "coinmasters" to "items", "store" to "items", "items" to "hidden", "meat" to "items",
-        "mushroom" to "adventure", "train" to "adventure",
+        "mushroom" to "adventure", "train" to "adventure", "leaflet" to "adventure",
         "scripts" to "hidden", "ascensions" to "hidden", "gains" to "overview",
         "maximizer" to "hidden", "boost" to "hidden", "modifiers" to "gear",
         "buffrequest" to "hidden", "buffbot" to "hidden",
@@ -139,6 +139,13 @@ object ToolRegistry {
             title = "Train familiar",
             subtitle = "Cake-Shaped Arena: train the familiar you have out",
             open = { fm -> TrainFragment.show(fm) },
+            group = "Character"
+        ))
+        add(Tool(
+            id = "leaflet",
+            title = "Strange leaflet",
+            subtitle = "Do the leaflet quest, with or without the magic words",
+            open = { fm -> LeafletFragment.show(fm) },
             group = "Character"
         ))
         add(Tool(

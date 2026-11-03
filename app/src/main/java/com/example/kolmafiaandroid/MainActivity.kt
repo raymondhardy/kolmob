@@ -333,7 +333,7 @@ class MainActivity : AppCompatActivity() {
             row(icon, t.title, t.subtitle.substringBefore(".").take(48)) { t.open(supportFragmentManager) }
         }
         row(R.drawable.ic_tools, "Advanced", "Logs, preferences, database, macros") { ToolsFragment.show(supportFragmentManager) }
-        row(R.drawable.ic_settings, "Settings", "KoL display options and this app") { showSettings() }
+        row(R.drawable.ic_settings, "Settings", "App, breakfast, relay browser and all preferences") { showSettings() }
         row(R.drawable.ic_logout, "Switch account or log out", KolEngineHost.currentUser) {
             autoLoginAllowed = false
             KolEngineHost.logout()
@@ -351,18 +351,19 @@ class MainActivity : AppCompatActivity() {
         else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    private fun showSettings() {
-        val root = filesDir.resolve("kolmafia").absolutePath
-        val version = try {
-            packageManager.getPackageInfo(packageName, 0).versionName
-        } catch (_: Exception) {
-            "?"
-        }
+    fun showSettings() {
+        com.example.kolmafiaandroid.tools.SettingsFragment.show(supportFragmentManager)
+    }
+
+    /** "Kolmob version and data folder" line for the bottom of the Settings home. */
+    fun versionLine(): String {
+        val version = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "?" }
+        return "Kolmob $version · data: " + filesDir.resolve("kolmafia").absolutePath
+    }
+
+    /** The app's own settings (theme, screen, chat, logs): the "App and account" page of Settings. */
+    fun buildAppSettings(box: android.widget.LinearLayout) {
         val dp = resources.displayMetrics.density
-        val box = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding((20 * dp).toInt(), (8 * dp).toInt(), (20 * dp).toInt(), 0)
-        }
         fun note(t: String, size: Float = 12f) = TextView(this).apply { text = t; textSize = size; setTextColor(KC.muted) }
         box.addView(note("Theme", 13f))
         val themeGroup = android.widget.RadioGroup(this)
@@ -423,53 +424,6 @@ class MainActivity : AppCompatActivity() {
         }
         box.addView(keepSpinner)
         box.addView(note("Session, chat and debug logs older than this are deleted when you pick it and each time the app starts."))
-        box.addView(note("KoL display options (these are your KoL account settings, so they also change the desktop site)", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
-        val loading = note("Loading from KoL...")
-        box.addView(loading)
-        val dialog = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(this)
-            .setTitle("Settings")
-            .setView(android.widget.ScrollView(this).apply { addView(box) })
-            .setPositiveButton("Open console") { _, _ -> openTab(3) }
-            .setNegativeButton("Close", null)
-            .create()
-        dialog.show()
-        KolEngineHost.interfaceOptions { json ->
-            runOnUiThread {
-                box.removeView(loading)
-                val o = org.json.JSONObject(json)
-                if (!o.optBoolean("ok")) {
-                    box.addView(note("Could not read your KoL options."))
-                } else {
-                    val flags = listOf(
-                        "flag_compactchar" to "Compact character pane",
-                        "flag_shortcharpane" to "Short character pane",
-                        "flag_compacteffects" to "Compact effect display",
-                        "flag_slimhpmpdisplay" to "Slim HP/MP/Meat/Adv display"
-                    )
-                    for ((flag, title) in flags) {
-                        box.addView(com.google.android.material.checkbox.MaterialCheckBox(this).apply {
-                            text = title
-                            setTextColor(KC.soft)
-                            isChecked = o.optBoolean(flag)
-                            setOnCheckedChangeListener { _, on -> KolEngineHost.setAccountOption(flag, if (on) "1" else "0") }
-                        })
-                    }
-                    box.addView(note("Top menu style", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
-                    val group = android.widget.RadioGroup(this)
-                    val styles = listOf("fancy" to "Icons or text", "compact" to "Drop-downs", "normal" to "Links")
-                    for ((value, title) in styles) {
-                        group.addView(android.widget.RadioButton(this).apply {
-                            text = title
-                            setTextColor(KC.soft)
-                            isChecked = o.optString("menu") == value
-                            setOnClickListener { KolEngineHost.setAccountOption("menu", value) }
-                        })
-                    }
-                    box.addView(group)
-                    box.addView(note("Reload the Game tab to see changes.\nKolmob $version · data: $root", 11f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
-                }
-            }
-        }
     }
 
     // ---- login overlay ----

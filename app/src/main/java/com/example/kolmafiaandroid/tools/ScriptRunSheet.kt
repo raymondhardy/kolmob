@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.stopFollowingOnDragUp
 import android.app.Dialog
 import android.graphics.Typeface
 import android.os.Bundle
@@ -99,10 +100,7 @@ class ScriptRunSheet : DialogFragment() {
             cm.setPrimaryClip(android.content.ClipData.newPlainText("script output", text.toString()))
             Toast.makeText(ctx, "Output copied", Toast.LENGTH_SHORT).show()
         }
-        scroll.setOnTouchListener { _, ev ->
-            if (ev.action == android.view.MotionEvent.ACTION_MOVE && follow) { follow = false; followBtn.text = "Scroll: off" }
-            false
-        }
+        scroll.stopFollowingOnDragUp { if (follow) { follow = false; followBtn.text = "Scroll: off" } }
         btn("Hide") { dismissAllowingStateLoss() }
         root.addView(row)
 

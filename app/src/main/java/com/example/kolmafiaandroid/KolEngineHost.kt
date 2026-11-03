@@ -339,6 +339,10 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.arenaInfo() } catch (t: Throwable) { "{}" }) }
     }
 
+    fun breakfastLists(done: (String) -> Unit) {
+        reader.execute { done(try { KolEngine.breakfastLists() } catch (t: Throwable) { "{}" }) }
+    }
+
     fun conditionsLeft(done: (Int) -> Unit) {
         reader.execute { done(try { KolEngine.conditionsLeft().toInt() } catch (t: Throwable) { -1 }) }
     }

@@ -577,6 +577,31 @@ public final class KolEngine {
     Preferences.setString(name, value);
   }
 
+  /** The choices KoLmafia's own breakfast options offer, as JSON: skills, always, tomes, librams, grimoires, crops. */
+  public static String breakfastLists() {
+    final StringBuilder sb = new StringBuilder("{");
+    appendList(sb, "skills", net.sourceforge.kolmafia.request.UseSkillRequest.BREAKFAST_SKILLS).append(',');
+    appendList(sb, "always", net.sourceforge.kolmafia.request.UseSkillRequest.BREAKFAST_ALWAYS_SKILLS).append(',');
+    appendList(sb, "tomes", net.sourceforge.kolmafia.request.UseSkillRequest.TOME_SKILLS).append(',');
+    appendList(sb, "librams", net.sourceforge.kolmafia.request.UseSkillRequest.LIBRAM_SKILLS).append(',');
+    appendList(sb, "grimoires", net.sourceforge.kolmafia.request.UseSkillRequest.GRIMOIRE_SKILLS).append(',');
+    final String[] crops = new String[net.sourceforge.kolmafia.request.CampgroundRequest.CROPS.length];
+    for (int i = 0; i < crops.length; ++i) {
+      crops[i] = net.sourceforge.kolmafia.request.CampgroundRequest.CROPS[i].getName();
+    }
+    appendList(sb, "crops", crops);
+    return sb.append('}').toString();
+  }
+
+  private static StringBuilder appendList(StringBuilder sb, String name, String[] values) {
+    sb.append('"').append(name).append("\":[");
+    for (int i = 0; i < values.length; ++i) {
+      if (i > 0) sb.append(',');
+      sb.append('"').append(values[i].replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+    }
+    return sb.append(']');
+  }
+
   /** Pauses or resumes the running script; it waits just before its next request. Safe from any thread. */
   public static void setPaused(boolean paused) {
     KolPause.setPaused(paused);

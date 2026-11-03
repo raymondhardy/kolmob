@@ -50,6 +50,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         com.example.kolmafiaandroid.ui.KC.refresh(this)
         super.onCreate(savedInstanceState)
+        // A full-screen dialog that goes to the background with the keyboard open comes back still sized for the
+        // keyboard (a dead band across the screen), so close the keyboard whenever a dialog stops.
+        supportFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+            override fun onFragmentStopped(fm: androidx.fragment.app.FragmentManager, f: Fragment) {
+                val w = (f as? androidx.fragment.app.DialogFragment)?.dialog?.window ?: return
+                w.currentFocus?.clearFocus()
+                androidx.core.view.WindowCompat.getInsetsController(w, w.decorView).hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+            }
+        }, true)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

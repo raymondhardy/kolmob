@@ -53,6 +53,7 @@
         <item name="materialAlertDialogTheme">@style/Kolmob.MaterialAlertDialog</item>
         <item name="android:windowIsFloating">false</item>
         <item name="android:windowFullscreen">false</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
         <item name="android:statusBarColor">@color/colorPrimaryVariant</item>
         <item name="android:navigationBarColor">@color/colorBackground</item>
         <item name="android:windowBackground">@color/colorBackground</item>

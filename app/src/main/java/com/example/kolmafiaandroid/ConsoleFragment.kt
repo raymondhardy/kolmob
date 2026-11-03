@@ -406,7 +406,7 @@ class ConsoleFragment : Fragment() {
         consoleRoot = console
         val tabs = com.example.kolmafiaandroid.ui.iconTabs(ctx, listOf(
             R.drawable.nav_console to "Console",
-            R.drawable.tab_code to "Scripts",
+            R.drawable.ic_s_folder to "Scripts",
         )) { showHubPane(it) }
         val host = android.widget.FrameLayout(ctx)
         hubTabs = tabs

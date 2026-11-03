@@ -318,7 +318,7 @@ class AdventureFragment : Fragment() {
         KolEngineHost.locations { json ->
             val arr = JSONArray(json)
             val list = (0 until arr.length()).map { arr.getJSONObject(it) }.map { Loc(it.getString("name"), it.optString("zone"), it.optBoolean("ok", true)) }
-            activity?.runOnUiThread { if (isAdded) { locations = list; updateLocationButton() } }
+            activity?.runOnUiThread { if (isAdded) { locations = list; updateLocationButton(); followLastAdventure() } }
         }
     }
 
@@ -363,9 +363,27 @@ class AdventureFragment : Fragment() {
             }.setNegativeButton("Cancel", null).show()
     }
 
+    /**
+     * Follow wherever KoLmafia last adventured, whether that was the relay browser, a script or the console: when its
+     * lastAdventure changes from what we last saw, that place becomes the selected one. Waits for the location list so
+     * only real places are adopted.
+     */
+    private fun followLastAdventure() {
+        val last = state?.optString("lastAdventure").orEmpty()
+        if (last.isEmpty() || locations.isEmpty() || !isAdded) return
+        val prefs = requireContext().getSharedPreferences("kolmob", Context.MODE_PRIVATE)
+        if (prefs.getString("adv_last_seen", null) == last) return
+        prefs.edit().putString("adv_last_seen", last).apply()
+        val loc = locations.firstOrNull { it.name.equals(last, ignoreCase = true) } ?: return
+        selected = loc.name
+        prefs.edit().putString("adv_location", loc.name).apply()
+        updateLocationButton()
+    }
+
     private fun applyState(o: JSONObject) {
         state = o
         turnsLeft = o.optInt("adventures")
+        followLastAdventure()
         val last = o.optString("lastAdventure")
         statusLine.text = "$turnsLeft adventures left" + (if (last.isNotEmpty()) "  ·  last: $last" else "") +
             "  ·  HP ${o.optLong("hp")}/${o.optLong("maxHp")}"

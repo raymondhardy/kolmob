@@ -51,6 +51,8 @@ class ScriptsFragment : DialogFragment() {
     private lateinit var list: LinearLayout
     private lateinit var scroll: ScrollView
     private lateinit var titleView: TextView
+    private lateinit var backBtn: TextView
+    private var embedded = false
     private lateinit var crumb: TextView
     private lateinit var backCallback: OnBackPressedCallback
     private val busy = mutableSetOf<String>()
@@ -85,25 +87,33 @@ class ScriptsFragment : DialogFragment() {
         dir = scriptsDir
         val page = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(KC.pick(0xFF121212.toInt(), 0xFFF5F5F5.toInt())) }
 
+        embedded = !showsDialog
+        val fg = if (embedded) KC.text else 0xFFFFFFFF.toInt()
         val head = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            setBackgroundColor(0xFF2E7D32.toInt())
+            setPadding(dp(8), if (embedded) 0 else dp(8), dp(8), if (embedded) 0 else dp(8))
+            if (!embedded) setBackgroundColor(0xFF2E7D32.toInt())
         }
         fun headBtn(text: String, size: Float, click: () -> Unit) = TextView(ctx).apply {
-            this.text = text; textSize = size; setTextColor(0xFFFFFFFF.toInt()); typeface = Typeface.DEFAULT_BOLD
+            this.text = text; textSize = size; setTextColor(fg); typeface = Typeface.DEFAULT_BOLD
             setPadding(dp(14), dp(6), dp(14), dp(6)); setOnClickListener { click() }
         }
-        head.addView(headBtn("‹", 30f) { goUp() })
-        titleView = TextView(ctx).apply { textSize = 19f; setTextColor(0xFFFFFFFF.toInt()); typeface = Typeface.DEFAULT_BOLD }
+        backBtn = headBtn("‹", if (embedded) 26f else 30f) { goUp() }
+        head.addView(backBtn)
+        titleView = TextView(ctx).apply {
+            textSize = if (embedded) 14f else 19f
+            setTextColor(if (embedded) KC.muted else 0xFFFFFFFF.toInt())
+            if (!embedded) typeface = Typeface.DEFAULT_BOLD
+            if (embedded) setPadding(dp(8), 0, 0, 0)
+        }
         head.addView(titleView, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         head.addView(headBtn("＋", 22f) { showAddMenu() })
         head.addView(headBtn("⋮", 22f) { showMoreMenu() })
-        page.addView(head, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)))
+        page.addView(head, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(if (embedded) 48 else 56)))
 
         crumb = TextView(ctx).apply { textSize = 12f; setTextColor(KC.muted); setPadding(dp(16), dp(10), dp(16), dp(4)) }
-        page.addView(crumb)
+        if (!embedded) page.addView(crumb)
         list = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), 0, dp(8), dp(96)) }
         scroll = ScrollView(ctx).apply { addView(list) }
         page.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -156,7 +166,24 @@ class ScriptsFragment : DialogFragment() {
             setOnClickListener { onTap() }
             if (onLong != null) setOnLongClickListener { onLong(); true }
         }
-        r.addView(label(glyph, 20f, glyphColor).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(28), ViewGroup.LayoutParams.WRAP_CONTENT))
+        val ext = if (glyph.startsWith("f:")) glyph.substring(2) else ""
+        val iconRes = when {
+            glyph == "▸" -> R.drawable.ic_s_folder
+            glyph == "◆" -> R.drawable.ic_s_project
+            glyph == "◦" || (glyph.startsWith("f:") && ext.isEmpty()) -> R.drawable.ic_s_file
+            else -> 0
+        }
+        if (ext.isNotEmpty()) {
+            r.addView(android.widget.ImageView(requireContext()).apply { setImageDrawable(com.example.kolmafiaandroid.ui.ExtBadge(ext)) },
+                LinearLayout.LayoutParams(dp(30), dp(24)).apply { marginStart = dp(-1); marginEnd = dp(5) })
+        } else if (iconRes != 0) {
+            r.addView(android.widget.ImageView(requireContext()).apply {
+                setImageResource(iconRes)
+                setColorFilter(glyphColor)
+            }, LinearLayout.LayoutParams(dp(26), dp(26)).apply { marginEnd = dp(6) })
+        } else {
+            r.addView(label(glyph, 20f, glyphColor).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(28), ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
         val texts = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
         texts.addView(label(name, 16f, KC.text, boldName))
         texts.addView(label(detail, 12f, KC.muted))
@@ -175,9 +202,12 @@ class ScriptsFragment : DialogFragment() {
         val d = dir ?: scriptsDir
         val atRoot = d == scriptsDir
         backCallback.isEnabled = !atRoot || showProjects
-        titleView.text = if (showProjects) "Projects" else if (atRoot) "Scripts" else d.name
         val rel = d.relativeTo(scriptsDir).path.replace(File.separatorChar, '/')
         crumb.text = if (showProjects) "/Projects" else if (atRoot) "/" else "/$rel"
+        // embedded under the Console | Scripts tabs there is nothing to go back to at the top level, and the path is the title
+        titleView.text = if (embedded) crumb.text else if (showProjects) "Projects" else if (atRoot) "Scripts" else d.name
+        backBtn.visibility = if (embedded && atRoot && !showProjects) View.GONE else View.VISIBLE
+        if (embedded && backBtn.visibility == View.GONE) titleView.setPadding(dp(16), 0, 0, 0) else if (embedded) titleView.setPadding(dp(8), 0, 0, 0)
         list.removeAllViews()
         val y = scroll.scrollY
 
@@ -212,7 +242,7 @@ class ScriptsFragment : DialogFragment() {
             row("▸", 0xFF4CAF50.toInt(), f.name, if (n == 1) "1 item" else "$n items", true, { dir = f; render(); scroll.scrollTo(0, 0) }, { itemMenu(f) })
         }
         for (f in files) {
-            row("·", KC.muted, f.name, size(f.length()) + " · " + fmt.format(Date(f.lastModified())), false, { itemMenu(f) }, { itemMenu(f) })
+            row("f:" + f.extension, KC.muted, f.name, size(f.length()) + " · " + fmt.format(Date(f.lastModified())), false, { itemMenu(f) }, { itemMenu(f) })
         }
         if (atRoot) {
             val relay = (relayDir.listFiles() ?: emptyArray()).filter {

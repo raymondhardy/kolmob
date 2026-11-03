@@ -77,6 +77,10 @@ class ScriptsFragment : DialogFragment() {
         toolbar.setNavigationOnClickListener { closeOrBack() }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                R.id.action_folders -> {
+                    com.example.kolmafiaandroid.ui.FileBrowser.show(requireActivity(), scriptsDir, "Scripts", scriptsDir) { refreshList() }
+                    true
+                }
                 R.id.action_import -> {
                     showImportDialog()
                     true
@@ -405,6 +409,10 @@ class ScriptsFragment : DialogFragment() {
                 InstalledAction.DELETE -> confirmDeleteProject(project, dialog, progressBar, installBtn, popularRecycler, installedRecycler, installedEmpty)
                 InstalledAction.SCOPE -> changeScope(project, installedRecycler, installedEmpty)
                 InstalledAction.BRANCH -> changeBranch(project, installedRecycler, installedEmpty)
+                InstalledAction.FILES -> {
+                    val root = File(requireContext().filesDir, "kolmafia/" + (if (project.isGit) "git/" else "svn/") + project.name)
+                    com.example.kolmafiaandroid.ui.FileBrowser.show(requireActivity(), root, project.name, scriptsDir) { refreshList() }
+                }
             }
         }
         installedRecycler.layoutManager = LinearLayoutManager(requireContext())
@@ -849,7 +857,7 @@ class ScriptsFragment : DialogFragment() {
         val owner: String = ""
     )
 
-    private enum class InstalledAction { UPDATE, DELETE, SCOPE, BRANCH }
+    private enum class InstalledAction { UPDATE, DELETE, SCOPE, BRANCH, FILES }
 
     private class InstalledProjectAdapter(
         private val context: Context,
@@ -885,6 +893,7 @@ class ScriptsFragment : DialogFragment() {
             val updateBtn: MaterialButton = view.findViewById(R.id.installed_update_btn)
             val deleteBtn: MaterialButton = view.findViewById(R.id.installed_delete_btn)
             val branchBtn: MaterialButton = view.findViewById(R.id.installed_branch_btn)
+            val filesBtn: MaterialButton = view.findViewById(R.id.installed_files_btn)
             val progressBar: ProgressBar = view.findViewById(R.id.installed_progress)
         }
 
@@ -921,6 +930,7 @@ class ScriptsFragment : DialogFragment() {
             holder.branchBtn.visibility = if (project.isGit) View.VISIBLE else View.GONE
             holder.branchBtn.isEnabled = !isBusy
             holder.branchBtn.setOnClickListener { onAction(project, InstalledAction.BRANCH) }
+            holder.filesBtn.setOnClickListener { onAction(project, InstalledAction.FILES) }
             holder.updateBtn.setOnClickListener { onAction(project, InstalledAction.UPDATE) }
             holder.deleteBtn.setOnClickListener { onAction(project, InstalledAction.DELETE) }
         }

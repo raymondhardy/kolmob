@@ -205,22 +205,8 @@ class ConsoleFragment : Fragment() {
             KolEngineHost.setPaused(!KolEngineHost.paused.value)
         }
         topRow.addView(pauseButton, side)
-        val btnRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, (6 * dp).toInt(), 0, (6 * dp).toInt()) }
-        fun small(icon: Int, desc: String, onClick: () -> Unit) =
-            btnRow.addView(iconBtn(icon, desc, onClick), LinearLayout.LayoutParams(0, (48 * dp).toInt(), 1f).apply { marginEnd = (6 * dp).toInt() })
-        fun manager(action: String?) = ScriptsFragment().apply { if (action != null) arguments = Bundle().apply { putString("action", action) } }
-            .show(parentFragmentManager, "scripts")
-        small(R.drawable.ic_s_edit, "Edit selected script") {
-            val f = selectedScript()
-            if (f != null) com.example.kolmafiaandroid.fragments.ScriptEditorFragment.newInstance(f).show(childFragmentManager, "script_editor")
-        }
-        small(R.drawable.ic_s_add, "New script") { manager("new") }
-        small(R.drawable.ic_s_import, "Import a script from a link or file") { manager("import") }
-        small(R.drawable.ic_s_cloud, "Install from GitHub or SVN") { manager("install") }
-        small(R.drawable.ic_s_folder, "Manage scripts") { manager(null) }
         controls.addView(topRow)
         controls.addView(argsRow)
-        controls.addView(btnRow)
 
         // Log level: lines a script tags [DEBUG] stay hidden unless you pick Debug.
         minLevel = (prefs?.getInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, 1) ?: 1).coerceIn(0, 3)
@@ -400,7 +386,7 @@ class ConsoleFragment : Fragment() {
         }
 
         run.setOnClickListener { submit() }
-        return root
+        return scriptsHub(root)
     }
 
     // ---- scripting hub: one place for the console and for managing/editing/installing scripts ----

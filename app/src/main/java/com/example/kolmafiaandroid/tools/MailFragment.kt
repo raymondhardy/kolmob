@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -33,7 +35,7 @@ import org.json.JSONObject
 /**
  * KMail composer: send items and/or meat to another player.
  */
-class MailFragment : DialogFragment() {
+class MailFragment : FullScreenDialog() {
 
     private lateinit var recipientEdit: EditText
     private lateinit var messageEdit: EditText
@@ -48,16 +50,7 @@ class MailFragment : DialogFragment() {
     private data class ItemEntry(val name: String, val count: Int)
     private data class SelectedItem(val name: String, val count: Int)
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -70,7 +63,7 @@ class MailFragment : DialogFragment() {
         }
 
         // Title
-        view.addView(label(ctx, "Send KMail", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
+        view.addView(screenTitle(ctx, "Send KMail").apply { setPadding(0, 0, 0, dp(ctx, 16)) })
 
         // Recipient
         view.addView(label(ctx, "Recipient", 14f, KC.muted, true))
@@ -108,7 +101,7 @@ class MailFragment : DialogFragment() {
         val addItemBtn = Button(ctx).apply {
             text = "Add item…"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF4CAF50.toInt())
+            setBackgroundColor(KC.accent)
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             setOnClickListener { showItemPicker() }
         }
@@ -132,7 +125,7 @@ class MailFragment : DialogFragment() {
         sendButton = Button(ctx).apply {
             text = "Send KMail"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF4CAF50.toInt())
+            setBackgroundColor(KC.accent)
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             setOnClickListener { sendKMail() }
         }
@@ -208,7 +201,7 @@ val chip = LinearLayout(ctx).apply {
             val removeBtn = TextView(ctx).apply {
                 text = " ✕"
                 textSize = 16f
-                setTextColor(0xFFE53935.toInt())
+                setTextColor(KC.bad)
                 setPadding(dp(ctx, 8), 0, 0, 0)
             }
             clickable(chip) { removeItem(index) }
@@ -281,8 +274,6 @@ val chip = LinearLayout(ctx).apply {
     private fun formatNumber(n: Long): String {
         return java.text.NumberFormat.getIntegerInstance().format(n)
     }
-
-    private fun dp(context: android.content.Context, v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
         fun show(fragmentManager: androidx.fragment.app.FragmentManager) {

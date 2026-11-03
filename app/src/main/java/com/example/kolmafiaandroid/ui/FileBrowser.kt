@@ -37,16 +37,16 @@ object FileBrowser {
         val dialog = Dialog(activity, R.style.FullScreenDialogStyle)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
 
-        val page = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(KC.pick(0xFF121212.toInt(), 0xFFF5F5F5.toInt())) }
+        val page = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(KC.page) }
         val head = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(px(8), px(8), px(16), px(8))
-            setBackgroundColor(0xFF2E7D32.toInt())
+            setBackgroundColor(KC.bar)
         }
-        val titleView = TextView(activity).apply { textSize = 18f; setTextColor(0xFFFFFFFF.toInt()); typeface = Typeface.DEFAULT_BOLD }
+        val titleView = TextView(activity).apply { textSize = 18f; setTextColor(KC.onAccent); typeface = Typeface.DEFAULT_BOLD }
         val up = TextView(activity).apply {
-            text = "‹"; textSize = 30f; setTextColor(0xFFFFFFFF.toInt()); setPadding(px(14), 0, px(18), px(4))
+            text = "‹"; textSize = 30f; setTextColor(KC.onAccent); setPadding(px(14), 0, px(18), px(4))
         }
         head.addView(up)
         head.addView(titleView, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -94,29 +94,9 @@ object FileBrowser {
                 .show()
         }
 
-        fun row(name: String, detail: String, folder: Boolean, onTap: () -> Unit) {
-            val r = LinearLayout(activity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(px(12), px(12), px(12), px(12))
-                isClickable = true
-                setBackgroundResource(android.R.drawable.list_selector_background)
-                setOnClickListener { onTap() }
-            }
-            r.addView(TextView(activity).apply {
-                text = if (folder) "▸" else "·"
-                textSize = 20f
-                setTextColor(if (folder) 0xFF4CAF50.toInt() else KC.muted)
-                gravity = Gravity.CENTER
-            }, LinearLayout.LayoutParams(px(28), ViewGroup.LayoutParams.WRAP_CONTENT))
-            val texts = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-            texts.addView(TextView(activity).apply {
-                text = name; textSize = 16f; setTextColor(KC.text)
-                if (folder) typeface = Typeface.DEFAULT_BOLD
-            })
-            texts.addView(TextView(activity).apply { text = detail; textSize = 12f; setTextColor(KC.muted) })
-            r.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            list.addView(r, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        fun row(name: String, detail: String, kind: String, onTap: () -> Unit) {
+            list.addView(listRow(activity, name, detail, rowIcon(activity, kind), kind == "folder", KC.text, onTap),
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
 
         render = {
@@ -134,9 +114,9 @@ object FileBrowser {
             for (k in kids) {
                 if (k.isDirectory) {
                     val n = k.listFiles()?.count { !HIDDEN.matches(it.name) } ?: 0
-                    row(k.name, if (n == 1) "1 item" else "$n items", true) { dir = k; render() }
+                    row(k.name, if (n == 1) "1 item" else "$n items", "folder") { dir = k; render() }
                 } else {
-                    row(k.name, size(k.length()) + " · " + fmt.format(Date(k.lastModified())), false) { openFile(k) }
+                    row(k.name, size(k.length()) + " · " + fmt.format(Date(k.lastModified())), if (k.extension.isEmpty()) "file" else "ext:" + k.extension) { openFile(k) }
                 }
             }
         }

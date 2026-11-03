@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -32,7 +34,7 @@ import org.json.JSONObject
 /**
  * Preferences browser/editor (KoLmafia's "Options").
  */
-class PreferencesFragment : DialogFragment() {
+class PreferencesFragment : FullScreenDialog() {
 
     private lateinit var searchEdit: EditText
     private lateinit var listView: ListView
@@ -47,16 +49,7 @@ class PreferencesFragment : DialogFragment() {
         val scope: String
     )
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -69,8 +62,8 @@ class PreferencesFragment : DialogFragment() {
         }
 
         // Title + warning
-        view.addView(label(ctx, "Preferences", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 8)) })
-        view.addView(label(ctx, "Changing preferences can break scripts.", 12f, KC.pick(0xFFFFB74D.toInt(), 0xFFE65100.toInt())).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
+        view.addView(screenTitle(ctx, "Preferences").apply { setPadding(0, 0, 0, dp(ctx, 8)) })
+        view.addView(label(ctx, "Changing preferences can break scripts.", 12f, KC.warn).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
 
         // Search box
         searchEdit = EditText(ctx).apply {
@@ -252,8 +245,6 @@ class PreferencesFragment : DialogFragment() {
             }
         }
     }
-
-    private fun dp(context: android.content.Context, v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
         fun show(fragmentManager: androidx.fragment.app.FragmentManager, filter: String = "") {

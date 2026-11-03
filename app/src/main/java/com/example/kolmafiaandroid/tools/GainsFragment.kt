@@ -1,5 +1,8 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
+import com.example.kolmafiaandroid.ui.sectionLabel
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -26,23 +29,17 @@ import org.json.JSONObject
 import java.text.NumberFormat
 
 /** What you've gained this session: meat, stats, items and effects (KoLmafia's session tally). */
-class GainsFragment : DialogFragment() {
+class GainsFragment : FullScreenDialog() {
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
     private val fmt = NumberFormat.getIntegerInstance()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, "Session gains", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(screenTitle(ctx, "Session gains"))
         status = label(ctx, "Reading the session tally…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
@@ -87,7 +84,7 @@ class GainsFragment : DialogFragment() {
             val c = com.example.kolmafiaandroid.ui.card(ctx, parent)
             val head = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             val texts = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-            texts.addView(label(ctx, "SESSION GAINS", 12f, 0xFF4CAF50.toInt(), true).apply { letterSpacing = 0.1f })
+            texts.addView(label(ctx, "SESSION GAINS", 12f, KC.accent, true).apply { letterSpacing = 0.1f })
             val summary = label(ctx, "Reading the session tally…", 14f, KC.muted).apply { setPadding(0, dp(ctx, 2), 0, 0) }
             texts.addView(summary)
             head.addView(texts, LinearLayout.LayoutParams(0, -2, 1f))
@@ -131,7 +128,7 @@ class GainsFragment : DialogFragment() {
             for ((kind, title) in order) {
                 val rows = list.filter { it.optString("kind") == kind }.sortedBy { it.optString("name").lowercase() }
                 if (rows.isEmpty()) continue
-                body.addView(label(ctx, title.uppercase(), 12f, 0xFF4CAF50.toInt(), true).apply { letterSpacing = 0.1f; setPadding(dp(ctx, 4), dp(ctx, 16), 0, dp(ctx, 4)) })
+                body.addView(sectionLabel(ctx, title))
                 for (r in rows) {
                     val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(ctx, 4), dp(ctx, 6), dp(ctx, 4), dp(ctx, 6)) }
                     if (kind == "item") {
@@ -141,7 +138,7 @@ class GainsFragment : DialogFragment() {
                     }
                     row.addView(label(ctx, android.text.Html.fromHtml(r.getString("name"), 0).toString(), 15f, KC.text), LinearLayout.LayoutParams(0, -2, 1f))
                     val c = r.getLong("count")
-                    row.addView(label(ctx, (if (c > 0) "+" else "") + fmt.format(c), 15f, if (c >= 0) 0xFF4CAF50.toInt() else 0xFFEF5350.toInt(), true))
+                    row.addView(label(ctx, (if (c > 0) "+" else "") + fmt.format(c), 15f, if (c >= 0) KC.accent else KC.bad, true))
                     body.addView(row)
                 }
             }

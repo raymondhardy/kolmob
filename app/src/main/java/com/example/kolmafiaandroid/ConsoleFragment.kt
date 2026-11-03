@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid
 
+import com.example.kolmafiaandroid.ui.Dropdown
 import com.example.kolmafiaandroid.ui.stopFollowingOnDragUp
 import com.example.kolmafiaandroid.ui.KC
 import com.example.kolmafiaandroid.ui.ConsoleThemes
@@ -66,7 +67,7 @@ class ConsoleFragment : Fragment() {
     /** Reads main(...) from the selected script so the arguments row can say what it expects. */
     private fun refreshArgs() {
         val v = argsView ?: return
-        val f = scriptFiles.getOrNull(scriptPicker?.selectedItemPosition ?: -1)
+        val f = scriptFiles.getOrNull(scriptPicker?.selectedIndex ?: -1)
         if (f == null) { argParams = emptyList(); v.text = ""; return }
         val src = try { f.readText() } catch (e: Exception) { "" }
         val m = Regex("""\bmain\s*\(([^)]*)\)""").find(src)
@@ -84,7 +85,7 @@ class ConsoleFragment : Fragment() {
 
     private fun showArgsDialog() {
         val ctx = context ?: return
-        val f = scriptFiles.getOrNull(scriptPicker?.selectedItemPosition ?: -1) ?: return
+        val f = scriptFiles.getOrNull(scriptPicker?.selectedIndex ?: -1) ?: return
         if (argParams.isEmpty()) {
             Toast.makeText(ctx, "This script's main() takes no arguments.", Toast.LENGTH_SHORT).show()
             return
@@ -111,7 +112,7 @@ class ConsoleFragment : Fragment() {
             }
     }
 
-    private var scriptPicker: android.widget.Spinner? = null
+    private var scriptPicker: Dropdown? = null
     private var scriptFiles: List<java.io.File> = emptyList()
 
     /** Name as shown and as `call` wants it: relative to the scripts folder (JavaScript scripts live in their own folder). */
@@ -122,17 +123,10 @@ class ConsoleFragment : Fragment() {
         val ctx = context ?: return
         val picker = scriptPicker ?: return
         val dir = java.io.File(ctx.filesDir, "kolmafia/scripts")
-        val keep = scriptFiles.getOrNull(picker.selectedItemPosition)?.let { rel(it) } ?: prefs?.getString("last_script", null)
+        val keep = scriptFiles.getOrNull(picker.selectedIndex)?.let { rel(it) } ?: prefs?.getString("last_script", null)
         scriptFiles = com.example.kolmafiaandroid.ui.ScriptFiles.list(dir).sortedBy { rel(it).lowercase() }
-        picker.adapter = android.widget.ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, scriptFiles.map { rel(it) })
-        scriptFiles.indexOfFirst { rel(it) == keep }.takeIf { it >= 0 }?.let { picker.setSelection(it) }
-        picker.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                scriptFiles.getOrNull(pos)?.let { prefs?.edit()?.putString("last_script", rel(it))?.apply() }
-                refreshArgs()
-            }
-            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-        }
+        picker.options = scriptFiles.map { rel(it) }
+        scriptFiles.indexOfFirst { rel(it) == keep }.takeIf { it >= 0 }?.let { picker.selectedIndex = it }
     }
 
     override fun onResume() {
@@ -168,7 +162,10 @@ class ConsoleFragment : Fragment() {
         }
 
         // Script bar: pick an installed script, run it, edit it, add or install new ones. Output shows right below.
-        val picker = android.widget.Spinner(ctx)
+        val picker = Dropdown(ctx, "Script", emptyList()) { pos ->
+            scriptFiles.getOrNull(pos)?.let { prefs?.edit()?.putString("last_script", rel(it))?.apply() }
+            refreshArgs()
+        }
         scriptPicker = picker
         val argsRow = TextView(ctx).apply {
             textSize = 13f
@@ -186,7 +183,7 @@ class ConsoleFragment : Fragment() {
             minimumHeight = (48 * dp).toInt()
             setOnClickListener { onClick() }
         }
-        fun selectedScript(): java.io.File? = scriptFiles.getOrNull(picker.selectedItemPosition)
+        fun selectedScript(): java.io.File? = scriptFiles.getOrNull(picker.selectedIndex)
         val topRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         topRow.addView(picker, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val side = LinearLayout.LayoutParams((56 * dp).toInt(), (48 * dp).toInt()).apply { marginStart = (6 * dp).toInt() }
@@ -216,18 +213,11 @@ class ConsoleFragment : Fragment() {
             setPadding((6 * dp).toInt(), 0, (6 * dp).toInt(), (4 * dp).toInt())
         }
         levelRow.addView(TextView(ctx).apply { text = "Log level"; textSize = 13f; setTextColor(KC.muted) })
-        val levelSpinner = android.widget.Spinner(ctx).apply {
-            adapter = android.widget.ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, com.example.kolmafiaandroid.ui.LogLevels.labels)
-            setSelection(minLevel)
-            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                    if (pos == minLevel || !::output.isInitialized) return
-                    minLevel = pos
-                    prefs?.edit()?.putInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, pos)?.apply()
-                    rebuildOutput()
-                }
-                override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-            }
+        val levelSpinner = Dropdown(ctx, "Log level", com.example.kolmafiaandroid.ui.LogLevels.labels.toList(), minLevel) { pos ->
+            if (pos == minLevel || !::output.isInitialized) return@Dropdown
+            minLevel = pos
+            prefs?.edit()?.putInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, pos)?.apply()
+            rebuildOutput()
         }
         levelRow.addView(levelSpinner, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = (8 * dp).toInt() })
         levelNote = TextView(ctx).apply { textSize = 12f; setTextColor(KC.muted) }

@@ -1,5 +1,8 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.pick
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import android.app.Dialog
 import android.os.Bundle
 import android.text.Editable
@@ -29,28 +32,22 @@ import org.json.JSONObject
  * KoLmafia's choice adventure settings: for each known choice, which option to take automatically
  * ("Manual" stops and asks). Used whenever KoLmafia plays: the Adventure button and scripts.
  */
-class ChoiceAdvFragment : DialogFragment() {
+class ChoiceAdvFragment : FullScreenDialog() {
     private var all = listOf<JSONObject>()
     private lateinit var list: LinearLayout
     private lateinit var search: EditText
     private lateinit var onlySet: CheckBox
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(KC.pick(0xFF121212.toInt(), 0xFFF2F2F2.toInt()))
+            setBackgroundColor(KC.page)
             setPadding(dp(ctx, 16), dp(ctx, 14), dp(ctx, 16), 0)
         }
-        root.addView(label(ctx, "Choice adventures", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(screenTitle(ctx, "Choice adventures"))
         root.addView(label(ctx, "What KoLmafia picks on its own when it plays for you (the Adventure button and scripts). Manual stops and asks.", 12f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) })
         val browser = CheckBox(ctx).apply {
             text = "Also pick these automatically in the browser (2-second countdown, tap to cancel)"
@@ -110,7 +107,7 @@ class ChoiceAdvFragment : DialogFragment() {
             row.addView(label(ctx, o.optString("name"), 15f, KC.text, true))
             val set = o.optInt("value") != 0
             row.addView(label(ctx, "${o.optString("zone")} · #${o.optInt("choice")}", 12f, KC.muted))
-            row.addView(label(ctx, "→ " + optionName(o), 13f, if (set) 0xFF4CAF50.toInt() else KC.muted))
+            row.addView(label(ctx, "→ " + optionName(o), 13f, if (set) KC.accent else KC.muted))
             row.setOnClickListener { pick(o) }
             list.addView(row)
         }
@@ -124,13 +121,10 @@ class ChoiceAdvFragment : DialogFragment() {
         val decisions = mutableListOf(0)
         for (i in 0 until opts.length()) { names.add(opts.getJSONObject(i).optString("n")); decisions.add(opts.getJSONObject(i).optInt("d")) }
         val cur = decisions.indexOf(o.optInt("value")).coerceAtLeast(0)
-        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle(o.optString("name"))
-            .setSingleChoiceItems(names.toTypedArray(), cur) { d, i ->
-                KolEngineHost.setPref(o.optString("setting"), decisions[i].toString())
-                d.dismiss()
-                load()
-            }
-            .setNegativeButton("Cancel", null).show()
+        pick(o.optString("name"), names, selected = cur) { i ->
+            KolEngineHost.setPref(o.optString("setting"), decisions[i].toString())
+            load()
+        }
     }
 
     companion object {

@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -25,7 +27,7 @@ import org.json.JSONObject
  * Quests: what is in progress (with the current step from KoLmafia's own quest data),
  * plus quest helpers that only appear while they are useful (hedge maze, volcano maze).
  */
-class QuestsFragment : DialogFragment() {
+class QuestsFragment : FullScreenDialog() {
     private lateinit var body: LinearLayout
     private var showFinished = false
     private var last: JSONObject? = null
@@ -33,13 +35,7 @@ class QuestsFragment : DialogFragment() {
     private var zoneNames = listOf<String>()
     private var zoneOf = mapOf<String, String>()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
@@ -47,7 +43,7 @@ class QuestsFragment : DialogFragment() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(ctx, 12), dp(ctx, 12), dp(ctx, 12), dp(ctx, 12))
         }
-        if (showsDialog) body.addView(label(ctx, "Quests", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(dp(ctx, 4), 0, 0, dp(ctx, 12)) })
+        if (showsDialog) body.addView(screenTitle(ctx, "Quests").apply { setPadding(dp(ctx, 4), 0, 0, dp(ctx, 12)) })
         body.addView(label(ctx, "Loading…", 14f, KC.muted))
         KolEngineHost.locations { json ->
             val arr = try { org.json.JSONArray(json) } catch (_: Exception) { org.json.JSONArray() }
@@ -95,7 +91,7 @@ class QuestsFragment : DialogFragment() {
         val ctx = context ?: return
         val o = last ?: return
         body.removeAllViews()
-        if (showsDialog) body.addView(label(ctx, "Quests", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(dp(ctx, 4), 0, 0, dp(ctx, 12)) })
+        if (showsDialog) body.addView(screenTitle(ctx, "Quests").apply { setPadding(dp(ctx, 4), 0, 0, dp(ctx, 12)) })
 
         fun openGame(path: String) {
             (activity as? MainActivity)?.openGamePage(path)
@@ -172,7 +168,7 @@ class QuestsFragment : DialogFragment() {
         box.addView(label(ctx, text.ifEmpty { "No details." }, 15f, KC.soft))
         val dlg = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(q.optString("title")).setView(box)
         places.forEach { name ->
-            box.addView(label(ctx, "Open the map: $name  ›", 15f, 0xFF4CAF50.toInt(), true).apply {
+            box.addView(label(ctx, "Open the map: $name  ›", 15f, KC.accent, true).apply {
                 setPadding(0, dp(ctx, 14), 0, dp(ctx, 4))
             })
         }

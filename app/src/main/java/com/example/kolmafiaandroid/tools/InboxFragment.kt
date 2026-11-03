@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -21,22 +23,16 @@ import com.example.kolmafiaandroid.ui.label
 import org.json.JSONObject
 
 /** Your kmail inbox, newest first: tap a message to read it in full. */
-class InboxFragment : DialogFragment() {
+class InboxFragment : FullScreenDialog() {
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, "Inbox", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(screenTitle(ctx, "Inbox"))
         status = label(ctx, "Fetching your kmail…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
@@ -86,7 +82,7 @@ class InboxFragment : DialogFragment() {
                 val icon = android.widget.ImageView(ctx)
                 com.example.kolmafiaandroid.ui.KolImages.load(icon, it.img)
                 row.addView(icon, LinearLayout.LayoutParams(dp(ctx, 30), dp(ctx, 30)).apply { marginEnd = dp(ctx, 10) })
-                row.addView(label(ctx, it.name + if (it.count.isNotEmpty()) " ×" + it.count else "", 15f, 0xFF4CAF50.toInt()))
+                row.addView(label(ctx, it.name + if (it.count.isNotEmpty()) " ×" + it.count else "", 15f, KC.accent))
                 clickable(row) {
                     com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(it.name)
                         .setItems(arrayOf("Check price in the mall", "Open in the KoL wiki")) { _, i ->
@@ -139,7 +135,7 @@ class InboxFragment : DialogFragment() {
             val text = plain(m.optString("html"))
             val row = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 4), dp(ctx, 12), dp(ctx, 4), dp(ctx, 12)) }
             val unread = m.optString("id") !in seenIds(ctx)
-            row.addView(label(ctx, (if (unread) "● " else "") + plain(m.optString("sender")), 16f, if (unread) 0xFF4CAF50.toInt() else KC.text, unread))
+            row.addView(label(ctx, (if (unread) "● " else "") + plain(m.optString("sender")), 16f, if (unread) KC.accent else KC.text, unread))
             row.addView(label(ctx, text.lineSequence().firstOrNull { it.isNotBlank() }?.take(90) ?: "(no text)", 13f, KC.muted))
             clickable(row) {
                 markSeen(ctx, listOf(m.optString("id")))

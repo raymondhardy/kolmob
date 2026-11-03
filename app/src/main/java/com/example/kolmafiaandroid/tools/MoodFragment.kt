@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -30,21 +32,12 @@ import org.json.JSONObject
 /**
  * Moods screen using KoLmafia's CLI mood commands.
  */
-class MoodFragment : DialogFragment() {
+class MoodFragment : FullScreenDialog() {
 
     private lateinit var currentMoodText: TextView
     private lateinit var outputText: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -57,7 +50,7 @@ class MoodFragment : DialogFragment() {
         }
 
         // Title
-        view.addView(label(ctx, "Moods", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
+        view.addView(screenTitle(ctx, "Moods").apply { setPadding(0, 0, 0, dp(ctx, 16)) })
 
         // Current mood row
         val currentMoodRow = LinearLayout(ctx).apply {
@@ -78,7 +71,7 @@ class MoodFragment : DialogFragment() {
         val changeMoodBtn = Button(ctx).apply {
             text = "Change mood…"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF1E88E5.toInt())
+            setBackgroundColor(KC.info)
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             setOnClickListener { showMoodPicker() }
         }
@@ -99,7 +92,7 @@ class MoodFragment : DialogFragment() {
         val saveBtn = Button(ctx).apply {
             text = "Save current effects as mood…"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFFE53935.toInt())
+            setBackgroundColor(KC.danger)
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -138,7 +131,7 @@ class MoodFragment : DialogFragment() {
         val btn = Button(ctx).apply {
             text = label
             setTextColor(KC.text)
-            setBackgroundColor(if (needsConfirm) 0xFFE53935.toInt() else 0xFF4CAF50.toInt())
+            setBackgroundColor(if (needsConfirm) KC.danger else KC.accent)
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -278,8 +271,6 @@ class MoodFragment : DialogFragment() {
             }
         }
     }
-
-    private fun dp(context: android.content.Context, v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
         fun show(fragmentManager: androidx.fragment.app.FragmentManager) {

@@ -1,5 +1,11 @@
 package com.example.kolmafiaandroid.fragments
 
+import com.example.kolmafiaandroid.ui.rowIcon
+import com.example.kolmafiaandroid.ui.listRow
+import com.example.kolmafiaandroid.ui.pick
+import com.example.kolmafiaandroid.ui.FullScreenDialog
+import com.example.kolmafiaandroid.ui.label
+import com.example.kolmafiaandroid.ui.dp
 import android.app.Dialog
 import android.graphics.Typeface
 import android.os.Bundle
@@ -42,7 +48,7 @@ import java.util.Locale
  * projects pinned at the top, and everything you do with scripts (run, edit, rename, delete, create, import,
  * install and update projects) in one place.
  */
-class ScriptsFragment : DialogFragment() {
+class ScriptsFragment : FullScreenDialog() {
 
     private val scriptsDir by lazy { File(requireContext().filesDir, "kolmafia/scripts") }
     private val relayDir by lazy { File(requireContext().filesDir, "kolmafia/relay") }
@@ -64,14 +70,9 @@ class ScriptsFragment : DialogFragment() {
         val scope: String = "global", val owner: String = ""
     )
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         // as a dialog, Back goes up a folder (or out of Projects) before it closes the manager
         dialog.setOnKeyListener { _, code, ev ->
             if (code == android.view.KeyEvent.KEYCODE_BACK && ev.action == android.view.KeyEvent.ACTION_UP && (showProjects || (dir ?: scriptsDir) != scriptsDir)) { goUp(); true } else false
@@ -79,21 +80,19 @@ class ScriptsFragment : DialogFragment() {
         return dialog
     }
 
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         scriptsDir.mkdirs()
         dir = scriptsDir
-        val page = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(KC.pick(0xFF121212.toInt(), 0xFFF5F5F5.toInt())) }
+        val page = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(KC.page) }
 
         embedded = !showsDialog
-        val fg = if (embedded) KC.text else 0xFFFFFFFF.toInt()
+        val fg = if (embedded) KC.text else KC.onAccent
         val head = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(8), if (embedded) 0 else dp(8), dp(8), if (embedded) 0 else dp(8))
-            if (!embedded) setBackgroundColor(0xFF2E7D32.toInt())
+            if (!embedded) setBackgroundColor(KC.bar)
         }
         fun headBtn(text: String, size: Float, click: () -> Unit) = TextView(ctx).apply {
             this.text = text; textSize = size; setTextColor(fg); typeface = Typeface.DEFAULT_BOLD
@@ -103,7 +102,7 @@ class ScriptsFragment : DialogFragment() {
         head.addView(backBtn)
         titleView = TextView(ctx).apply {
             textSize = if (embedded) 14f else 19f
-            setTextColor(if (embedded) KC.muted else 0xFFFFFFFF.toInt())
+            setTextColor(if (embedded) KC.muted else KC.onAccent)
             if (!embedded) typeface = Typeface.DEFAULT_BOLD
             if (embedded) setPadding(dp(8), 0, 0, 0)
         }
@@ -145,49 +144,15 @@ class ScriptsFragment : DialogFragment() {
 
     // ---------------------------------------------------------------- listing
 
-    private fun label(text: String, size: Float, color: Int, bold: Boolean = false) = TextView(requireContext()).apply {
-        this.text = text; textSize = size; setTextColor(color); if (bold) typeface = Typeface.DEFAULT_BOLD
-    }
-
     private fun section(title: String, action: String? = null, onAction: (() -> Unit)? = null) {
         val row = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(14), dp(8), dp(4)) }
-        row.addView(label(title, 12f, 0xFF4CAF50.toInt(), true).apply { letterSpacing = 0.1f }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        if (action != null) row.addView(label(action, 13f, 0xFF4CAF50.toInt(), true).apply { setPadding(dp(8), dp(4), dp(8), dp(4)); setOnClickListener { onAction?.invoke() } })
+        row.addView(label(title.uppercase(), 12f, KC.accent, true).apply { letterSpacing = 0.1f }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        if (action != null) row.addView(label(action, 13f, KC.accent, true).apply { setPadding(dp(8), dp(4), dp(8), dp(4)); setOnClickListener { onAction?.invoke() } })
         list.addView(row)
     }
 
-    private fun row(glyph: String, glyphColor: Int, name: String, detail: String, boldName: Boolean, onTap: () -> Unit, onLong: (() -> Unit)? = null): LinearLayout {
-        val r = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(11), dp(12), dp(11))
-            isClickable = true
-            setBackgroundResource(android.R.drawable.list_selector_background)
-            setOnClickListener { onTap() }
-            if (onLong != null) setOnLongClickListener { onLong(); true }
-        }
-        val ext = if (glyph.startsWith("f:")) glyph.substring(2) else ""
-        val iconRes = when {
-            glyph == "▸" -> R.drawable.ic_s_folder
-            glyph == "◆" -> R.drawable.ic_s_project
-            glyph == "◦" || (glyph.startsWith("f:") && ext.isEmpty()) -> R.drawable.ic_s_file
-            else -> 0
-        }
-        if (ext.isNotEmpty()) {
-            r.addView(android.widget.ImageView(requireContext()).apply { setImageDrawable(com.example.kolmafiaandroid.ui.ExtBadge(ext)) },
-                LinearLayout.LayoutParams(dp(30), dp(24)).apply { marginStart = dp(-1); marginEnd = dp(5) })
-        } else if (iconRes != 0) {
-            r.addView(android.widget.ImageView(requireContext()).apply {
-                setImageResource(iconRes)
-                setColorFilter(glyphColor)
-            }, LinearLayout.LayoutParams(dp(26), dp(26)).apply { marginEnd = dp(6) })
-        } else {
-            r.addView(label(glyph, 20f, glyphColor).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(28), ViewGroup.LayoutParams.WRAP_CONTENT))
-        }
-        val texts = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-        texts.addView(label(name, 16f, KC.text, boldName))
-        texts.addView(label(detail, 12f, KC.muted))
-        r.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+    private fun row(kind: String, tint: Int, name: String, detail: String, boldName: Boolean, onTap: () -> Unit, onLong: (() -> Unit)? = null): LinearLayout {
+        val r = listRow(requireContext(), name, detail, rowIcon(requireContext(), kind, tint), boldName, KC.text, onTap, onLong)
         list.addView(r, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         return r
     }
@@ -223,7 +188,7 @@ class ScriptsFragment : DialogFragment() {
             val projects = scanProjects()
             if (projects.isNotEmpty() || installing) {
                 val working = projects.count { it.name in busy } + (if (installing) 1 else 0)
-                row("◆", 0xFF4CAF50.toInt(), "Projects",
+                row("project", KC.accent, "Projects",
                     (if (working > 0) "$working working · " else "") + "${projects.size} installed from Git and SVN", true,
                     { showProjects = true; render(); scroll.scrollTo(0, 0) })
             }
@@ -239,10 +204,10 @@ class ScriptsFragment : DialogFragment() {
         val fmt = DateFormat.getDateInstance(DateFormat.MEDIUM)
         for (f in folders) {
             val n = f.listFiles()?.count { !hidden.matches(it.name) } ?: 0
-            row("▸", 0xFF4CAF50.toInt(), f.name, if (n == 1) "1 item" else "$n items", true, { dir = f; render(); scroll.scrollTo(0, 0) }, { itemMenu(f) })
+            row("folder", KC.accent, f.name, if (n == 1) "1 item" else "$n items", true, { dir = f; render(); scroll.scrollTo(0, 0) }, { itemMenu(f) })
         }
         for (f in files) {
-            row("f:" + f.extension, KC.muted, f.name, size(f.length()) + " · " + fmt.format(Date(f.lastModified())), false, { itemMenu(f) }, { itemMenu(f) })
+            row(if (f.extension.isEmpty()) "file" else "ext:" + f.extension, KC.muted, f.name, size(f.length()) + " · " + fmt.format(Date(f.lastModified())), false, { itemMenu(f) }, { itemMenu(f) })
         }
         if (atRoot) {
             val relay = (relayDir.listFiles() ?: emptyArray()).filter {
@@ -250,7 +215,7 @@ class ScriptsFragment : DialogFragment() {
             }.sortedBy { it.name }
             if (relay.isNotEmpty()) {
                 section("RELAY SCRIPTS")
-                for (f in relay) row("◦", KC.muted, f.name, "Opens in the Game tab", false, {
+                for (f in relay) row("file", KC.muted, f.name, "Opens in the Game tab", false, {
                     (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage(f.name)
                 })
             }
@@ -418,7 +383,7 @@ class ScriptsFragment : DialogFragment() {
         val kind = if (p.isGit) "Git · ${p.branch} · ${p.commit}" else "SVN · revision ${p.revision}"
         val who = if (p.scope == "user") "only ${p.owner}" else "everyone"
         val state = if (p.name in busy) "Working…" else "$kind · $who"
-        row("◆", if (p.isGit) 0xFF4CAF50.toInt() else 0xFFFFB300.toInt(), p.name, state, true, { if (p.name !in busy) projectMenu(p) }, { if (p.name !in busy) projectMenu(p) })
+        row("project", if (p.isGit) KC.accent else KC.warn, p.name, state, true, { if (p.name !in busy) projectMenu(p) }, { if (p.name !in busy) projectMenu(p) })
     }
 
     private fun projectMenu(p: Project) {
@@ -467,13 +432,11 @@ class ScriptsFragment : DialogFragment() {
 
     private fun changeScope(p: Project) {
         val who = KolEngineHost.currentUser.ifEmpty { "this account" }
-        ScrollSafeDialogBuilder(requireContext()).setTitle("Who gets ${p.name}?")
-            .setSingleChoiceItems(arrayOf("Everyone (all accounts)", "Only $who"), if (p.scope == "user") 1 else 0) { d, which ->
-                d.dismiss()
-                KolEngineHost.setProjectScope((if (p.isGit) "git/" else "svn/") + p.name, if (which == 1) "user" else "global") {
-                    activity?.runOnUiThread { if (isAdded) render() }
-                }
-            }.setNegativeButton("Cancel", null).show()
+        pick("Who gets ${p.name}?", listOf("Everyone (all accounts)", "Only $who"), selected = if (p.scope == "user") 1 else 0) { which ->
+            KolEngineHost.setProjectScope((if (p.isGit) "git/" else "svn/") + p.name, if (which == 1) "user" else "global") {
+                activity?.runOnUiThread { if (isAdded) render() }
+            }
+        }
     }
 
     /** Branches of a GitHub repository (default branch first), or null when they can't be fetched. */
@@ -513,12 +476,9 @@ class ScriptsFragment : DialogFragment() {
                 return@fetchBranches
             }
             val items = if (selected != null && selected !in names) listOf(selected) + names else names
-            var idx = items.indexOf(selected ?: names[0]).coerceAtLeast(0)
-            val labels = items.mapIndexed { i, n -> if (selected == null && i == 0) "$n (default)" else n }.toTypedArray()
-            ScrollSafeDialogBuilder(requireContext()).setTitle(title)
-                .setSingleChoiceItems(labels, idx) { _, which -> idx = which }
-                .setPositiveButton("OK") { _, _ -> onPick(items[idx]) }
-                .setNegativeButton("Cancel", null).show()
+            val idx = items.indexOf(selected ?: names[0]).coerceAtLeast(0)
+            val labels = items.mapIndexed { i, n -> if (selected == null && i == 0) "$n (default)" else n }
+            pick(title, labels, selected = idx) { which -> onPick(items[which]) }
         }
     }
 
@@ -563,7 +523,7 @@ class ScriptsFragment : DialogFragment() {
         val who = KolEngineHost.currentUser.ifEmpty { "this account" }
         val scopeBox = CheckBox(ctx).apply { text = "Only for $who (other accounts will not get these scripts)"; setTextColor(KC.soft) }
         box.addView(scopeBox)
-        box.addView(label("Popular", 12f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, dp(12), 0, dp(2)) })
+        box.addView(label("Popular", 12f, KC.accent, true).apply { setPadding(0, dp(12), 0, dp(2)) })
         fun popular(name: String, url: String, desc: String) {
             box.addView(label(name, 15f, KC.text, true).apply { setPadding(0, dp(8), 0, 0); setOnClickListener { input.setText(url) } })
             box.addView(label(desc, 12f, KC.muted).apply { setOnClickListener { input.setText(url) } })

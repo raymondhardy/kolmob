@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.FullScreenDialog
+import com.example.kolmafiaandroid.ui.dp
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -35,8 +37,8 @@ import org.json.JSONObject
  * A conversation list (channels and whispers, newest activity first, unread counts, a close button on each)
  * opens into bubbles. Updates follow KoLmafia's backoff: every 3 seconds live, every 10 when chat is away.
  */
-class ChatFragment : DialogFragment() {
-    private val green = 0xFF4CAF50.toInt()
+class ChatFragment : FullScreenDialog() {
+    private val green = KC.accent
     private val muted = KC.muted
     private val handler = Handler(Looper.getMainLooper())
     private var polling = false
@@ -71,14 +73,8 @@ class ChatFragment : DialogFragment() {
     private lateinit var jumpPill: TextView
     private lateinit var sendBtn: TextView
     private val drafts = mutableMapOf<String, String>()
-
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
     private fun ui(block: () -> Unit) { activity?.runOnUiThread { if (isAdded && view != null) block() } }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): android.app.Dialog =
         super.onCreateDialog(savedInstanceState).also {
@@ -107,7 +103,7 @@ class ChatFragment : DialogFragment() {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(KC.pick(0xFF121212.toInt(), 0xFFF2F2F2.toInt()))
+            setBackgroundColor(KC.page)
         }
         val header = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), 0) }
         backBtn = textBtn("‹") { closeConvo() }.apply { textSize = 24f }
@@ -161,7 +157,7 @@ class ChatFragment : DialogFragment() {
             hint = "Message"
             setHintTextColor(KC.hint)
             setTextColor(KC.text)
-            background = roundBg(KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt()), 22)
+            background = roundBg(KC.surface, 22)
             setPadding(dp(16), dp(10), dp(16), dp(10))
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             imeOptions = EditorInfo.IME_ACTION_SEND
@@ -243,7 +239,7 @@ class ChatFragment : DialogFragment() {
                 textSize = 13f; maxLines = 1
                 setTextColor(if (on) Color.BLACK else KC.soft)
                 if (unread > 0 || on) setTypeface(typeface, android.graphics.Typeface.BOLD)
-                background = roundBg(if (on) green else KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt()), 16)
+                background = roundBg(if (on) green else KC.surface, 16)
                 setPadding(dp(12), dp(6), dp(12), dp(6))
                 setOnClickListener { if (!on) { drafts[selected ?: ""] = input.text.toString(); openThread(k) } }
             }
@@ -394,7 +390,7 @@ class ChatFragment : DialogFragment() {
             val row = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(10), dp(10), dp(4), dp(10))
-                background = roundBg(KC.pick(0xFF1E1E1E.toInt(), 0xFFFFFFFF.toInt()), 14)
+                background = roundBg(KC.surface, 14)
                 setOnClickListener { openThread(k) }
             }
             val avatar = TextView(ctx).apply {
@@ -505,12 +501,12 @@ class ChatFragment : DialogFragment() {
                     for (c in cs.getSpans(0, cs.length, android.text.style.ForegroundColorSpan::class.java)) cs.removeSpan(c)
                     text = cs
                     setTextColor(Color.WHITE)
-                    background = roundBg(0xFF2E7D32.toInt(), 18)
+                    background = roundBg(KC.bar, 18)
                 } else if (event) {
                     text = sp; setTextColor(muted); gravity = Gravity.CENTER
                 } else {
                     text = sp; setTextColor(KC.soft)
-                    background = roundBg(KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt()), 18)
+                    background = roundBg(KC.surface, 18)
                 }
                 if (!event) setPadding(dp(12), dp(8), dp(12), dp(8))
                 setOnLongClickListener {

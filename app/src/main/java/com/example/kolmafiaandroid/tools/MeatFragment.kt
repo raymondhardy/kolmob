@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -29,7 +31,7 @@ import org.json.JSONObject
 /**
  * Meat manager: shows meat in hand, closet, and storage with move buttons.
  */
-class MeatFragment : DialogFragment() {
+class MeatFragment : FullScreenDialog() {
 
     private lateinit var handValueView: TextView
     private lateinit var closetValueView: TextView
@@ -38,16 +40,7 @@ class MeatFragment : DialogFragment() {
     private var closetMeat = 0L
     private var storageMeat = 0L
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -60,7 +53,7 @@ class MeatFragment : DialogFragment() {
         }
 
         // Title
-        view.addView(label(ctx, "Meat Manager", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
+        view.addView(screenTitle(ctx, "Meat Manager").apply { setPadding(0, 0, 0, dp(ctx, 16)) })
 
         // Three tiles
         val handTile = tile(ctx, "In Hand", "0", null) as LinearLayout
@@ -87,7 +80,7 @@ class MeatFragment : DialogFragment() {
         return Button(ctx).apply {
             this.text = text
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF4CAF50.toInt())
+            setBackgroundColor(KC.accent)
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             setOnClickListener { onClick() }
         }
@@ -197,8 +190,6 @@ class MeatFragment : DialogFragment() {
     private fun formatNumber(n: Long): String {
         return java.text.NumberFormat.getIntegerInstance().format(n)
     }
-
-    private fun dp(context: android.content.Context, v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
         fun show(fragmentManager: androidx.fragment.app.FragmentManager) {

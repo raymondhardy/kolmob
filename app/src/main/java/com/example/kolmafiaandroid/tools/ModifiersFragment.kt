@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -21,25 +23,19 @@ import com.example.kolmafiaandroid.ui.label
 import org.json.JSONObject
 
 /** Your character's current numeric modifiers, straight from KoLmafia's modifier engine. */
-class ModifiersFragment : DialogFragment() {
+class ModifiersFragment : FullScreenDialog() {
     private var mods = listOf<Pair<String, Double>>()
     private var filter = ""
     private var stats = listOf<String>()
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, "Modifiers", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(screenTitle(ctx, "Modifiers"))
         root.addView(EditText(ctx).apply {
             hint = "Filter (e.g. resistance, item, damage)"
             maxLines = 1
@@ -89,13 +85,13 @@ class ModifiersFragment : DialogFragment() {
             col.addView(label(ctx, n, 16f, KC.text, true))
             col.addView(label(ctx, sub, 12f, KC.muted))
             row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(label(ctx, v, 16f, 0xFF4CAF50.toInt(), true))
+            row.addView(label(ctx, v, 16f, KC.accent, true))
             body.addView(row)
         }
         for ((name, v) in mods.filter { filter.isEmpty() || it.first.lowercase().contains(filter) }) {
             val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(ctx, 4), dp(ctx, 10), dp(ctx, 4), dp(ctx, 10)) }
             row.addView(label(ctx, name, 15f, KC.text), LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(label(ctx, fmt(v), 15f, if (v >= 0) 0xFF4CAF50.toInt() else 0xFFEF5350.toInt(), true))
+            row.addView(label(ctx, fmt(v), 15f, if (v >= 0) KC.accent else KC.bad, true))
             body.addView(row)
         }
     }

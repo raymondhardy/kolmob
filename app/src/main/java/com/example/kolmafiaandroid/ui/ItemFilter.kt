@@ -113,12 +113,11 @@ class ItemFilterBar(ctx: Context, private val key: String, private val onChange:
     }
 
     private fun chooseSort() {
-        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(context).setTitle("Sort items")
-            .setSingleChoiceItems(sorts.toTypedArray(), sort) { d, i ->
-                sort = i
-                prefs.edit().putInt("itemsort_$key", i).apply()
-                d.dismiss(); refreshLabels(); onChange()
-            }.setNegativeButton("Cancel", null).show()
+        context.pick("Sort items", sorts, searchable = false, selected = sort) { i ->
+            sort = i
+            prefs.edit().putInt("itemsort_$key", i).apply()
+            refreshLabels(); onChange()
+        }
     }
 
     private fun matches(name: String, k: String): Boolean = when (k) {

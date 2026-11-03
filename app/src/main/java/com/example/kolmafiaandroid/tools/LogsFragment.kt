@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -34,7 +36,7 @@ import java.util.Locale
 /**
  * Log viewer for KoLmafia session logs and debug files.
  */
-class LogsFragment : DialogFragment() {
+class LogsFragment : FullScreenDialog() {
 
     private lateinit var listView: ListView
     private lateinit var searchEdit: EditText
@@ -49,16 +51,7 @@ class LogsFragment : DialogFragment() {
         val lastModified: Long
     )
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -71,7 +64,7 @@ class LogsFragment : DialogFragment() {
         }
 
         // Title
-        view.addView(label(ctx, "Log Viewer", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
+        view.addView(screenTitle(ctx, "Log Viewer").apply { setPadding(0, 0, 0, dp(ctx, 16)) })
 
         // Search box
         searchEdit = EditText(ctx).apply {
@@ -249,15 +242,15 @@ class LogsFragment : DialogFragment() {
         }
 
         // Title
-        view.addView(label(ctx, title, 16f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 12)) })
+        view.addView(label(ctx, title, 16f, KC.accent, true).apply { setPadding(0, 0, 0, dp(ctx, 12)) })
 
         // Truncated notice
         if (isTruncated) {
-            val notice = label(ctx, "Showing last 200 KB (truncated)", 12f, KC.pick(0xFFFFB74D.toInt(), 0xFFE65100.toInt()))
+            val notice = label(ctx, "Showing last 200 KB (truncated)", 12f, KC.warn)
             val loadAllBtn = android.widget.Button(ctx).apply {
                 text = "Load all"
                 setTextColor(KC.onAccent)
-                setBackgroundColor(0xFF4CAF50.toInt())
+                setBackgroundColor(KC.accent)
                 setPadding(dp(ctx, 16), dp(ctx, 8), dp(ctx, 16), dp(ctx, 8))
                 setOnClickListener { loadFullFile(fullFile, notice, this) }
             }
@@ -316,14 +309,14 @@ class LogsFragment : DialogFragment() {
         val copyBtn = android.widget.Button(ctx).apply {
             text = "Copy"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF4CAF50.toInt())
+            setBackgroundColor(KC.accent)
             setPadding(dp(ctx, 24), dp(ctx, 12), dp(ctx, 24), dp(ctx, 12))
             setOnClickListener { copyToClipboard(content) }
         }
         val shareBtn = android.widget.Button(ctx).apply {
             text = "Share"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF1E88E5.toInt())
+            setBackgroundColor(KC.info)
             setPadding(dp(ctx, 24), dp(ctx, 12), dp(ctx, 24), dp(ctx, 12))
             setOnClickListener { shareContent(content) }
         }
@@ -373,8 +366,6 @@ class LogsFragment : DialogFragment() {
             else -> String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024.0))
         }
     }
-
-    private fun dp(context: android.content.Context, v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
         fun show(fragmentManager: androidx.fragment.app.FragmentManager) {

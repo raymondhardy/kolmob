@@ -1,5 +1,8 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.Dropdown
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import android.app.Dialog
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -25,37 +28,25 @@ import org.json.JSONObject
  * Boost: pick a goal and see what you can use, cast or do (potions, buffs, one-use items) to push it higher than your
  * current gear does. This is KoLmafia's own maximizer with the equipment left out; tap a line to do it.
  */
-class BoostFragment : DialogFragment() {
-    private lateinit var goal: Spinner
+class BoostFragment : FullScreenDialog() {
+    private lateinit var goal: Dropdown
     private lateinit var custom: EditText
     private lateinit var status: TextView
     private lateinit var results: LinearLayout
     private var busy = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 16)) }
-        col.addView(label(ctx, "Boost", 20f, 0xFF4CAF50.toInt(), true))
+        col.addView(screenTitle(ctx, "Boost"))
         col.addView(label(ctx, "What you can use or cast to raise a goal, on top of the gear you are wearing. Put on the best gear first (Gear tab).", 12f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) })
         val names = GearGoals.list.map { it.first } + "Custom…"
-        goal = Spinner(ctx).apply { adapter = ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, names) }
+        goal = Dropdown(ctx, "Goal", names) { pos -> custom.visibility = if (pos == GearGoals.list.size) View.VISIBLE else View.GONE }
         col.addView(goal)
         custom = EditText(ctx).apply { hint = "Maximizer expression, e.g. item drop, -combat"; setTextColor(KC.text); setHintTextColor(KC.hint); visibility = View.GONE; setSingleLine() }
         col.addView(custom)
-        goal.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                custom.visibility = if (pos == GearGoals.list.size) View.VISIBLE else View.GONE
-            }
-            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-        }
         col.addView(android.widget.Button(ctx).apply { text = "Find boosts"; setOnClickListener { find() } })
         status = label(ctx, "", 13f, KC.muted).apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 4)) }
         col.addView(status)
@@ -66,7 +57,7 @@ class BoostFragment : DialogFragment() {
     }
 
     private fun expression(): String {
-        val i = goal.selectedItemPosition
+        val i = goal.selectedIndex
         return if (i in GearGoals.list.indices) GearGoals.list[i].second else custom.text.toString().trim()
     }
 
@@ -111,7 +102,7 @@ class BoostFragment : DialogFragment() {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(ctx, 8), dp(ctx, 10), dp(ctx, 8), dp(ctx, 10))
                 setOnClickListener { use(cmd) }
-                addView(TextView(ctx).apply { text = kind; textSize = 11f; setTextColor(0xFF4CAF50.toInt()); setTypeface(typeface, android.graphics.Typeface.BOLD) })
+                addView(TextView(ctx).apply { text = kind; textSize = 11f; setTextColor(KC.accent); setTypeface(typeface, android.graphics.Typeface.BOLD) })
                 addView(TextView(ctx).apply { text = b.getString("text"); textSize = 14f; setTextColor(KC.soft) })
             }
             results.addView(row)

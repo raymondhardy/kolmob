@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid
 
+import com.example.kolmafiaandroid.ui.Dropdown
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -320,7 +321,7 @@ class MainActivity : AppCompatActivity() {
                 setBackgroundResource(tv.resourceId)
                 setOnClickListener { sheet.dismiss(); action() }
             }
-            r.addView(android.widget.ImageView(this).apply { setImageResource(icon); setColorFilter(0xFF4CAF50.toInt()) },
+            r.addView(android.widget.ImageView(this).apply { setImageResource(icon); setColorFilter(KC.accent) },
                 android.widget.LinearLayout.LayoutParams((28 * dp).toInt(), (28 * dp).toInt()).apply { marginEnd = (20 * dp).toInt() })
             val texts = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL }
             texts.addView(TextView(this).apply { text = title; textSize = 16f; setTextColor(KC.text) })
@@ -415,21 +416,13 @@ class MainActivity : AppCompatActivity() {
         })
         box.addView(note("Chat only polls KoL while you are active; once chat goes quiet (away mode) it stops until you open the panel, unless chat alerts are on.", 12f))
         box.addView(note("Keep logs for", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
-        val keepSpinner = android.widget.Spinner(this).apply {
-            adapter = android.widget.ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, LogPruner.choices.map { it.second })
-            setSelection(LogPruner.choices.indexOfFirst { it.first == LogPruner.keepDays(this@MainActivity) }.coerceAtLeast(0))
-            var first = true
-            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                    if (first) { first = false; return }
-                    LogPruner.setKeepDays(this@MainActivity, LogPruner.choices[pos].first)
-                    Thread {
-                        val n = LogPruner.prune(this@MainActivity)
-                        if (n > 0) runOnUiThread { android.widget.Toast.makeText(this@MainActivity, "Deleted $n old log file${if (n == 1) "" else "s"}", android.widget.Toast.LENGTH_SHORT).show() }
-                    }.start()
-                }
-                override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-            }
+        val keepSpinner = Dropdown(this, "Keep logs for", LogPruner.choices.map { it.second },
+            LogPruner.choices.indexOfFirst { it.first == LogPruner.keepDays(this) }.coerceAtLeast(0)) { pos ->
+            LogPruner.setKeepDays(this, LogPruner.choices[pos].first)
+            Thread {
+                val n = LogPruner.prune(this)
+                if (n > 0) runOnUiThread { android.widget.Toast.makeText(this, "Deleted $n old log file${if (n == 1) "" else "s"}", android.widget.Toast.LENGTH_SHORT).show() }
+            }.start()
         }
         box.addView(keepSpinner)
         box.addView(note("Session, chat and debug logs older than this are deleted when you pick it and each time the app starts."))
@@ -682,13 +675,13 @@ class MainActivity : AppCompatActivity() {
             }
             elevation = 6 * dp
             contentDescription = "Chat"
-            addView(android.widget.ImageView(this@MainActivity).apply { setImageResource(R.drawable.web_chat); setColorFilter(0xFFFFFFFF.toInt()) },
+            addView(android.widget.ImageView(this@MainActivity).apply { setImageResource(R.drawable.web_chat); setColorFilter(KC.onAccent) },
                 android.widget.FrameLayout.LayoutParams((22 * dp).toInt(), (22 * dp).toInt(), android.view.Gravity.CENTER).apply { marginStart = (2 * dp).toInt() })
         }
         val badge = TextView(this).apply {
-            textSize = 10f; setTextColor(0xFFFFFFFF.toInt()); gravity = android.view.Gravity.CENTER
+            textSize = 10f; setTextColor(KC.onAccent); gravity = android.view.Gravity.CENTER
             setPadding((4 * dp).toInt(), 0, (4 * dp).toInt(), 0)
-            background = android.graphics.drawable.GradientDrawable().apply { setColor(0xFFE53935.toInt()); cornerRadius = 9 * dp }
+            background = android.graphics.drawable.GradientDrawable().apply { setColor(KC.danger); cornerRadius = 9 * dp }
             visibility = View.GONE
         }
         tab.addView(badge, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, (18 * dp).toInt(), android.view.Gravity.TOP or android.view.Gravity.START).apply { topMargin = (2 * dp).toInt() })

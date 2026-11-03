@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -35,7 +37,7 @@ import org.json.JSONObject
 /**
  * Database browser for items, monsters, skills, and effects.
  */
-class DatabaseFragment : DialogFragment() {
+class DatabaseFragment : FullScreenDialog() {
 
     private lateinit var searchEdit: EditText
     private lateinit var listView: ListView
@@ -55,16 +57,7 @@ class DatabaseFragment : DialogFragment() {
         "effect" to "Effects"
     )
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -77,7 +70,7 @@ class DatabaseFragment : DialogFragment() {
         }
 
         // Title
-        view.addView(label(ctx, "Database", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
+        view.addView(screenTitle(ctx, "Database").apply { setPadding(0, 0, 0, dp(ctx, 16)) })
 
         // Kind chips
         chipContainer = LinearLayout(ctx).apply {
@@ -136,7 +129,7 @@ class DatabaseFragment : DialogFragment() {
             val child = chipContainer.getChildAt(i) as LinearLayout
             val chipTag = child.tag as String
             val isSelected = chipTag == kind
-            child.setBackgroundColor(if (isSelected) 0xFF4CAF50.toInt() else KC.faint)
+            child.setBackgroundColor(if (isSelected) KC.accent else KC.faint)
         }
         searchEdit.text?.clear()
         searchResults.clear()
@@ -282,8 +275,6 @@ class DatabaseFragment : DialogFragment() {
             .create()
             .show()
     }
-
-    private fun dp(context: android.content.Context, v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
         fun show(fragmentManager: androidx.fragment.app.FragmentManager) {

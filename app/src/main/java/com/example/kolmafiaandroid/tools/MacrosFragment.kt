@@ -1,5 +1,10 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.listRow
+import com.example.kolmafiaandroid.ui.Dropdown
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
+import com.example.kolmafiaandroid.ui.sectionLabel
 import android.app.Dialog
 import android.content.Context
 import android.os.Bundle
@@ -119,23 +124,17 @@ object MacroStore {
 }
 
 /** Macros (saved command lists) and KoLmafia aliases, in one place. */
-class MacrosFragment : DialogFragment() {
+class MacrosFragment : FullScreenDialog() {
     private lateinit var body: LinearLayout
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).apply { requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
         val head = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
-        head.addView(label(ctx, "Macros and aliases", 20f, 0xFF4CAF50.toInt(), true), LinearLayout.LayoutParams(0, -2, 1f))
-        head.addView(label(ctx, "Close", 15f, 0xFF4CAF50.toInt()).apply { setPadding(dp(ctx, 12), dp(ctx, 8), 0, dp(ctx, 8)); setOnClickListener { dismiss() } })
+        head.addView(screenTitle(ctx, "Macros and aliases"), LinearLayout.LayoutParams(0, -2, 1f))
+        head.addView(label(ctx, "Close", 15f, KC.accent).apply { setPadding(dp(ctx, 12), dp(ctx, 8), 0, dp(ctx, 8)); setOnClickListener { dismiss() } })
         root.addView(head)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         root.addView(ScrollView(ctx).apply { addView(body) }, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -143,19 +142,10 @@ class MacrosFragment : DialogFragment() {
         return root
     }
 
-    private fun section(text: String) = label(requireContext(), text.uppercase(), 12f, 0xFF4CAF50.toInt()).apply {
-        setPadding(0, dp(requireContext(), 18), 0, dp(requireContext(), 4)); letterSpacing = 0.1f
-    }
+    private fun section(text: String) = sectionLabel(requireContext(), text, 18)
 
-    private fun row(title: String, sub: String, click: () -> Unit, long: (() -> Unit)? = null): View {
-        val ctx = requireContext()
-        val r = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 4), dp(ctx, 12), dp(ctx, 4), dp(ctx, 12)) }
-        r.addView(label(ctx, title, 16f, KC.text))
-        if (sub.isNotEmpty()) r.addView(label(ctx, sub, 12f, KC.muted))
-        clickable(r, click)
-        if (long != null) r.setOnLongClickListener { long(); true }
-        return r
-    }
+    private fun row(title: String, sub: String, click: () -> Unit, long: (() -> Unit)? = null, titleColor: Int = KC.text): View =
+        listRow(requireContext(), title, sub, null, false, titleColor, click, long)
 
     private fun render() {
         val ctx = requireContext()
@@ -170,7 +160,7 @@ class MacrosFragment : DialogFragment() {
                 MacroStore.run(m) { activity?.runOnUiThread { if (isAdded) Toast.makeText(ctx, "${m.name} finished", Toast.LENGTH_SHORT).show() } }
             }, { editMacro(m) }))
         }
-        body.addView(row("New macro", "Name it and list the commands, one per line", { editMacro(null) }).also { (it as LinearLayout).getChildAt(0).let { t -> (t as TextView).setTextColor(0xFF4CAF50.toInt()) } })
+        body.addView(row("New macro", "Name it and list the commands, one per line", { editMacro(null) }, null, KC.accent))
 
         body.addView(section("Aliases"))
         body.addView(label(ctx, "An alias is a short word that stands for a longer command, usable in the Console. Stored by KoLmafia.", 13f, KC.muted).apply { setPadding(0, 0, 0, dp(ctx, 6)) })
@@ -189,10 +179,7 @@ class MacrosFragment : DialogFragment() {
             minLines = 5; gravity = android.view.Gravity.TOP
             setText(existing?.lines?.joinToString("\n") ?: "")
         }
-        val when_ = android.widget.Spinner(ctx).apply {
-            adapter = android.widget.ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, MACRO_SCHEDULES.map { it.second })
-            setSelection(MACRO_SCHEDULES.indexOfFirst { it.first == (existing?.schedule ?: "manual") }.coerceAtLeast(0))
-        }
+        val when_ = Dropdown(ctx, "When to run", MACRO_SCHEDULES.map { it.second }, MACRO_SCHEDULES.indexOfFirst { it.first == (existing?.schedule ?: "manual") }.coerceAtLeast(0))
         col.addView(name); col.addView(cmds)
         col.addView(TextView(ctx).apply { text = "When to run"; textSize = 12f; setTextColor(KC.muted); setPadding(0, dp(ctx, 10), 0, 0) })
         col.addView(when_)
@@ -200,7 +187,7 @@ class MacrosFragment : DialogFragment() {
             .setPositiveButton("Save") { _, _ ->
                 val n = name.text.toString().trim()
                 if (n.isEmpty()) { Toast.makeText(ctx, "Give the macro a name", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
-                val m = Macro(n, cmds.text.toString().lines(), MACRO_SCHEDULES[when_.selectedItemPosition].first)
+                val m = Macro(n, cmds.text.toString().lines(), MACRO_SCHEDULES[when_.selectedIndex].first)
                 val all = MacroStore.load(ctx).filter { it.name != existing?.name && it.name != n } + m
                 MacroStore.save(ctx, all.sortedBy { it.name.lowercase() }); render()
             }.setNegativeButton("Cancel", null)

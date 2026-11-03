@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.FullScreenDialog
+import com.example.kolmafiaandroid.ui.KC
 import android.app.AlertDialog
 import android.app.Dialog
 import android.os.Bundle
@@ -21,18 +23,9 @@ import com.google.android.material.appbar.MaterialToolbar
 /**
  * Full-screen dialog showing the list of available tools.
  */
-class ToolsFragment : DialogFragment() {
+class ToolsFragment : FullScreenDialog() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -96,7 +89,7 @@ class ToolsFragment : DialogFragment() {
                 return HeaderHolder(TextView(context).apply {
                     textSize = 12f
                     letterSpacing = 0.1f
-                    setTextColor(0xFF4CAF50.toInt())
+                    setTextColor(KC.accent)
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                     setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (4 * d).toInt())
                     layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)

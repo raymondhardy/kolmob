@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -27,27 +28,24 @@ import java.io.File
  * Combat script (.ccs) editor: a text editor with one-tap snippets for the common lines
  * (attack, skill, item, sections, conditions). Files live in KoLmafia's ccs/ folder.
  */
-class CcsEditorFragment : DialogFragment() {
+class CcsEditorFragment : FullScreenDialog() {
     private lateinit var file: File
     private lateinit var editor: EditText
     private var dirty = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
         val name = arguments?.getString("name") ?: "new"
         file = File(ccsDir(requireContext()), if (name.endsWith(".ccs")) name else "$name.ccs")
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 12), dp(ctx, 12), dp(ctx, 12), dp(ctx, 8)) }
         val head = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        head.addView(label(ctx, "Combat script · " + file.nameWithoutExtension, 18f, 0xFF4CAF50.toInt(), true), LinearLayout.LayoutParams(0, -2, 1f))
-        head.addView(label(ctx, "Save", 16f, 0xFF4CAF50.toInt(), true).apply {
+        head.addView(label(ctx, "Combat script · " + file.nameWithoutExtension, 18f, KC.accent, true), LinearLayout.LayoutParams(0, -2, 1f))
+        head.addView(label(ctx, "Save", 16f, KC.accent, true).apply {
             setPadding(dp(ctx, 16), dp(ctx, 8), dp(ctx, 8), dp(ctx, 8))
             com.example.kolmafiaandroid.ui.clickable(this) { save() }
         })
@@ -91,9 +89,9 @@ class CcsEditorFragment : DialogFragment() {
         TextView(this).apply {
             this.text = text
             textSize = 13f
-            setTextColor(0xFF4CAF50.toInt())
+            setTextColor(KC.accent)
             setPadding(dp(context, 14), dp(context, 8), dp(context, 14), dp(context, 8))
-            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 20f * resources.displayMetrics.density; setStroke(dp(context, 1), 0x664CAF50) }
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 20f * resources.displayMetrics.density; setStroke(dp(context, 1), KC.accentLine) }
             layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(context, 8) }
             com.example.kolmafiaandroid.ui.clickable(this) { onClick() }
         }

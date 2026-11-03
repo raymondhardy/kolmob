@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -30,7 +32,7 @@ import kotlinx.coroutines.withContext
 /**
  * Maximizer screen wrapping KoLmafia's `maximize` command.
  */
-class MaximizerFragment : DialogFragment() {
+class MaximizerFragment : FullScreenDialog() {
 
     private lateinit var expressionEdit: EditText
     private lateinit var outputText: TextView
@@ -67,16 +69,7 @@ class MaximizerFragment : DialogFragment() {
     private var isCollecting = false
     private var lastOutputTime = 0L
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -89,7 +82,7 @@ class MaximizerFragment : DialogFragment() {
         }
 
         // Title
-        view.addView(label(ctx, "Maximizer", 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, 0, 0, dp(ctx, 16)) })
+        view.addView(screenTitle(ctx, "Maximizer").apply { setPadding(0, 0, 0, dp(ctx, 16)) })
 
         // Preset chips
         val chipContainer = LinearLayout(ctx).apply {
@@ -119,21 +112,21 @@ class MaximizerFragment : DialogFragment() {
         previewBtn = Button(ctx).apply {
             text = "Preview"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF1E88E5.toInt())
+            setBackgroundColor(KC.info)
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             setOnClickListener { runPreview() }
         }
         equipBtn = Button(ctx).apply {
             text = "Equip"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFF4CAF50.toInt())
+            setBackgroundColor(KC.accent)
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             setOnClickListener { runEquip() }
         }
         undoBtn = Button(ctx).apply {
             text = "Undo"
             setTextColor(KC.onAccent)
-            setBackgroundColor(0xFFE53935.toInt())
+            setBackgroundColor(KC.danger)
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             setOnClickListener { runUndo() }
         }
@@ -248,8 +241,6 @@ class MaximizerFragment : DialogFragment() {
             }
         }
     }
-
-    private fun dp(context: android.content.Context, v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
 
     companion object {
         fun show(fragmentManager: androidx.fragment.app.FragmentManager) {

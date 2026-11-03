@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -22,24 +24,18 @@ import org.json.JSONObject
 import java.text.NumberFormat
 
 /** Look up any player's public profile (the real `showplayer.php`, parsed by KoLmafia's ProfileRequest). */
-class ProfileFragment : DialogFragment() {
+class ProfileFragment : FullScreenDialog() {
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
     private lateinit var input: EditText
     private val fmt = NumberFormat.getIntegerInstance()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, "Player lookup", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(screenTitle(ctx, "Player lookup"))
         input = EditText(ctx).apply {
             hint = "Player name or #id"
             maxLines = 1
@@ -71,7 +67,7 @@ class ProfileFragment : DialogFragment() {
                 fun row(k: String, v: String) {
                     if (v.isBlank() || v == "null") return
                     val r = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 4), dp(ctx, 8), dp(ctx, 4), dp(ctx, 8)) }
-                    r.addView(label(ctx, k.uppercase(), 11f, 0xFF4CAF50.toInt(), true))
+                    r.addView(label(ctx, k.uppercase(), 11f, KC.accent, true))
                     r.addView(label(ctx, v, 16f, KC.text))
                     body.addView(r)
                 }

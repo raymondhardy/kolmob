@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.Dropdown
 import com.example.kolmafiaandroid.ui.stopFollowingOnDragUp
 import android.app.Dialog
 import android.graphics.Typeface
@@ -54,21 +55,11 @@ class ScriptRunSheet : DialogFragment() {
         minLevel = prefs.getInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, 1).coerceIn(0, 3)
         val levelRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
         levelRow.addView(TextView(ctx).apply { this.text = "Log level"; textSize = 13f })
-        val levelSpinner = android.widget.Spinner(ctx).apply {
-            adapter = android.widget.ArrayAdapter(
-                ctx, android.R.layout.simple_spinner_dropdown_item,
-                com.example.kolmafiaandroid.ui.LogLevels.labels,
-            )
-            setSelection(minLevel)
-            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(p: android.widget.AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                    if (pos == minLevel) return
-                    minLevel = pos
-                    prefs.edit().putInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, pos).apply()
-                    rebuild()
-                }
-                override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-            }
+        val levelSpinner = Dropdown(ctx, "Log level", com.example.kolmafiaandroid.ui.LogLevels.labels.toList(), minLevel) { pos ->
+            if (pos == minLevel) return@Dropdown
+            minLevel = pos
+            prefs.edit().putInt(com.example.kolmafiaandroid.ui.LogLevels.PREF, pos).apply()
+            rebuild()
         }
         levelRow.addView(levelSpinner, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = (8 * dp).toInt() })
         followBtn = Button(ctx).apply {
@@ -184,15 +175,13 @@ class ScriptRunSheet : DialogFragment() {
             val names = files.map { com.example.kolmafiaandroid.ui.ScriptFiles.relName(dir, it) }
             val dp = activity.resources.displayMetrics.density
             val col = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding((20 * dp).toInt(), (12 * dp).toInt(), (20 * dp).toInt(), 0) }
-            val spinner = android.widget.Spinner(activity).apply {
-                adapter = android.widget.ArrayAdapter(activity, android.R.layout.simple_spinner_dropdown_item, names)
-            }
+            val spinner = Dropdown(activity, "Script", names)
             col.addView(spinner)
             val args = android.widget.EditText(activity).apply { hint = "Arguments (optional)"; setSingleLine() }
             col.addView(args)
             com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(activity).setTitle("Run a script").setView(col)
                 .setPositiveButton("Run") { _, _ ->
-                    val name = names[spinner.selectedItemPosition]
+                    val name = names[spinner.selectedIndex]
                     val extra = args.text.toString().trim()
                     run(activity, name, if (extra.isEmpty()) "call $name" else "call $name $extra")
                 }

@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.Dropdown
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder
 import android.os.Bundle
 import android.text.InputType
@@ -34,7 +36,7 @@ import org.json.JSONObject
  * Every setting is a switch you tap, a drop-down you pick from, or a value you type, with a line saying what it does.
  * The full list of KoLmafia preferences is still one tap away.
  */
-class SettingsFragment : DialogFragment() {
+class SettingsFragment : FullScreenDialog() {
     private lateinit var titleView: TextView
     private lateinit var backView: TextView
     private lateinit var body: FrameLayout
@@ -42,10 +44,6 @@ class SettingsFragment : DialogFragment() {
     private var breakfastWhich = "Hardcore"
     private var lists: JSONObject? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
@@ -378,19 +376,7 @@ class SettingsFragment : DialogFragment() {
         row.gravity = Gravity.START
         // the text block was sized for a horizontal row (weight, zero width); stacked above the drop-down it must wrap
         texts.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        val sp = Spinner(ctx).apply {
-            adapter = ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, labels)
-            setSelection(selected)
-        }
-        row.addView(sp, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        var first = true
-        sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                if (first) { first = false; return }
-                picked(pos)
-            }
-            override fun onNothingSelected(p: AdapterView<*>?) {}
-        }
+        row.addView(Dropdown(ctx, title, labels, selected) { picked(it) }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     }
 
     /** A drop-down backed by a preference whose value is one of [options] (value to label). */

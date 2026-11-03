@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -26,7 +28,7 @@ import org.json.JSONObject
 import java.text.NumberFormat
 
 /** Your mall store: listings, reprice, take back, and add from inventory (KoLmafia's `shop` command). */
-class StoreFragment : DialogFragment() {
+class StoreFragment : FullScreenDialog() {
     private class Listing(val name: String, val img: String, val quantity: Int, val price: Long, val limit: Int, val lowest: Long)
 
     private var listings = listOf<Listing>()
@@ -34,20 +36,14 @@ class StoreFragment : DialogFragment() {
     private lateinit var status: TextView
     private val fmt = NumberFormat.getIntegerInstance()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
         val head = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        head.addView(label(ctx, "My store", 20f, 0xFF4CAF50.toInt(), true), LinearLayout.LayoutParams(0, -2, 1f))
-        head.addView(label(ctx, "+ Add item", 15f, 0xFF4CAF50.toInt(), true).apply {
+        head.addView(screenTitle(ctx, "My store"), LinearLayout.LayoutParams(0, -2, 1f))
+        head.addView(label(ctx, "+ Add item", 15f, KC.accent, true).apply {
             setPadding(dp(ctx, 12), dp(ctx, 8), dp(ctx, 4), dp(ctx, 8))
             com.example.kolmafiaandroid.ui.clickable(this) { addItem() }
         })
@@ -95,7 +91,7 @@ class StoreFragment : DialogFragment() {
             if (l.limit > 0) sub += "limit ${l.limit}/day"
             col.addView(label(ctx, sub.joinToString(" · "), 12f, KC.muted))
             row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(label(ctx, fmt.format(l.price), 15f, 0xFF4CAF50.toInt()))
+            row.addView(label(ctx, fmt.format(l.price), 15f, KC.accent))
             com.example.kolmafiaandroid.ui.clickable(row) { manage(l) }
             body.addView(row)
         }

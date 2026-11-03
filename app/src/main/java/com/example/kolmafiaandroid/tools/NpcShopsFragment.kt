@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -26,7 +27,7 @@ import org.json.JSONObject
 import java.text.NumberFormat
 
 /** NPC stores open to you right now; pick a store, pick an item, buy it (runs `buy`, which uses NPC stores only). */
-class NpcShopsFragment : DialogFragment() {
+class NpcShopsFragment : FullScreenDialog() {
     private val coin get() = arguments?.getBoolean("coin") == true
     private var shops = listOf<JSONObject>()
     private var showLocked = false
@@ -34,18 +35,12 @@ class NpcShopsFragment : DialogFragment() {
     private lateinit var status: TextView
     private val fmt = NumberFormat.getIntegerInstance()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, if (coin) "Coinmasters" else "NPC shops", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(label(ctx, if (coin) "Coinmasters" else "NPC shops", 20f, KC.accent, true))
         status = label(ctx, "Finding stores open to you…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
@@ -88,7 +83,7 @@ class NpcShopsFragment : DialogFragment() {
         val hidden = shops.size - visible.size
         if (coin && (hidden > 0 || showLocked)) {
             val row = LinearLayout(ctx).apply { setPadding(dp(ctx, 4), dp(ctx, 16), dp(ctx, 4), dp(ctx, 16)) }
-            row.addView(label(ctx, if (showLocked) "Hide locked stores" else "Show $hidden locked stores", 14f, 0xFF4CAF50.toInt(), true))
+            row.addView(label(ctx, if (showLocked) "Hide locked stores" else "Show $hidden locked stores", 14f, KC.accent, true))
             clickable(row) { showLocked = !showLocked; render() }
             body.addView(row)
         }

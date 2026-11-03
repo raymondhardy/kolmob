@@ -11,17 +11,21 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
+import android.content.Context
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialog
 
 /** One selectable row in [pickList]. Rows with the same [group] sit under one header. */
-class PickRow(val title: String, val subtitle: String = "", val group: String = "", val locked: Boolean = false, val tag: Any? = null, val img: String = "")
+class PickRow(val title: String, val subtitle: String = "", val group: String = "", val locked: Boolean = false, val tag: Any? = null, val img: String = "", val current: Boolean = false)
 
 /**
  * Mobile-friendly picker: a tall bottom sheet with a search box, rows grouped under small headers,
  * short two-line rows instead of long strings, and (optionally) locked rows hidden until asked for.
  */
-fun Fragment.pickList(
+fun Fragment.pickList(title: String, rows: List<PickRow>, initialQuery: String = "", lockedLabel: String = "Show locked", searchable: Boolean = true, onLongPick: ((PickRow) -> Unit)? = null, itemFilterKey: String? = null, onPick: (PickRow) -> Unit) =
+    requireContext().pickList(title, rows, initialQuery, lockedLabel, searchable, onLongPick, itemFilterKey, onPick)
+
+fun Context.pickList(
     title: String,
     rows: List<PickRow>,
     initialQuery: String = "",
@@ -32,8 +36,8 @@ fun Fragment.pickList(
     itemFilterKey: String? = null,
     onPick: (PickRow) -> Unit,
 ) {
-    val ctx = requireContext()
-    val green = 0xFF4CAF50.toInt()
+    val ctx = this
+    val green = KC.accent
     var showLocked = false
     var query = initialQuery.trim().lowercase()
     val hasLocked = rows.any { it.locked }
@@ -68,7 +72,7 @@ fun Fragment.pickList(
                 outer.addView(iv, LinearLayout.LayoutParams(dp(ctx, 36), dp(ctx, 36)).apply { marginEnd = dp(ctx, 14) })
             }
             val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-            col.addView(label(ctx, (if (r.locked) "🔒 " else "") + r.title, 16f, if (r.locked) KC.hint else KC.text))
+            col.addView(label(ctx, (if (r.locked) "🔒 " else "") + r.title + (if (r.current) "  ✓" else ""), 16f, if (r.locked) KC.hint else if (r.current) KC.accent else KC.text, r.current))
             if (r.subtitle.isNotEmpty()) col.addView(label(ctx, r.subtitle, 12f, KC.muted))
             outer.addView(col)
             return outer

@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.FullScreenDialog
+import com.example.kolmafiaandroid.ui.sectionLabel
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -25,7 +27,7 @@ import com.example.kolmafiaandroid.ui.label
 import org.json.JSONObject
 
 /** Crafting: everything KoLmafia says you can make right now; tap one to make it (runs `create`). */
-class CraftFragment : DialogFragment() {
+class CraftFragment : FullScreenDialog() {
     private class Recipe(val name: String, val img: String, val possible: Int, val method: String, val ingredients: String, val needs: String = "")
 
     private var all = listOf<Recipe>()
@@ -55,7 +57,7 @@ class CraftFragment : DialogFragment() {
                 setPadding(dp(ctx, 12), dp(ctx, 6), dp(ctx, 12), dp(ctx, 6))
                 background = android.graphics.drawable.GradientDrawable().apply {
                     cornerRadius = dp(ctx, 16).toFloat()
-                    if (on) setColor(0xFF4CAF50.toInt()) else setStroke(dp(ctx, 1), KC.muted)
+                    if (on) setColor(KC.accent) else setStroke(dp(ctx, 1), KC.muted)
                 }
             }
             com.example.kolmafiaandroid.ui.clickable(chip) {
@@ -67,18 +69,12 @@ class CraftFragment : DialogFragment() {
     }
     private lateinit var status: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, when (mode) { "food" -> "Craft food & drinks"; "items" -> "Craft items"; else -> "Craft" }, 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(label(ctx, when (mode) { "food" -> "Craft food & drinks"; "items" -> "Craft items"; else -> "Craft" }, 20f, KC.accent, true))
         val search = EditText(ctx).apply {
             hint = "Filter what you can make"
             maxLines = 1
@@ -143,7 +139,7 @@ class CraftFragment : DialogFragment() {
             val g = prettyMethod(r.method)
             if (g != group) {
                 group = g
-                body.addView(label(ctx, g.uppercase(), 12f, 0xFF4CAF50.toInt(), true).apply { letterSpacing = 0.1f; setPadding(dp(ctx, 4), dp(ctx, 16), 0, dp(ctx, 4)) })
+                body.addView(sectionLabel(ctx, g))
             }
             val row = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -156,7 +152,7 @@ class CraftFragment : DialogFragment() {
             val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
             col.addView(label(ctx, r.name, 16f, KC.text))
             if (r.ingredients.isNotEmpty()) col.addView(label(ctx, r.ingredients, 12f, KC.muted))
-            if (r.needs.isNotEmpty()) col.addView(label(ctx, "Needs ${r.needs}", 12f, 0xFFFF9800.toInt()))
+            if (r.needs.isNotEmpty()) col.addView(label(ctx, "Needs ${r.needs}", 12f, KC.warn))
             row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
             row.addView(label(ctx, "×${r.possible}", 14f, KC.muted))
             com.example.kolmafiaandroid.ui.clickable(row) { make(r) }

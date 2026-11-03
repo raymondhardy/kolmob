@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -26,7 +28,7 @@ import com.example.kolmafiaandroid.ui.pickList
 import org.json.JSONObject
 
 /** Your clan's stash: browse, take items out, put items in (KoLmafia's `stash` command). */
-class ClanFragment : DialogFragment() {
+class ClanFragment : FullScreenDialog() {
     private var stash = listOf<JSONObject>()
     private lateinit var title: TextView
     private lateinit var body: LinearLayout
@@ -35,18 +37,12 @@ class ClanFragment : DialogFragment() {
     private var karmaDaily = 0
     private var filter = ""
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        title = label(ctx, "Clan", 20f, 0xFF4CAF50.toInt(), true)
+        title = screenTitle(ctx, "Clan")
         root.addView(title)
         status = label(ctx, "Opening the clan stash…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
@@ -61,7 +57,7 @@ class ClanFragment : DialogFragment() {
             })
         }
         root.addView(search)
-        val put = label(ctx, "+ Put an item in the stash", 15f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 12)) }
+        val put = label(ctx, "+ Put an item in the stash", 15f, KC.accent, true).apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 12)) }
         clickable(put) { putItem() }
         root.addView(put)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
@@ -105,7 +101,7 @@ class ClanFragment : DialogFragment() {
             row.addView(icon, LinearLayout.LayoutParams(dp(ctx, 36), dp(ctx, 36)).apply { marginEnd = dp(ctx, 12) })
             row.addView(label(ctx, clean(it.getString("name")), 16f, KC.text), LinearLayout.LayoutParams(0, -2, 1f))
             val cost = it.optInt("cost", -1)
-            if (cost > 0) row.addView(label(ctx, "$cost karma  ", 13f, if (karma in 0 until cost) 0xFFE57373.toInt() else KC.muted))
+            if (cost > 0) row.addView(label(ctx, "$cost karma  ", 13f, if (karma in 0 until cost) KC.bad else KC.muted))
             row.addView(label(ctx, "×${it.getInt("count")}", 14f, KC.muted))
             clickable(row) { take(it) }
             body.addView(row)

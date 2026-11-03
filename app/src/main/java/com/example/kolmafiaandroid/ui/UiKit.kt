@@ -31,6 +31,68 @@ fun label(context: Context, text: String, size: Float = 15f, color: Int = KC.sof
         if (bold) setTypeface(typeface, Typeface.BOLD)
     }
 
+/** Fragment shorthands, so screens do not each carry their own copies. */
+fun Fragment.dp(v: Int): Int = dp(requireContext(), v)
+fun Fragment.label(text: String, size: Float = 15f, color: Int = KC.soft, bold: Boolean = false): TextView = label(requireContext(), text, size, color, bold)
+fun Fragment.card(parent: LinearLayout, title: String? = null): LinearLayout = card(requireContext(), parent, title)
+
+/** The big green title at the top of a full-screen page. */
+fun screenTitle(context: Context, text: String): TextView = label(context, text, 20f, KC.accent, true)
+
+/**
+ * The icon at the start of a file-manager style row: "folder", "project", "file", "ext:ash" (a coloured badge for that
+ * file type) or any other text, which is shown as a plain glyph.
+ */
+fun rowIcon(context: Context, kind: String, tint: Int = KC.muted): View {
+    fun image(res: Int, color: Int) = android.widget.ImageView(context).apply { setImageResource(res); setColorFilter(color) }
+    return when {
+        kind == "folder" -> image(R.drawable.ic_s_folder, KC.accent).also { it.layoutParams = LinearLayout.LayoutParams(dp(context, 26), dp(context, 26)).apply { marginEnd = dp(context, 6) } }
+        kind == "project" -> image(R.drawable.ic_s_project, tint).also { it.layoutParams = LinearLayout.LayoutParams(dp(context, 26), dp(context, 26)).apply { marginEnd = dp(context, 6) } }
+        kind == "file" -> image(R.drawable.ic_s_file, tint).also { it.layoutParams = LinearLayout.LayoutParams(dp(context, 26), dp(context, 26)).apply { marginEnd = dp(context, 6) } }
+        kind.startsWith("ext:") -> android.widget.ImageView(context).apply {
+            setImageDrawable(ExtBadge(kind.removePrefix("ext:")))
+            layoutParams = LinearLayout.LayoutParams(dp(context, 30), dp(context, 24)).apply { marginStart = dp(context, -1); marginEnd = dp(context, 5) }
+        }
+        else -> label(context, kind, 20f, tint).apply {
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(context, 28), ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+    }
+}
+
+/** One tappable list row: an optional icon, a title with a small detail line under it, tap and long-press. */
+fun listRow(
+    context: Context,
+    title: String,
+    detail: String = "",
+    icon: View? = null,
+    bold: Boolean = false,
+    titleColor: Int = KC.text,
+    onTap: (() -> Unit)? = null,
+    onLong: (() -> Unit)? = null,
+): LinearLayout {
+    val r = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(context, 12), dp(context, 11), dp(context, 12), dp(context, 11))
+    }
+    if (icon != null) r.addView(icon)
+    val texts = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    texts.addView(label(context, title, 16f, titleColor, bold))
+    if (detail.isNotEmpty()) texts.addView(label(context, detail, 12f, KC.muted))
+    r.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+    if (onTap != null) clickable(r, onTap)
+    if (onLong != null) r.setOnLongClickListener { onLong(); true }
+    return r
+}
+
+/** A small green uppercase heading that starts a group of rows. */
+fun sectionLabel(context: Context, text: String, top: Int = 16): TextView =
+    label(context, text.uppercase(), 12f, KC.accent, true).apply {
+        letterSpacing = 0.1f
+        setPadding(dp(context, 4), dp(context, top), 0, dp(context, 4))
+    }
+
 fun card(context: Context, parent: LinearLayout, title: String? = null): LinearLayout {
     val c = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -39,7 +101,7 @@ fun card(context: Context, parent: LinearLayout, title: String? = null): LinearL
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             .apply { bottomMargin = dp(context, 12) }
     }
-    if (title != null) c.addView(label(context, title.uppercase(), 12f, 0xFF4CAF50.toInt(), true).apply {
+    if (title != null) c.addView(label(context, title.uppercase(), 12f, KC.accent, true).apply {
         letterSpacing = 0.1f
         setPadding(0, 0, 0, dp(context, 8))
     })
@@ -136,11 +198,22 @@ fun row(
     return r
 }
 
+/** Pick one of [entries] from the shared bottom sheet; [selected] marks the current choice. */
 fun Fragment.pick(
     title: String,
     entries: List<String>,
     searchable: Boolean = true,
     images: List<String?>? = null,
+    selected: Int? = null,
+    onPick: (Int) -> Unit
+) = requireContext().pick(title, entries, searchable, images, selected, onPick)
+
+fun Context.pick(
+    title: String,
+    entries: List<String>,
+    searchable: Boolean = true,
+    images: List<String?>? = null,
+    selected: Int? = null,
     onPick: (Int) -> Unit
 ) {
     // "Name  (detail)" / "Name   ·   detail" become a title with a small second line
@@ -148,7 +221,7 @@ fun Fragment.pick(
         val cut = Regex("\\s{2,}(?=[(·✓])|\\s+·\\s+").find(e)
         val t = if (cut != null) e.substring(0, cut.range.first) else e
         val sub = if (cut != null) e.substring(cut.range.last + 1).trim().trimStart('·').trim() else ""
-        PickRow(t, sub, tag = i, img = images?.getOrNull(i) ?: "")
+        PickRow(t, sub, tag = i, img = images?.getOrNull(i) ?: "", current = i == selected)
     }
     pickList(title, rows, searchable = searchable && entries.size > 8) { onPick(it.tag as Int) }
 }
@@ -211,8 +284,8 @@ fun Context.chip(text: String, onClick: () -> Unit): LinearLayout {
  * the description is read by TalkBack and shown on long-press.
  */
 fun iconTabs(context: Context, tabs: List<Pair<Int, String>>, selected: Int = 0, onSelect: (Int) -> Unit): LinearLayout {
-    val green = 0xFF4CAF50.toInt()
-    val dim = KC.pick(0xFFB0B0B0.toInt(), 0xFF666666.toInt())
+    val green = KC.accent
+    val dim = KC.dim
     val d = context.resources.displayMetrics.density
     val row = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -224,7 +297,7 @@ fun iconTabs(context: Context, tabs: List<Pair<Int, String>>, selected: Int = 0,
         setPadding((4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt())
         background = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = 16 * d
-            setColor(KC.pick(0xFF202020.toInt(), 0xFFE6E6E6.toInt()))
+            setColor(KC.chip)
             setStroke((1 * d).toInt(), KC.faint)
         }
     }
@@ -236,7 +309,7 @@ fun iconTabs(context: Context, tabs: List<Pair<Int, String>>, selected: Int = 0,
             v.setColorFilter(if (on) green else dim)
             v.background = if (on) android.graphics.drawable.GradientDrawable().apply {
                 cornerRadius = 12 * d
-                setColor(0x334CAF50)
+                setColor(KC.accentSoft)
             } else null
         }
     }
@@ -260,7 +333,7 @@ fun iconTabs(context: Context, tabs: List<Pair<Int, String>>, selected: Int = 0,
 
 /** Same segmented look as [iconTabs], with short text labels (for sections that have no obvious icon). */
 fun textTabs(context: Context, labels: List<String>, selected: Int = 0, onSelect: (Int) -> Unit): LinearLayout {
-    val green = 0xFF4CAF50.toInt()
+    val green = KC.accent
     val d = context.resources.displayMetrics.density
     val row = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -271,7 +344,7 @@ fun textTabs(context: Context, labels: List<String>, selected: Int = 0, onSelect
         setPadding((4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt())
         background = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = 16 * d
-            setColor(KC.pick(0xFF202020.toInt(), 0xFFE6E6E6.toInt()))
+            setColor(KC.chip)
             setStroke((1 * d).toInt(), KC.faint)
         }
     }
@@ -279,8 +352,8 @@ fun textTabs(context: Context, labels: List<String>, selected: Int = 0, onSelect
     val views = mutableListOf<TextView>()
     fun paint(current: Int) = views.forEachIndexed { i, v ->
         val on = i == current
-        v.setTextColor(if (on) green else KC.pick(0xFFB0B0B0.toInt(), 0xFF666666.toInt()))
-        v.background = if (on) android.graphics.drawable.GradientDrawable().apply { cornerRadius = 12 * d; setColor(0x334CAF50) } else null
+        v.setTextColor(if (on) green else KC.dim)
+        v.background = if (on) android.graphics.drawable.GradientDrawable().apply { cornerRadius = 12 * d; setColor(KC.accentSoft) } else null
     }
     labels.forEachIndexed { i, text ->
         val v = TextView(context).apply {
@@ -307,9 +380,9 @@ fun linkRow(context: Context, links: List<Pair<String, () -> Unit>>): View {
         val tv = android.widget.TextView(context).apply {
             text = title
             textSize = 14f
-            setTextColor(0xFF4CAF50.toInt())
+            setTextColor(KC.accent)
             setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
-            background = android.graphics.drawable.GradientDrawable().apply { setStroke((1 * d).toInt(), 0xFF4CAF50.toInt()); cornerRadius = 18 * d }
+            background = android.graphics.drawable.GradientDrawable().apply { setStroke((1 * d).toInt(), KC.accent); cornerRadius = 18 * d }
             layoutParams = android.widget.LinearLayout.LayoutParams(-2, -2).apply { marginEnd = (8 * d).toInt() }
         }
         clickable(tv) { go() }

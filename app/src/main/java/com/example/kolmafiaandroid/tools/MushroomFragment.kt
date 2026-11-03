@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -21,22 +23,16 @@ import com.example.kolmafiaandroid.ui.label
 import org.json.JSONObject
 
 /** Your mushroom plot: current layout and forecast, with harvest / pick-a-square. Only meaningful once you own a plot this ascension. */
-class MushroomFragment : DialogFragment() {
+class MushroomFragment : FullScreenDialog() {
     private lateinit var body: LinearLayout
     private lateinit var status: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, "Mushroom plot", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(screenTitle(ctx, "Mushroom plot"))
         status = label(ctx, "Looking at your fields…", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 8)) }
         root.addView(status)
         body = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
@@ -58,7 +54,7 @@ class MushroomFragment : DialogFragment() {
                 }
                 status.text = "Squares are numbered left to right, top to bottom."
                 fun block(title: String, text: String) {
-                    body.addView(label(ctx, title.uppercase(), 12f, 0xFF4CAF50.toInt(), true).apply { setPadding(0, dp(ctx, 12), 0, dp(ctx, 4)) })
+                    body.addView(label(ctx, title.uppercase(), 12f, KC.accent, true).apply { setPadding(0, dp(ctx, 12), 0, dp(ctx, 4)) })
                     body.addView(TextView(ctx).apply { this.text = text.replace(Regex("<[^>]*>"), ""); typeface = Typeface.MONOSPACE; textSize = 12f; setTextColor(KC.text) })
                 }
                 block("Now", o.optString("current"))

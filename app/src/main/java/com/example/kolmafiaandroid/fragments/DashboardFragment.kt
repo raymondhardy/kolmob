@@ -37,7 +37,7 @@ import org.json.JSONObject
 
 /** Dashboard: the logged-in character's live state, read from the real KoLmafia session. */
 class DashboardFragment : Fragment() {
-    private val green = 0xFF4CAF50.toInt()
+    private val green = KC.accent
     private val muted = KC.muted
     private var skillTurns = mapOf<String, Int>() // buff skill name -> turns per cast
     private var skillMp = mapOf<String, Long>()
@@ -182,8 +182,8 @@ class DashboardFragment : Fragment() {
         top.addView(label(ctx, "L${o.optInt("level")} ${o.optString("class")}", 13f, green))
         head.addView(top)
         head.addView(label(ctx, o.optString("path"), 12f, muted))
-        head.addView(bar(ctx, "HP", o.optLong("hp"), o.optLong("maxHp"), 0xFFE53935.toInt(), "tap to restore") { showRestore(true, o) }.apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 2)) })
-        head.addView(bar(ctx, "MP", o.optLong("mp"), o.optLong("maxMp"), 0xFF1E88E5.toInt(), "tap to restore") { showRestore(false, o) })
+        head.addView(bar(ctx, "HP", o.optLong("hp"), o.optLong("maxHp"), KC.danger, "tap to restore") { showRestore(true, o) }.apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 2)) })
+        head.addView(bar(ctx, "MP", o.optLong("mp"), o.optLong("maxMp"), KC.info, "tap to restore") { showRestore(false, o) })
         head.addView(label(ctx, "${nf.format(o.optLong("meat"))} meat   ·   ${o.optString("adventures")} adventures   ·   ${nf.format(o.optLong("turnsPlayed"))} turns", 13f).apply { setPadding(0, dp(ctx, 8), 0, 0) })
     }
 
@@ -402,7 +402,7 @@ class DashboardFragment : Fragment() {
             setPadding(0, dp(ctx, 6), 0, dp(ctx, 6))
         }
         val icon = android.widget.ImageView(ctx).apply {
-            setBackgroundColor(if (current.isEmpty()) 0x14FFFFFF else 0x00000000)
+            setBackgroundColor(if (current.isEmpty()) KC.pick(0x14FFFFFF, 0x141B1B1B) else 0x00000000)
         }
         com.example.kolmafiaandroid.ui.KolImages.load(icon, slot.optString("img"))
         r.addView(icon, LinearLayout.LayoutParams(dp(ctx, 40), dp(ctx, 40)).apply { marginEnd = dp(ctx, 12) })

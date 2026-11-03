@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -30,7 +32,7 @@ import org.json.JSONObject
 import java.text.NumberFormat
 
 /** Mall: search the player mall (KoLmafia's MallSearchRequest) and buy with KoLmafia's own `buy` command. */
-class MallFragment : DialogFragment() {
+class MallFragment : FullScreenDialog() {
     private class Offer(val name: String, val img: String, val price: Long, val quantity: Int, val limit: Int, val shop: String, val cost: String = "")
 
     private var offers = listOf<Offer>()
@@ -43,13 +45,7 @@ class MallFragment : DialogFragment() {
     private var lastQuery = ""
     private val fmt = NumberFormat.getIntegerInstance()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
@@ -58,7 +54,7 @@ class MallFragment : DialogFragment() {
             setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8))
         }
         val head = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        head.addView(label(ctx, "Mall", 20f, 0xFF4CAF50.toInt(), true), LinearLayout.LayoutParams(0, -2, 1f))
+        head.addView(screenTitle(ctx, "Mall"), LinearLayout.LayoutParams(0, -2, 1f))
         meatView = label(ctx, "", 13f, KC.muted)
         head.addView(meatView)
         root.addView(head)
@@ -128,7 +124,7 @@ class MallFragment : DialogFragment() {
                     col.addView(TextView(ctx).apply { textSize = 16f; setTextColor(KC.text) })
                     col.addView(TextView(ctx).apply { textSize = 12f; setTextColor(KC.muted) })
                     addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-                    addView(TextView(ctx).apply { textSize = 15f; setTextColor(0xFF4CAF50.toInt()) })
+                    addView(TextView(ctx).apply { textSize = 15f; setTextColor(KC.accent) })
                 }
                 val o = shown[i]
                 KolImages.load(row.getChildAt(0) as ImageView, o.img)

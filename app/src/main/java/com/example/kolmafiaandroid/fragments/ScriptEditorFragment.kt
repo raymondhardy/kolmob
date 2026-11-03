@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.fragments
 
+import com.example.kolmafiaandroid.ui.FullScreenDialog
+import com.example.kolmafiaandroid.ui.KC
 import android.app.Dialog
 import android.os.Bundle
 import android.text.Editable
@@ -31,7 +33,7 @@ import java.io.FileOutputStream
 /**
  * Full-screen editor for ASH scripts with line numbers, syntax highlighting, find, and run.
  */
-class ScriptEditorFragment : DialogFragment() {
+class ScriptEditorFragment : FullScreenDialog() {
 
     private var scriptFile: File? = null
     private var isNewFile = false
@@ -66,14 +68,12 @@ class ScriptEditorFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
         val path = arguments?.getString("file_path") ?: return
         scriptFile = File(path)
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.window?.let {
             // the shared full-screen style hides the status bar, which left the toolbar underneath it (Run was untappable)
             it.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
@@ -208,7 +208,7 @@ class ScriptEditorFragment : DialogFragment() {
         // Problem bar: KoLmafia's own parser checks the script as you type (nothing is run). Tap it to jump to the line.
         val problemBar = TextView(requireContext()).apply {
             typeface = Typeface.MONOSPACE; textSize = 12f; visibility = View.GONE
-            setTextColor(0xFFFF8A80.toInt()); setBackgroundColor(requireContext().getColor(R.color.colorSurface))
+            setTextColor(KC.bad); setBackgroundColor(requireContext().getColor(R.color.colorSurface))
             setPadding((10 * dpx).toInt(), (6 * dpx).toInt(), (10 * dpx).toInt(), (6 * dpx).toInt())
         }
         (view as android.widget.LinearLayout).addView(problemBar, (view as android.widget.LinearLayout).indexOfChild(sugBar))
@@ -232,7 +232,7 @@ class ScriptEditorFragment : DialogFragment() {
             problemLine = first[0].toIntOrNull() ?: 1
             val extra = if (shown.size > 1) "  (+${shown.size - 1} more)" else ""
             problemBar.text = "Line ${first[0]}: ${first[3]}$extra"
-            problemBar.setTextColor(if (first[2] == "WARNING") 0xFFFFE082.toInt() else 0xFFFF8A80.toInt())
+            problemBar.setTextColor(if (first[2] == "WARNING") KC.warn else KC.bad)
             problemBar.visibility = View.VISIBLE
         }
         val checkTask = Runnable {

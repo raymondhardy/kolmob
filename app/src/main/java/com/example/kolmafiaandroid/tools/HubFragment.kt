@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import android.app.Dialog
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -21,7 +23,7 @@ import com.example.kolmafiaandroid.ui.textTabs
  * One screen for a family of related things, with a tab per part (mail: Inbox / Write; clan: Stash / Fax / Hall...).
  * A part is either a native screen shown inside the hub or one of KoL's own pages (opens on the Game tab).
  */
-abstract class HubFragment : DialogFragment() {
+abstract class HubFragment : FullScreenDialog() {
     class Section(val label: String, val fragment: (() -> Fragment)? = null, val page: String? = null)
 
     abstract val hubTitle: String
@@ -29,19 +31,13 @@ abstract class HubFragment : DialogFragment() {
 
     private val hostId = View.generateViewId()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val secs = sections()
-        val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(KC.pick(0xFF121212.toInt(), 0xFFF2F2F2.toInt())) }
-        root.addView(label(ctx, hubTitle, 20f, 0xFF4CAF50.toInt(), true).apply { setPadding(dp(ctx, 16), dp(ctx, 14), dp(ctx, 16), dp(ctx, 4)) })
+        val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(KC.page) }
+        root.addView(screenTitle(ctx, hubTitle).apply { setPadding(dp(ctx, 16), dp(ctx, 14), dp(ctx, 16), dp(ctx, 4)) })
         var current = -1
         val host = FrameLayout(ctx).apply { id = hostId }
         fun show(i: Int) {

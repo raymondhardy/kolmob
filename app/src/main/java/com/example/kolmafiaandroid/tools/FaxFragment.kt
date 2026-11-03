@@ -1,5 +1,7 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.screenTitle
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.Dialog
@@ -23,21 +25,15 @@ import com.example.kolmafiaandroid.ui.pickList
 import org.json.JSONObject
 
 /** The clan VIP fax machine: request a monster from a faxbot, or send/receive the photocopy. */
-class FaxFragment : DialogFragment() {
+class FaxFragment : FullScreenDialog() {
     private lateinit var status: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        super.onCreateDialog(savedInstanceState).also { it.requestWindowFeature(Window.FEATURE_NO_TITLE) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 8)) }
-        root.addView(label(ctx, "Fax machine", 20f, 0xFF4CAF50.toInt(), true))
+        root.addView(screenTitle(ctx, "Fax machine"))
         status = label(ctx, "Needs a clan VIP lounge with a fax machine.", 13f, KC.muted).apply { setPadding(0, dp(ctx, 4), 0, dp(ctx, 12)) }
         root.addView(status)
         action(root, "Request a monster from a faxbot", "Pick from the faxbot lists, then fetch it") { pickMonster() }
@@ -75,7 +71,7 @@ class FaxFragment : DialogFragment() {
                 if (!isAdded) return@runOnUiThread
                 val seen = if (ok && showMonster) KolEngineHost.getPref("photocopyMonster") else ""
                 status.text = if (ok && seen.isNotEmpty()) "Got a photocopied $seen — it's in your inventory." else if (ok) okMsg else failMsg
-                status.setTextColor(if (ok) 0xFF4CAF50.toInt() else 0xFFE57373.toInt())
+                status.setTextColor(if (ok) KC.accent else KC.bad)
             }
         }
     }
@@ -106,7 +102,7 @@ class FaxFragment : DialogFragment() {
     /** Faxbots come and go, so each one is listed with whether KoL says it is online right now; you choose which to ask. */
     private fun chooseBot(monster: String, command: String, id: Int, bots: List<String>) {
         val ctx = requireContext()
-        if (bots.isEmpty()) { status.text = "No faxbot carries $monster."; status.setTextColor(0xFFE57373.toInt()); return }
+        if (bots.isEmpty()) { status.text = "No faxbot carries $monster."; status.setTextColor(KC.bad); return }
         status.text = "Checking which faxbots are online…"; status.setTextColor(KC.muted)
         KolEngineHost.setPref("kolmobBotOnline", "")
         val names = bots.joinToString(",") { it.replace("\"", "") }
@@ -136,7 +132,7 @@ class FaxFragment : DialogFragment() {
                 prefs.edit().putString("fax_bot", bot).apply()
                 if (online[bot.lowercase()] == false) {
                     status.text = "$bot is offline right now, so it can't deliver $monster. Try again when it is back, or pick another bot."
-                    status.setTextColor(0xFFE57373.toInt())
+                    status.setTextColor(KC.bad)
                 } else {
                     runFax("ok = faxbot(to_monster($id), \"${bot.replace("\"", "")}\");", "Got the $monster fax from $bot: it's in your inventory.", "$bot didn't deliver $monster. Try again in a minute, or pick another bot.")
                     Toast.makeText(ctx, "Asking $bot for $monster…", Toast.LENGTH_SHORT).show()

@@ -1,5 +1,9 @@
 package com.example.kolmafiaandroid.fragments
 
+import com.example.kolmafiaandroid.ui.pick
+import com.example.kolmafiaandroid.ui.card
+import com.example.kolmafiaandroid.ui.label
+import com.example.kolmafiaandroid.ui.dp
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -42,7 +46,7 @@ import org.json.JSONObject
 class AdventureFragment : Fragment() {
     private class Loc(val name: String, val zone: String, val ok: Boolean)
 
-    private val green = 0xFF4CAF50.toInt()
+    private val green = KC.accent
     private val muted = KC.muted
     private var locations = listOf<Loc>()
     private var selected: String? = null
@@ -63,29 +67,6 @@ class AdventureFragment : Fragment() {
     private lateinit var log: TextView
     private lateinit var logScroll: ScrollView
     private val logBuffer = ArrayDeque<CharSequence>()
-
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
-    private fun label(s: String, size: Float = 14f, color: Int = KC.soft, bold: Boolean = false) =
-        TextView(requireContext()).apply {
-            text = s
-            textSize = size
-            setTextColor(color)
-            if (bold) setTypeface(typeface, Typeface.BOLD)
-        }
-
-    private fun card(parent: LinearLayout, title: String): LinearLayout {
-        val c = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_card)
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                .apply { bottomMargin = dp(12) }
-        }
-        c.addView(label(title.uppercase(), 12f, green, true).apply { letterSpacing = 0.1f; setPadding(0, 0, 0, dp(8)) })
-        parent.addView(c)
-        return c
-    }
 
     private fun outlined(text: String, onClick: () -> Unit) =
         MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
@@ -701,13 +682,9 @@ class AdventureFragment : Fragment() {
             val names = (0 until arr.length()).map { arr.getJSONObject(it).optString("name") }
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
-                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
-                    .setTitle("Auto-attack (also used in the browser)")
-                    .setSingleChoiceItems(names.toTypedArray(), ids.indexOf(o.optInt("current"))) { d, i ->
-                        d.dismiss()
-                        KolEngineHost.execute("autoattack ${ids[i]}") { activity?.runOnUiThread { refreshAutoAttack() } }
-                    }
-                    .setNegativeButton("Cancel", null).show()
+                pick("Auto-attack (also used in the browser)", names, selected = ids.indexOf(o.optInt("current"))) { i ->
+                    KolEngineHost.execute("autoattack ${ids[i]}") { activity?.runOnUiThread { refreshAutoAttack() } }
+                }
             }
         }
     }

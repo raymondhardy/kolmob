@@ -24,7 +24,7 @@ class LeafletFragment : Fragment() {
         if (shownOnce) return
         shownOnce = true
         val ctx = requireContext()
-        AlertDialog.Builder(ctx)
+        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
             .setTitle("Strange leaflet")
             .setMessage("Completes the leaflet quest in your account. Progress prints in the Console.")
             .setPositiveButton("Complete it") { _, _ -> run("leaflet", "Doing the leaflet quest…") }

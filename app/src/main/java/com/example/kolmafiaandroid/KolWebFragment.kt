@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid
 
+import com.example.kolmafiaandroid.ui.pick
 import com.example.kolmafiaandroid.ui.KC
 
 import android.annotation.SuppressLint
@@ -498,14 +499,9 @@ class KolWebFragment : Fragment() {
     private fun chooseTextSize() {
         val sizes = listOf("Small (90%)" to 90, "Normal (100%)" to 100, "Large (115%)" to 115, "Larger (135%)" to 135, "Huge (160%)" to 160, "Giant (200%)" to 200)
         val current = web?.settings?.textZoom ?: 100
-        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext())
-            .setTitle("Text size in the game")
-            .setSingleChoiceItems(sizes.map { it.first }.toTypedArray(), sizes.indexOfFirst { it.second == current }) { d, i ->
-                applyTextZoom(sizes[i].second)
-                d.dismiss()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        pick("Text size in the game", sizes.map { it.first }, searchable = false, selected = sizes.indexOfFirst { it.second == current }) { i ->
+            applyTextZoom(sizes[i].second)
+        }
     }
 
     private fun go(path: String) {
@@ -645,13 +641,13 @@ class KolWebFragment : Fragment() {
             orientation = LinearLayout.VERTICAL
             isClickable = true // taps inside the panel do not dismiss it
             background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(KC.pick(0xFF1E1E1E.toInt(), 0xFFF5F5F5.toInt())); cornerRadius = 16 * dp
+                setColor(KC.surface); cornerRadius = 16 * dp
             }
         }
         val head = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(px(16), px(10), px(8), px(6)) }
         head.addView(TextView(ctx).apply { text = "Guide"; textSize = 20f; setTextColor(KC.text); typeface = android.graphics.Typeface.DEFAULT_BOLD }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         fun textBtn(label: String, onClick: () -> Unit) = TextView(ctx).apply {
-            text = label; textSize = 15f; setTextColor(0xFF4CAF50.toInt()); setPadding(px(12), px(10), px(12), px(10))
+            text = label; textSize = 15f; setTextColor(KC.accent); setPadding(px(12), px(10), px(12), px(10))
             setOnClickListener { onClick() }
         }
         head.addView(textBtn("Refresh") { showGuide(true) })
@@ -709,7 +705,7 @@ class KolWebFragment : Fragment() {
                     orientation = LinearLayout.HORIZONTAL
                     setPadding(px(10), px(10), px(10), px(10))
                     background = android.graphics.drawable.GradientDrawable().apply {
-                        setColor(KC.pick(0xFF2A2A2A.toInt(), 0xFFFFFFFF.toInt())); cornerRadius = 12 * dp; setStroke(px(1), KC.faint)
+                        setColor(KC.surface); cornerRadius = 12 * dp; setStroke(px(1), KC.faint)
                     }
                     layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = px(8) }
                     if (href.isNotEmpty()) setOnClickListener { hideGuide(); openInGame(href.removePrefix("/")) }
@@ -722,7 +718,7 @@ class KolWebFragment : Fragment() {
                 col.addView(TextView(ctx).apply { text = c.optString("t"); textSize = 15f; setTextColor(KC.text); typeface = android.graphics.Typeface.DEFAULT_BOLD })
                 val b = c.optString("b")
                 if (b.isNotBlank()) col.addView(TextView(ctx).apply { text = b; textSize = 13f; setTextColor(KC.soft); maxLines = 9; ellipsize = android.text.TextUtils.TruncateAt.END })
-                if (href.isNotEmpty()) col.addView(TextView(ctx).apply { text = "Tap to open"; textSize = 11f; setTextColor(0xFF4CAF50.toInt()); setPadding(0, px(2), 0, 0) })
+                if (href.isNotEmpty()) col.addView(TextView(ctx).apply { text = "Tap to open"; textSize = 11f; setTextColor(KC.accent); setPadding(0, px(2), 0, 0) })
                 card.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                 body.addView(card)
             }

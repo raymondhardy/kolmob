@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid.tools
 
+import com.example.kolmafiaandroid.ui.FullScreenDialog
 import com.example.kolmafiaandroid.ui.KC
 
 import android.app.AlertDialog
@@ -31,7 +32,7 @@ import org.json.JSONObject
 /**
  * Item manager: Inventory, Closet, Storage, Display case.
  */
-class ItemsFragment : DialogFragment() {
+class ItemsFragment : FullScreenDialog() {
 
     private data class ItemEntry(val name: String, val count: Int, val img: String = "", val tier: com.example.kolmafiaandroid.ui.ItemTier.Tier? = null, val free: Boolean = false)
 
@@ -50,16 +51,7 @@ class ItemsFragment : DialogFragment() {
     private var storageMeat = 0L
     private var filteredItems: List<ItemEntry> = emptyList()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle)
-    }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        return dialog
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,

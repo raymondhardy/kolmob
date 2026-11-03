@@ -98,12 +98,14 @@ class SettingsFragment : DialogFragment() {
         titleView.text = when (page) {
             "app" -> "App and account"
             "breakfast" -> "Breakfast"
+            "recovery" -> "HP and MP recovery"
             "relay" -> "Relay browser"
             else -> "Settings"
         }
         when (page) {
             "app" -> appPage(col)
             "breakfast" -> breakfastPage(col)
+            "recovery" -> recoveryPage(col)
             "relay" -> relayPage(col)
             else -> homePage(col)
         }
@@ -116,6 +118,7 @@ class SettingsFragment : DialogFragment() {
         val c = card(ctx, col)
         navRow(c, "App and account", "Theme, screen, chat and logs") { open("app") }
         navRow(c, "Breakfast", "What KoLmafia does each day: skills, clan, garden, items") { open("breakfast") }
+        navRow(c, "HP and MP recovery", "When and how KoLmafia restores health and mana, and mana burning") { open("recovery") }
         navRow(c, "Relay browser", "How the Game tab looks, links, warnings and helper scripts") { open("relay") }
         navRow(c, "All preferences", "Every KoLmafia preference, searchable") {
             PreferencesFragment.show(parentFragmentManager)
@@ -182,6 +185,42 @@ class SettingsFragment : DialogFragment() {
         toggleRow(extra, "Make handheld radios", "Make the day's handheld radios", "makeHandheldRadios$s")
         val always = card(ctx, col, "Always (hardcore or not)")
         multiRow(always, "Skills to cast", "Skills that cost no MP, so they are safe to use every time", "breakfastAlways", strings(l, "always"))
+    }
+
+    private fun recoveryPage(col: LinearLayout) {
+        val ctx = requireContext()
+        val steps = listOf("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0")
+        fun pctRow(parent: LinearLayout, title: String, desc: String, key: String, withOff: Boolean) {
+            val labels = (if (withOff) listOf("Off") else emptyList()) + steps.map { "${(it.toDouble() * 100).toInt()}%" }
+            val values = (if (withOff) listOf("-0.05") else emptyList()) + steps
+            val cur = KolEngineHost.getPref(key).toDoubleOrNull() ?: values.last().toDouble()
+            val i = values.indices.minByOrNull { Math.abs(values[it].toDouble() - cur) } ?: 0
+            spinnerRow(parent, title, desc, labels, i) { pos -> KolEngineHost.setPref(key, values[pos]) }
+        }
+        val hp = card(ctx, col, "Health")
+        pctRow(hp, "Restore HP when it falls below", "KoLmafia heals before an adventure or fight if your HP is under this", "hpAutoRecovery", true)
+        pctRow(hp, "Restore HP up to", "How full to heal once it starts", "hpAutoRecoveryTarget", false)
+        val mp = card(ctx, col, "Mana")
+        pctRow(mp, "Restore MP when it falls below", "KoLmafia restores mana when your MP is under this", "mpAutoRecovery", true)
+        pctRow(mp, "Restore MP up to", "How full to restore once it starts", "mpAutoRecoveryTarget", false)
+        val burn = card(ctx, col, "Mana burning")
+        pctRow(burn, "Burn extra mana above", "Cast your buffs and spare skills while MP is over this", "manaBurningThreshold", true)
+        pctRow(burn, "Start burning at", "Only start burning once MP reaches this", "manaBurningTrigger", true)
+        val items = card(ctx, col, "What it may use")
+        val note = label(ctx, "Loading choices…", 12f, KC.muted)
+        items.addView(note)
+        KolEngineHost.recoveryLists { json ->
+            activity?.runOnUiThread {
+                if (!isAdded || stack.last() != "recovery") return@runOnUiThread
+                items.removeView(note)
+                val o = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
+                fun list(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
+                multiRow(items, "HP restores", "Items, skills and places used to heal", "hpAutoRecoveryItems", list("hp"), ";")
+                multiRow(items, "MP restores", "Items and skills used to restore mana", "mpAutoRecoveryItems", list("mp"), ";")
+                textRow(items, "Recovery script", "A script to run instead of KoLmafia's own recovery", "recoveryScript")
+                textRow(items, "Between-battle script", "A script to run before each adventure", "betweenBattleScript")
+            }
+        }
     }
 
     private fun relayPage(col: LinearLayout) {
@@ -309,10 +348,11 @@ class SettingsFragment : DialogFragment() {
     }
 
     /** Pick any number of [options]; saved as a comma-separated preference. */
-    private fun multiRow(parent: LinearLayout, title: String, desc: String?, key: String, options: List<String>) {
+    private fun multiRow(parent: LinearLayout, title: String, desc: String?, key: String, options: List<String>, sep: String = ",") {
         val ctx = requireContext()
         val (row, texts) = rowBase(parent, title, desc)
-        fun chosen() = KolEngineHost.getPref(key).split(',').map { it.trim() }.filter { it in options }
+        val lower = sep != "," // item lists are stored lower-case, in the order KoLmafia tries them
+        fun chosen() = KolEngineHost.getPref(key).split(sep).map { it.trim() }.mapNotNull { v -> options.firstOrNull { it.equals(v, ignoreCase = true) } }
         val summary = label(ctx, "", 12f, KC.soft)
         fun refresh() {
             val c = chosen()
@@ -327,7 +367,7 @@ class SettingsFragment : DialogFragment() {
             ScrollSafeDialogBuilder(ctx).setTitle(title)
                 .setMultiChoiceItems(options.toTypedArray(), checked) { _, i, on -> checked[i] = on }
                 .setPositiveButton("Save") { _, _ ->
-                    KolEngineHost.setPref(key, options.filterIndexed { i, _ -> checked[i] }.joinToString(","))
+                    KolEngineHost.setPref(key, options.filterIndexed { i, _ -> checked[i] }.joinToString(sep) { if (lower) it.lowercase() else it })
                     refresh()
                 }
                 .setNegativeButton("Cancel", null).show()

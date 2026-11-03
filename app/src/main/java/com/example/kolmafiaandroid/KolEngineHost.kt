@@ -343,6 +343,10 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.breakfastLists() } catch (t: Throwable) { "{}" }) }
     }
 
+    fun recoveryLists(done: (String) -> Unit) {
+        reader.execute { done(try { KolEngine.recoveryLists() } catch (t: Throwable) { "{}" }) }
+    }
+
     fun conditionsLeft(done: (Int) -> Unit) {
         reader.execute { done(try { KolEngine.conditionsLeft().toInt() } catch (t: Throwable) { -1 }) }
     }

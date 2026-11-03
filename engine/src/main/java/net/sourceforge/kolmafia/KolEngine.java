@@ -593,6 +593,20 @@ public final class KolEngine {
     return sb.append('}').toString();
   }
 
+  /** The HP and MP restore choices KoLmafia's own recovery options offer, as JSON. */
+  public static String recoveryLists() {
+    final StringBuilder sb = new StringBuilder("{");
+    appendList(sb, "hp", names(net.sourceforge.kolmafia.moods.HPRestoreItemList.CONFIGURES)).append(',');
+    appendList(sb, "mp", names(net.sourceforge.kolmafia.moods.MPRestoreItemList.CONFIGURES));
+    return sb.append('}').toString();
+  }
+
+  private static String[] names(Object[] items) {
+    final String[] out = new String[items.length];
+    for (int i = 0; i < items.length; ++i) out[i] = String.valueOf(items[i]);
+    return out;
+  }
+
   private static StringBuilder appendList(StringBuilder sb, String name, String[] values) {
     sb.append('"').append(name).append("\":[");
     for (int i = 0; i < values.length; ++i) {

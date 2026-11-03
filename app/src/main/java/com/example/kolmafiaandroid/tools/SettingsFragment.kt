@@ -196,6 +196,10 @@ class SettingsFragment : DialogFragment() {
                 look.removeView(loading)
                 val o = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
                 if (!o.optBoolean("ok")) { look.addView(label(ctx, "Could not read your KoL options.", 12f, KC.muted)); return@runOnUiThread }
+                val menus = listOf("fancy" to "Fancy (drop-down menus)", "compact" to "Compact (one Adventure menu)", "normal" to "Normal (plain links)")
+                spinnerRow(look, "Top menu style", "The navigation bar across the top of the game", menus.map { it.second }, menus.indexOfFirst { it.first == o.optString("menu") }.coerceAtLeast(0)) { pos ->
+                    KolEngineHost.setAccountOption("menu", menus[pos].first)
+                }
                 for ((flag, title) in listOf(
                     "flag_compactchar" to "Compact character pane",
                     "flag_shortcharpane" to "Short character pane",
@@ -233,9 +237,6 @@ class SettingsFragment : DialogFragment() {
         toggleRow(app, "Replacement images", "Use KoLmafia's replacement images", "relayOverridesImages")
         toggleRow(app, "Script button first", "Put your script button ahead of the skill buttons", "relayScriptButtonFirst")
         numberRow(app, "Skill buttons", "How many skill buttons to show in fights", "relaySkillButtonCount")
-        val adv = card(ctx, col, "Advanced")
-        toggleRow(adv, "Allow other devices to connect", "Let other devices on your network open the relay browser", "relayAllowRemoteAccess")
-        numberRow(adv, "Relay port", "The port the relay browser listens on (0 picks one for you; restart to apply)", "relayPort")
     }
 
     // ---- rows ----

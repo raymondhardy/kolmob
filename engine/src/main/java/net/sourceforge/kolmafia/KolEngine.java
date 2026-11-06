@@ -1967,6 +1967,78 @@ public final class KolEngine {
     return sb.append(']').toString();
   }
 
+  /** KoL's own skill descriptions, fetched once per skill per session (desc_skill.php costs nothing). */
+  private static final java.util.Map<Integer, String> skillDescriptions = new java.util.concurrent.ConcurrentHashMap<>();
+
+  /**
+   * Everything the skill sheet shows, as JSON {"id","name","img","mpCost","perCast","buff","castsLeft","desc",
+   * "effect":{"name","img","turns","mods":[...]}}. castsLeft is -1 when there is no daily limit; effect is absent when
+   * the skill gives none. The description is KoL's own text from the skill's description page.
+   */
+  public static String skillInfo(int id) {
+    StringBuilder sb = new StringBuilder("{");
+    try {
+      String name = net.sourceforge.kolmafia.persistence.SkillDatabase.getSkillName(id);
+      if (name == null) return "{\"error\":\"Skill not found\"}";
+      kv(sb, "id", id);
+      kv(sb, "name", name);
+      String img = net.sourceforge.kolmafia.persistence.SkillDatabase.getSkillImage(id);
+      kv(sb, "img", img == null ? "" : img);
+      kv(sb, "mpCost", net.sourceforge.kolmafia.persistence.SkillDatabase.getMPConsumptionById(id));
+      kv(sb, "perCast", net.sourceforge.kolmafia.persistence.SkillDatabase.getEffectDuration(id));
+      kv(sb, "buff", net.sourceforge.kolmafia.persistence.SkillDatabase.isBuff(id));
+      kv(sb, "castsLeft", net.sourceforge.kolmafia.persistence.SkillDatabase.getMaxCasts(id));
+      kv(sb, "desc", skillDescription(id));
+      String effect = net.sourceforge.kolmafia.request.UneffectRequest.skillToEffect(name);
+      int effectId = effect == null || effect.isEmpty() ? -1 : net.sourceforge.kolmafia.persistence.EffectDatabase.getEffectId(effect);
+      if (effectId > 0) {
+        int turns = 0;
+        for (AdventureResult r : KoLConstants.activeEffects) {
+          if (r.getEffectId() == effectId) turns = r.getCount();
+        }
+        String eimg = net.sourceforge.kolmafia.persistence.EffectDatabase.getImageName(effectId);
+        String mods = net.sourceforge.kolmafia.persistence.ModifierDatabase.getStringModifier(
+            ModifierType.EFFECT, effectId, net.sourceforge.kolmafia.modifiers.StringModifier.EVALUATED_MODIFIERS);
+        sb.append(",\"effect\":{");
+        kv(sb, "name", net.sourceforge.kolmafia.persistence.EffectDatabase.getEffectName(effectId));
+        kv(sb, "img", eimg == null ? "" : eimg);
+        kv(sb, "turns", turns);
+        sb.append(",\"mods\":[");
+        boolean first = true;
+        for (String m : (mods == null ? "" : mods).split(", ")) {
+          if (m.isBlank()) continue;
+          if (!first) sb.append(',');
+          first = false;
+          sb.append(quote(m.trim()));
+        }
+        sb.append("]}");
+      }
+      return sb.append('}').toString();
+    } catch (Throwable t) {
+      return "{\"error\":" + quote(String.valueOf(t)) + "}";
+    }
+  }
+
+  /** The description text from KoL's skill description page, without the markup. */
+  private static String skillDescription(int id) {
+    return skillDescriptions.computeIfAbsent(id, k -> {
+      try {
+        GenericRequest r = new GenericRequest("desc_skill.php");
+        r.addFormField("whichskill", String.valueOf(k));
+        r.addFormField("self", "true");
+        r.run();
+        String html = r.responseText == null ? "" : r.responseText;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?is)<blockquote[^>]*>(.*?)</blockquote>").matcher(html);
+        String part = m.find() ? m.group(1) : "";
+        return part.replaceAll("(?i)<br\\s*/?>", "\n").replaceAll("(?i)</?p[^>]*>", "\n").replaceAll("<[^>]*>", "")
+            .replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'")
+            .replaceAll("[ \t]+", " ").replaceAll("\\s*\n\\s*", "\n").trim();
+      } catch (Throwable t) {
+        return "";
+      }
+    });
+  }
+
   /** Database describe: returns longer multi-line text for a specific item/monster/skill/effect by ID. */
   public static synchronized String describe(String kind, int id) {
     StringBuilder sb = new StringBuilder();

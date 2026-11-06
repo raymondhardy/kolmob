@@ -443,6 +443,11 @@ object KolEngineHost {
     }
 
     /** Database describe: returns longer multi-line text for a specific entry by ID. */
+    /** What a skill does, its effect and your casts left (see KolEngine.skillInfo); may load KoL's description page. */
+    fun skillInfo(id: Int, done: (String) -> Unit) {
+        reader.execute { done(try { KolEngine.skillInfo(id) } catch (t: Throwable) { "{\"error\":\"$t\"}" }) }
+    }
+
     fun describe(kind: String, id: Int, done: (String) -> Unit) {
         reader.execute { done(try { KolEngine.describe(kind, id) } catch (t: Throwable) { "Error: $t" }) }
     }

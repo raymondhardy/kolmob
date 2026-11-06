@@ -310,14 +310,7 @@ class DashboardFragment : Fragment() {
                 val name = s.getString("name")
                 val cost = s.optLong("mpCost")
                 val per = s.optInt("perCast")
-                val v = row(ctx, name, (if (per > 0) "$per turns · " else "") + "$cost MP", { castDialog(name, cost, mp) })
-                val sid = s.optInt("id")
-                if (sid > 0) v.setOnLongClickListener {
-                    KolEngineHost.describe("skill", sid) { text ->
-                        activity?.runOnUiThread { if (isAdded) com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle(name).setMessage(text).setPositiveButton("Close", null).show() }
-                    }
-                    true
-                }
+                val v = row(ctx, name, (if (per > 0) "$per turns · " else "") + "$cost MP", { openSkill(s, mp) })
                 val box = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
                 val icon = android.widget.ImageView(ctx)
                 com.example.kolmafiaandroid.ui.KolImages.load(icon, s.optString("img"))
@@ -350,10 +343,10 @@ class DashboardFragment : Fragment() {
         if (fx.isEmpty()) {
             body.addView(label(ctx, "No active effects.", 15f, muted))
         } else {
-            val fxCard = card(ctx, body, "Active effects  ·  tap one to extend or remove it")
+            val fxCard = card(ctx, body, "Active effects  ·  tap one to see, extend or remove it")
             for (e in fx) {
                 val extendable = e.optString("action").isNotEmpty()
-                val line = row(ctx, e.getString("name"), "${e.getInt("turns")} turns", { effectDialog(e, o.optLong("mp")) }, if (extendable) KC.text else muted)
+                val line = row(ctx, e.getString("name"), "${e.getInt("turns")} turns", { tapEffect(e, o) }, if (extendable) KC.text else muted)
                 val box = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
                 val icon = android.widget.ImageView(ctx)
                 com.example.kolmafiaandroid.ui.KolImages.load(icon, e.optString("img"))
@@ -532,34 +525,17 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    private fun castDialog(name: String, cost: Long, mp: Long) {
-        val affordable = if (cost > 0) (mp / cost).toInt() else 99
-        val per = skillTurns[name]
-        val extra = if (per != null) "\nEach cast gives $per turns." else ""
-        askQuantity("Cast $name", "Costs $cost MP per cast; you can afford $affordable now.$extra", affordable.coerceAtLeast(1), "Cast") { n ->
-            if (per == null) act("cast $n $name") else chooseBuffTarget(name, n)
-        }
+    /** A skill's sheet: what it does, the effect it gives, and cast / extend / shrug buttons. */
+    private fun openSkill(skill: JSONObject, mp: Long) {
+        com.example.kolmafiaandroid.tools.SkillSheet.show(this, skill, mp) { act(it) }
     }
 
-    /** Buff skills can be cast on yourself or on another player (`cast N skill on player`). */
-    private fun chooseBuffTarget(name: String, n: Int) {
-        val ctx = requireContext()
-        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
-            .setTitle("Cast $name")
-            .setItems(arrayOf("On myself", "On another player…")) { _, which ->
-                if (which == 0) { act("cast $n $name"); return@setItems }
-                val input = android.widget.EditText(ctx).apply { hint = "Player name"; maxLines = 1 }
-                com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx)
-                    .setTitle("Cast on whom?")
-                    .setView(input)
-                    .setPositiveButton("Cast") { _, _ ->
-                        val who = input.text.toString().trim()
-                        if (who.isNotEmpty()) act("cast $n $name on $who")
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
-            }
-            .show()
+    /** An effect from one of your own skills opens that skill's sheet; any other effect gets the extend / remove menu. */
+    private fun tapEffect(e: JSONObject, o: JSONObject) {
+        val source = Regex("^cast\\s+\\d+\\s+(.+)$").find(e.optString("action"))?.groupValues?.get(1)
+        val skills = (o.optJSONArray("skills") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        val skill = if (source == null) null else skills.firstOrNull { it.getString("name").equals(source, ignoreCase = true) }
+        if (skill != null) openSkill(skill, o.optLong("mp")) else effectDialog(e, o.optLong("mp"))
     }
 
     /** Active-effect actions: extend (recast / reuse the source) or remove. */

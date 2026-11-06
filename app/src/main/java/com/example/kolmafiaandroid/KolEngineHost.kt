@@ -473,6 +473,11 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.chatText(key, from) } catch (t: Throwable) { "{}" }) }
     }
 
+    /** The last /who or /friends list KoL sent (KoLmafia hands it to the UI instead of the chat buffer). */
+    fun chatContacts(done: (String) -> Unit) {
+        reader.execute { done(try { KolEngine.chatContacts() } catch (t: Throwable) { "{}" }) }
+    }
+
     fun chatSend(key: String, text: String, done: () -> Unit = {}) {
         executor.execute {
             try { KolEngine.chatSend(key, text) } catch (t: Throwable) { lines.tryEmit("CHAT ERROR: $t") }

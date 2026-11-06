@@ -29,11 +29,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # The KoLmafia core is not committed: fetch the exact upstream commit this was built against.
-      - name: Fetch KoLmafia upstream
+      # The KoLmafia core is not committed: fetch the exact commit this was built against. It comes from the
+      # fork's engine/UI separation branch until that work is merged into kolmafia/kolmafia.
+      - name: Fetch KoLmafia
         run: |
           SHA=$(sed -E 's/^upstream commit: *//' kolmafia-core/UPSTREAM_VERSION | tr -d '[:space:]')
-          git clone --filter=blob:none https://github.com/kolmafia/kolmafia.git "$RUNNER_TEMP/kolmafia"
+          git clone --filter=blob:none https://github.com/raymondhardy/kolmafia.git "$RUNNER_TEMP/kolmafia"
           git -C "$RUNNER_TEMP/kolmafia" checkout "$SHA"
           tools/sync-upstream.sh "$RUNNER_TEMP/kolmafia"
 

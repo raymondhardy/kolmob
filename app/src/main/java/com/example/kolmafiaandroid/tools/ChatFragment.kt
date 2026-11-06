@@ -31,6 +31,9 @@ import com.example.kolmafiaandroid.KolEngineHost
 import com.example.kolmafiaandroid.R
 import com.google.android.material.button.MaterialButton
 import org.json.JSONObject
+import android.widget.Toast
+import com.example.kolmafiaandroid.ui.PickRow
+import com.example.kolmafiaandroid.ui.pickList
 
 /**
  * Messenger-style chat on KoLmafia's own chat engine (ChatPoller -> ChatManager buffers -> ChatSender).
@@ -253,7 +256,10 @@ class ChatFragment : FullScreenDialog() {
                 setPadding(dp(12), dp(6), dp(12), dp(6))
                 setOnClickListener {
                     val key = selected ?: return@setOnClickListener
-                    KolEngineHost.chatSend(key, cmd) { ui { handler.postDelayed({ refresh() }, 900) } }
+                    KolEngineHost.chatContacts { before ->
+                        val seen = try { JSONObject(before).optInt("version") } catch (_: Exception) { 0 }
+                        KolEngineHost.chatSend(key, cmd) { ui { showContacts(seen) } }
+                    }
                 }
             }
             tabsBox.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
@@ -295,6 +301,7 @@ class ChatFragment : FullScreenDialog() {
         if (panelDialog === dialog) panelDialog = null
         polling = false
         handler.removeCallbacks(pollTask)
+        handler.removeCallbacks(contactsRetry)
         super.onDestroyView()
     }
 
@@ -424,6 +431,42 @@ class ChatFragment : FullScreenDialog() {
         }
     }
 
+    // Waiting for KoL's reply to /who or /friends. The retry is a stored Runnable rather than the function
+    // calling itself: lint's UnsafeFragmentLifecycleObserver check follows self-calls and never finishes.
+    private var contactsSeen = 0
+    private var contactsTries = 0
+    private val contactsRetry = Runnable { pollContacts() }
+
+    /** Shows KoL's reply to /who or /friends once it arrives (newer than [seen]); tap a player to whisper them. */
+    private fun showContacts(seen: Int) {
+        handler.removeCallbacks(contactsRetry)
+        contactsSeen = seen
+        contactsTries = 0
+        pollContacts()
+    }
+
+    private fun pollContacts() {
+        KolEngineHost.chatContacts { json ->
+            val o = try { JSONObject(json) } catch (_: Exception) { JSONObject() }
+            ui {
+                if (o.optInt("version") <= contactsSeen) {
+                    if (++contactsTries < 10) handler.postDelayed(contactsRetry, 500)
+                    else Toast.makeText(requireContext(), "KoL didn't send a list.", Toast.LENGTH_SHORT).show()
+                    return@ui
+                }
+                val arr = o.optJSONArray("players")
+                val rows = (0 until (arr?.length() ?: 0)).map { arr!!.getJSONObject(it) }.map {
+                    val inChat = it.optBoolean("inChat")
+                    PickRow(it.getString("name"), if (inChat) "in chat" else "online, not in chat",
+                        group = if (inChat) "In chat" else "Elsewhere in the game", tag = it.getString("name"))
+                }.sortedBy { if (it.group == "In chat") 0 else 1 }
+                val title = o.optString("title").trim().removeSuffix(":").ifEmpty { "Players" } + "  (" + rows.size + ")"
+                if (rows.isEmpty()) { Toast.makeText(requireContext(), "$title: nobody", Toast.LENGTH_SHORT).show(); return@ui }
+                pickList(title, rows) { r -> openThread(r.tag as String) }
+            }
+        }
+    }
+
     private fun openThread(key: String) {
         ChatNotifier.unhide(requireContext(), key)
         if (!keys.contains(key)) keys = keys + key
@@ -494,7 +537,7 @@ class ChatFragment : FullScreenDialog() {
                 textSize = if (event) 12f else 15f
                 setLinkTextColor(if (own) Color.WHITE else KC.pick(0xFF81C784.toInt(), 0xFF2E7D32.toInt()))
                 movementMethod = LinkMovementMethod.getInstance()
-                breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
+                breakStrategy = android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
                 hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
                 if (own) {
                     val cs = android.text.SpannableStringBuilder(sp)

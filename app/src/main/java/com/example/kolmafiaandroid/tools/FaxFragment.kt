@@ -58,10 +58,12 @@ class FaxFragment : FullScreenDialog() {
 
     /** Runs one ASH fax call and reports what really happened (success only when KoLmafia says it worked). */
     private fun runFax(expr: String, okMsg: String, failMsg: String = "", showMonster: Boolean = false) {
-        status.text = "Working…  (a faxbot can take up to a minute to answer)"; status.setTextColor(KC.muted)
+        status.text = "Working…  (KoLmafia waits up to a minute for the faxbot, then checks the fax machine)"; status.setTextColor(KC.muted)
         KolEngineHost.setPref("kolmobFaxResult", "")
-        // The bot answers through KoL chat: chat has to be running or its reply is never seen
-        KolEngineHost.chatStart { _ -> sendFax(expr, okMsg, failMsg, showMonster) }
+        // No chat needed: when the bot's chat reply isn't seen, KoLmafia checks the fax machine after the timeout and
+        // keeps the fax only if it is the requested monster (upstream kolmafia#3831). Starting chat here would read
+        // held private messages without showing them anywhere (why upstream rejected #3818).
+        sendFax(expr, okMsg, failMsg, showMonster)
     }
 
     private fun sendFax(expr: String, okMsg: String, failMsg: String, showMonster: Boolean) {

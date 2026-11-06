@@ -71,6 +71,13 @@ android {
         viewBinding = true
     }
 
+    lint {
+        // androidx.fragment 1.7.1's UnsafeFragmentLifecycleObserverDetector follows every call made from a
+        // Fragment, depth-first with no memory of what it has seen, and does not finish on our fragments.
+        // Its three checks are about passing viewLifecycleOwner, which our two back-press callbacks do.
+        disable += setOf("FragmentAddMenuProvider", "FragmentBackPressedCallback", "FragmentLiveDataObserve")
+    }
+
     packaging {
         resources {
             excludes.add("OSGI-INF/l10n/plugin.properties")

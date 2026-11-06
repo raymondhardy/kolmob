@@ -41,6 +41,8 @@ public final class KolEngine {
     System.setProperty("useCWDasROOT", "true");
     System.setProperty("user.dir", root.getAbsolutePath());
     System.setProperty("user.home", root.getAbsolutePath());
+    // The engine reaches the user interface only through this (chat buffers' work runs on one thread, as on Swing's).
+    net.sourceforge.kolmafia.ui.UserInterfaceManager.setUserInterface(KolmobUserInterface.INSTANCE);
 
     StaticEntity.setGUIRequired(false);
     RequestLogger.openCustom(
@@ -623,7 +625,7 @@ public final class KolEngine {
 
   /** Tells scripts (is_dark_mode()) whether the app is showing its dark theme. */
   public static void setDarkTheme(boolean dark) {
-    KoLmafiaGUI.kolmobDark = dark;
+    KolmobUserInterface.INSTANCE.setDarkTheme(dark);
   }
 
   public static boolean isWaitingPaused() {
@@ -2120,6 +2122,20 @@ public final class KolEngine {
       kv(sb, "error", String.valueOf(t));
     }
     return sb.append('}').toString();
+  }
+
+  /** {"version","title","players":[{"name","inChat"}]}: the last /who or /friends reply (version 0: none yet). */
+  public static String chatContacts() {
+    var c = KolmobUserInterface.INSTANCE.contacts();
+    StringBuilder sb = new StringBuilder("{");
+    kv(sb, "version", c.version());
+    kv(sb, "title", c.title());
+    sb.append(",\"players\":[");
+    for (int i = 0; i < c.names().size(); i++) {
+      if (i > 0) sb.append(',');
+      sb.append("{\"name\":").append(quote(c.names().get(i))).append(",\"inChat\":").append(c.inChat().get(i)).append('}');
+    }
+    return sb.append("]}").toString();
   }
 
   /** Sends text to a channel ("/newbie") or whispers a player (name), exactly like KoLmafia's chat window. */

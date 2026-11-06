@@ -11,8 +11,8 @@ repositories {
     mavenCentral()
 }
 
-// Upstream KoLmafia's own JUnit suite, run against our synced core (stubs + patches) on the JVM.
-// Sources come from tools/sync-upstream.sh (gitignored).
+// Kolmob's own JUnit tests for its engine changes, run against our synced core on the JVM.
+// Upstream's test helpers come from tools/sync-core-tests.py (gitignored).
 dependencies {
     testImplementation(project(":kolmafia-core"))
     testImplementation("net.sourceforge.htmlcleaner:htmlcleaner:2.29")
@@ -49,10 +49,5 @@ tasks.test {
     maxHeapSize = "2g"
 }
 
-// Two upstream tests need Swing panels / jgit that the Android core does not ship.
-sourceSets.test {
-    java.exclude("**/YouRobotManagerTest.java", "**/QuestManagerTest.java")
-    // The Swing GUI is not part of the Android core. Upstream's GUI tests track its GUI classes closely, so after the
-    // Nov 2 sync they no longer compile against the signature-only stubs; they are left out (they passed before it).
-    java.exclude("**/swingui/**", "**/launcher/LauncherTest.java") // LauncherTest covers the desktop launcher, which is not in the Android core
-}
+// Kolmob's own engine tests (tracked in git), built on upstream's test helpers. Upstream's own tests are not copied
+// here: they run upstream. tools/sync-core-tests.py copies the helpers unchanged.

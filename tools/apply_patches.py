@@ -11,26 +11,15 @@ PATCHES = [
     ('net/sourceforge/kolmafia/KoLmafia.java',
      'if (Runtime.version().feature() >= UPCOMING_MINIMUM_JAVA_VERSION) return List.of();',
      'if (true) return List.of(); // Android: no Runtime.version()'),
-    # The Maximizer keeps its expression in a Swing combo box owned by the GUI; there is no GUI here, so a
-    # plain field replaces it (headless desktop KoLmafia has a real combo box, so this never failed there).
-    ('net/sourceforge/kolmafia/maximizer/Maximizer.java',
-     '  static long combinationLimit;\n',
-     '  static long combinationLimit;\n  static String currentExpression = "";\n'),
-    ('net/sourceforge/kolmafia/maximizer/Maximizer.java',
-     '    MaximizerFrame.expressionSelect.setSelectedItem(maximizerString);',
-     '    Maximizer.currentExpression = maximizerString;'),
-    ('net/sourceforge/kolmafia/maximizer/Maximizer.java',
-     '    String maxMe = (String) MaximizerFrame.expressionSelect.getSelectedItem();',
-     '    String maxMe = Maximizer.currentExpression;'),
-    # CalendarFrame is a Swing class stubbed out here (its formats are null); `moons` only needs the long date format.
-    ('net/sourceforge/kolmafia/textui/command/ShowDataCommand.java',
-     'DateTimeFormatter.ofPattern(CalendarFrame.LONG_FORMAT.toPattern())',
-     'DateTimeFormatter.ofPattern("MMMM d, yyyy")'),
-    # ChatBuffer.flush() can compute a negative skip when entries were trimmed between scheduling and running;
-    # on the desktop the Swing event thread swallows the exception, on Android it would kill the app.
-    ('net/sourceforge/kolmafia/chat/ChatBuffer.java',
-     'this.entries.stream().skip(this.entries.size() - this.pendingCount).toList());',
-     'this.entries.stream().skip(Math.max(0, this.entries.size() - this.pendingCount)).toList());'),
+    # KoL's mchat names the recipient of a private message with spaces ("Firstname Lastname"); upstream only matches the
+    # underscored form, so a reply landed in a thread named after ourselves instead of the sender's.
+    ('net/sourceforge/kolmafia/chat/ChatManager.java',
+     '''    } else if (StringUtilities.globalStringReplace(KoLCharacter.getUserName(), " ", "_")
+        .equalsIgnoreCase(recipient)) {''',
+     '''    } else if (StringUtilities.globalStringReplace(KoLCharacter.getUserName(), " ", "_")
+            .equalsIgnoreCase(recipient)
+        // Kolmob: KoL's mchat names the recipient with spaces
+        || KoLCharacter.getUserName().equalsIgnoreCase(recipient)) {'''),
     # Scripts that ask a question (user_confirm, user_prompt, ...) wait in KoLmafiaCLI.getNextLine; let the app know
     # so it can show a dialog (the app then feeds the answer through System.in, see engine KolStdin).
     ('net/sourceforge/kolmafia/KoLmafiaCLI.java',
@@ -399,18 +388,6 @@ PATCHES = [
 ''',
      '''  private static volatile boolean completedLogin = false;
 '''),
-    # Kolmob: there is no Swing look-and-feel here, so isDarkTheme() (used by scripts through is_dark_mode() and by
-    # libraries such as libram) crashed with a null pointer and any script calling it died. The app tells us instead.
-    ('net/sourceforge/kolmafia/KoLmafiaGUI.java',
-     '''  public static Boolean isDarkTheme() {
-    String currentTheme = UIManager.getLookAndFeel().getClass().getName();
-    return KoLGUIConstants.FLATMAP_DARK_LOOKS.containsValue(currentTheme);
-  }''',
-     '''  public static volatile boolean kolmobDark = true;
-
-  public static Boolean isDarkTheme() {
-    return kolmobDark;
-  }'''),
     # Kolmob: the character's bonuses (stomach/liver/spleen limits, etc.) are only recomputed when something calls
     # recalculateAdjustments(). KolmobCharacterGuard (our own file) keeps track of that: it recomputes stale bonuses
     # when a script reads them, recalculates when a limit mode ends, and, for Ed, re-reads the character sheet after

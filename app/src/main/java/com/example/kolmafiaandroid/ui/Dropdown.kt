@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid.ui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -11,6 +12,8 @@ import com.example.kolmafiaandroid.R
  * The app's one drop-down: an outlined field showing the current choice that opens the shared picker sheet.
  * Use it instead of Spinner. [onChange] fires only when the person picks something.
  */
+// A plain TextView on purpose: the app styles it itself and does not use AppCompat tinting
+@SuppressLint("AppCompatCustomView")
 class Dropdown(
     context: Context,
     private val title: String,

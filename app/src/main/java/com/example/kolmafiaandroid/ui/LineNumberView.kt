@@ -1,5 +1,6 @@
 package com.example.kolmafiaandroid.ui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -13,6 +14,8 @@ import android.widget.TextView
  * A TextView that shows line numbers in a gutter on the left side.
  * Designed to be placed next to an EditText with the same line height and padding.
  */
+// A plain TextView on purpose: the app styles it itself and does not use AppCompat tinting
+@SuppressLint("AppCompatCustomView")
 class LineNumberView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,

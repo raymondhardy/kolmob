@@ -76,7 +76,7 @@ class ItemsFragment : FullScreenDialog() {
 
         // Crafting and shopping live with the items they use
         controls.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "items",
-            listOf("Craft items" to { CraftFragment.show(requireActivity().supportFragmentManager, "items") })))
+            listOf(Triple("Craft items", "Cook, mix, smith and combine what you have") { CraftFragment.show(requireActivity().supportFragmentManager, "items") }), compact = true))
 
         // Search box
         searchEdit = EditText(ctx).apply {

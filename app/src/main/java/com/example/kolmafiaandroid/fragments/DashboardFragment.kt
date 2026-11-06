@@ -247,13 +247,20 @@ class DashboardFragment : Fragment() {
     }
 
     /** Equipment, outfits and your familiar: everything you wear or bring along. */
+    /** The Skills tab's tools, in a card, when there are any. */
+    private fun skillTools(ctx: android.content.Context) {
+        if (com.example.kolmafiaandroid.tools.ToolRegistry.inTab("skills").isEmpty()) return
+        card(ctx, body, "Tools").addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "skills"))
+    }
+
     private fun gearTab(o: JSONObject) {
         val ctx = requireContext()
         val eqCard = card(ctx, body, "Equipment")
         val eq = o.optJSONArray("equipment") ?: JSONArray()
         for (i in 0 until eq.length()) eqCard.addView(equipmentRow(eq.getJSONObject(i)))
         val best = card(ctx, body, "Best gear for…")
-        best.addView(label(ctx, "Tap a goal to wear the best gear you own for it (ties go to the stronger item).", 12f, muted).apply { setPadding(0, 0, 0, dp(ctx, 6)) })
+        best.addView(row(ctx, "Open the Maximizer", "Best gear and boosts for any goal, with scores", { com.example.kolmafiaandroid.tools.MaximizerFragment.show(requireActivity().supportFragmentManager) }, green))
+        best.addView(label(ctx, "Or tap a goal to wear the best gear you own for it right away (ties go to the stronger item).", 12f, muted).apply { setPadding(0, dp(ctx, 6), 0, dp(ctx, 6)) })
         for ((name, expr) in com.example.kolmafiaandroid.tools.GearGoals.list) {
             best.addView(row(ctx, name, "", { equipBest(name, expr) }, green))
         }
@@ -288,7 +295,7 @@ class DashboardFragment : Fragment() {
         if (familiars.isNotEmpty()) {
             more.addView(row(ctx, "Familiar: " + o.optString("familiar").ifEmpty { "none" }, "${familiars.size} owned", { chooseFamiliar(familiars) }, green))
         }
-        body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "gear"))
+        card(ctx, body, "Tools").addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "gear"))
     }
 
     /** Castable skills, buffs first. */
@@ -296,7 +303,7 @@ class DashboardFragment : Fragment() {
         val ctx = requireContext()
         buffsSection(o)
         val skills = (o.optJSONArray("skills") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
-        if (skills.isEmpty()) { body.addView(label(ctx, "No castable skills.", 15f, muted)); body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "skills")); return }
+        if (skills.isEmpty()) { body.addView(label(ctx, "No castable skills.", 15f, muted)); skillTools(ctx); return }
         val mp = o.optLong("mp")
         fun add(card: LinearLayout, list: List<JSONObject>) {
             for (s in list.sortedBy { it.getString("name") }) {
@@ -332,7 +339,7 @@ class DashboardFragment : Fragment() {
         if (passives.isNotEmpty()) {
             card(ctx, body, "Always on").addView(row(ctx, "Passive skills", "${passives.size} · tap to browse", { pick("Passive skills", passives) { } }))
         }
-        body.addView(com.example.kolmafiaandroid.ui.toolLinks(ctx, requireActivity().supportFragmentManager, "skills"))
+        skillTools(ctx)
     }
 
     /** Your active effects (with icons) and ways to add more; the top of the Skills & buffs tab. */
@@ -356,7 +363,7 @@ class DashboardFragment : Fragment() {
             }
         }
         val add = card(ctx, body, "Add a buff  ·  your own buff skills are listed below")
-        add.addView(row(ctx, "Find buffs for a goal", "Skills to cast and items to use", { com.example.kolmafiaandroid.tools.BoostFragment.show(fm) }, green))
+        add.addView(row(ctx, "Find buffs for a goal", "KoLmafia's maximizer: skills, items and gear", { com.example.kolmafiaandroid.tools.MaximizerFragment.show(fm) }, green))
         add.addView(row(ctx, "Ask a buffbot", "Buy buffs from a public bot", { com.example.kolmafiaandroid.tools.BuffRequestFragment.show(fm) }, green))
         add.addView(row(ctx, "Moods", "Buffs kept up automatically", { com.example.kolmafiaandroid.tools.MoodFragment.show(fm) }, green))
     }

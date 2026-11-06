@@ -372,27 +372,55 @@ fun textTabs(context: Context, labels: List<String>, selected: Int = 0, onSelect
 }
 
 
-/** A horizontally scrolling row of small link buttons: each opens a screen that belongs with the tab it sits in. */
-fun linkRow(context: Context, links: List<Pair<String, () -> Unit>>): View {
-    val d = context.resources.displayMetrics.density
-    val row = android.widget.LinearLayout(context).apply { orientation = android.widget.LinearLayout.HORIZONTAL; setPadding((2 * d).toInt(), (6 * d).toInt(), (2 * d).toInt(), (6 * d).toInt()) }
-    for ((title, go) in links) {
-        val tv = android.widget.TextView(context).apply {
-            text = title
-            textSize = 14f
-            setTextColor(KC.accent)
-            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
-            background = android.graphics.drawable.GradientDrawable().apply { setStroke((1 * d).toInt(), KC.accent); cornerRadius = 18 * d }
-            layoutParams = android.widget.LinearLayout.LayoutParams(-2, -2).apply { marginEnd = (8 * d).toInt() }
-        }
-        clickable(tv) { go() }
-        row.addView(tv)
+/**
+ * The tools registered for a Character tab (see [com.example.kolmafiaandroid.tools.ToolRegistry]), as a two-column grid of
+ * small cards with the tool's name and what it does, so they are easy to spot. [extra] comes first: (title, detail, open).
+ */
+fun toolLinks(
+    context: Context,
+    fm: androidx.fragment.app.FragmentManager,
+    home: String,
+    extra: List<Triple<String, String, () -> Unit>> = emptyList(),
+    /** Three to a row with names only, for tabs where a list follows and has to stay in view. */
+    compact: Boolean = false,
+): View {
+    val tools = extra + com.example.kolmafiaandroid.tools.ToolRegistry.inTab(home).map { t ->
+        Triple(t.title, t.subtitle) { if (t.page == null) t.open(fm) }
     }
-    return android.widget.HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(row) }
+    val grid = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    val perRow = if (compact) 3 else 2
+    for (pair in tools.chunked(perRow)) {
+        val r = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        pair.forEachIndexed { i, (title, detail, open) ->
+            r.addView(toolCard(context, title, if (compact) "" else detail, open, compact), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+                if (i < perRow - 1) marginEnd = dp(context, 8)
+            })
+        }
+        // a short last row keeps the same card widths as the others. The filler must match the row's height too:
+        // a zero-height filler makes the row zero high, and the card in it disappears
+        repeat(perRow - pair.size) { k ->
+            r.addView(View(context), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply { if (pair.size + k < perRow - 1) marginEnd = dp(context, 8) })
+        }
+        grid.addView(r, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(context, 8) })
+    }
+    return grid
 }
 
-/** The tools registered for a Character tab, as link buttons (see [com.example.kolmafiaandroid.tools.ToolRegistry]). */
-fun toolLinks(context: Context, fm: androidx.fragment.app.FragmentManager, home: String, extra: List<Pair<String, () -> Unit>> = emptyList()): View =
-    linkRow(context, extra + com.example.kolmafiaandroid.tools.ToolRegistry.inTab(home).map { t ->
-        t.title to { if (t.page != null) Unit else t.open(fm) }
+/** One tool in [toolLinks]: its name in green, what it does under it, the whole card tappable. */
+private fun toolCard(context: Context, title: String, detail: String, open: () -> Unit, compact: Boolean = false): View {
+    val pad = dp(context, if (compact) 10 else 12)
+    val c = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = if (compact) Gravity.CENTER else Gravity.NO_GRAVITY
+        setPadding(pad, pad, pad, pad)
+        background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(context, 10).toFloat(); setStroke(dp(context, 1), KC.faint) }
+    }
+    c.addView(label(context, title, if (compact) 14f else 15f, KC.accent, true).apply { if (compact) gravity = Gravity.CENTER })
+    if (detail.isNotEmpty()) c.addView(label(context, detail, 12f, KC.muted).apply {
+        maxLines = 2
+        ellipsize = android.text.TextUtils.TruncateAt.END
+        setPadding(0, dp(context, 2), 0, 0)
     })
+    clickable(c, open)
+    return c
+}

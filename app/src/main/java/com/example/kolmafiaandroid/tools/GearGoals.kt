@@ -1,6 +1,6 @@
 package com.example.kolmafiaandroid.tools
 
-/** What a person can ask the maximizer for, shared by the Gear page ("best gear for") and the Boost tool. */
+/** What a person can ask the maximizer for, shared by the Gear page ("best gear for") and the Maximizer. */
 object GearGoals {
     val list: List<Pair<String, String>> = listOf(
         "Item drop" to "item drop",

@@ -232,10 +232,22 @@ object KolEngineHost {
         }
     }
 
-    /** Boosts (potions, buffs, things to use) for a maximizer goal, as JSON (see KolEngine.boosts). Runs on the engine thread. */
-    fun boosts(expression: String, done: (String) -> Unit) {
+    /** The maximizer's saved options (see KolEngine.maximizerSettings). Runs on the engine thread. */
+    fun maximizerSettings(done: (String) -> Unit) {
+        executor.execute { done(try { KolEngine.maximizerSettings() } catch (t: Throwable) { "{}" }) }
+    }
+
+    /** Runs KoLmafia's maximizer without changing anything (see KolEngine.maximizer). Runs on the engine thread. */
+    fun maximizer(expression: String, scope: Int, maxPrice: Int, priceLevel: Int, filters: String, done: (String) -> Unit) {
         executor.execute {
-            done(try { KolEngine.boosts(expression) } catch (t: Throwable) { "{\"ok\":false,\"error\":\"$t\"}" })
+            done(try { KolEngine.maximizer(expression, scope, maxPrice, priceLevel, filters) } catch (t: Throwable) { "{\"ok\":false,\"error\":\"$t\"}" })
+        }
+    }
+
+    /** Does maximizer suggestions: "all-gear" or picked indexes (see KolEngine.maximizerApply). Runs on the engine thread. */
+    fun maximizerApply(indexes: String, checkpoint: Boolean, done: (String) -> Unit) {
+        executor.execute {
+            done(try { KolEngine.maximizerApply(indexes, checkpoint) } catch (t: Throwable) { "{\"ok\":false,\"error\":\"$t\"}" })
         }
     }
 

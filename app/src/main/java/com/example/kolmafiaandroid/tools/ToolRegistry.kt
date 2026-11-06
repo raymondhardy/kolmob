@@ -33,7 +33,7 @@ object ToolRegistry {
         "mall" to "items", "npcshops" to "items", "coinmasters" to "items", "store" to "items", "items" to "hidden", "meat" to "items",
         "mushroom" to "adventure", "train" to "adventure", "leaflet" to "adventure",
         "scripts" to "hidden", "ascensions" to "hidden", "gains" to "overview",
-        "maximizer" to "hidden", "boost" to "hidden", "modifiers" to "gear",
+        "maximizer" to "gear", "modifiers" to "gear",
         "buffrequest" to "hidden", "buffbot" to "hidden",
     )
     fun inTab(home: String): List<Tool> = tools.filter { it.home == home }
@@ -193,16 +193,9 @@ object ToolRegistry {
         add(Tool(
             id = "maximizer",
             title = "Maximizer",
-            subtitle = "Optimize equipment with maximize command",
+            subtitle = "Best gear and boosts for any goal",
             open = { fm -> MaximizerFragment.show(fm) },
             group = "Info and scripts"
-        ))
-        add(Tool(
-            id = "boost",
-            title = "Boost",
-            subtitle = "Skills to cast and items to use that raise a goal",
-            open = { fm -> BoostFragment.show(fm) },
-            group = "Character"
         ))
         fun page(id: String, title: String, subtitle: String, path: String, group: String = "Mazes") = add(Tool(
             id = id, title = title, subtitle = subtitle, group = group,

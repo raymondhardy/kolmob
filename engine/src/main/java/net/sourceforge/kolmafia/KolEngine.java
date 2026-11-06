@@ -112,37 +112,137 @@ public final class KolEngine {
     }
   }
 
+  // ---- Maximizer: KoLmafia's own maximizer, driven the way the desktop Maximizer window drives it ----
+
+  /** The suggestions of the last maximizer run, in the order shown; indexes refer to this list. */
+  private static java.util.List<net.sourceforge.kolmafia.maximizer.Boost> maximizerBoosts = java.util.List.of();
+
+  private static final String[] FILTER_NAMES = {"equip", "cast", "wish", "usable", "booze", "food", "spleen", "other"};
+
   /**
-   * What you could use, cast or do (not wear) to push a maximizer goal higher than your current gear already does, as JSON:
-   * {"ok":true,"boosts":[{"text":"...","cmd":"...","gain":1.5}]}. Uses KoLmafia's own maximizer, with equipment left out.
+   * The desktop window's saved choices, as JSON {"scope","priceLevel","maxPrice","filters":[...],"recent":[...]}. Food,
+   * booze and spleen start unchecked when that organ is full, as on the desktop.
    */
-  public static String boosts(String expression) {
+  public static synchronized String maximizerSettings() {
+    StringBuilder sb = new StringBuilder("{");
     try {
-      KoLmafia.forceContinue();
-      java.util.EnumSet<KoLConstants.filterType> f =
-          java.util.EnumSet.of(KoLConstants.filterType.CAST, KoLConstants.filterType.USABLE, KoLConstants.filterType.OTHER);
-      boolean ok =
-          net.sourceforge.kolmafia.maximizer.Maximizer.maximize(
-              expression,
-              0,
-              net.sourceforge.kolmafia.maximizer.PriceLevel.DONT_CHECK,
-              net.sourceforge.kolmafia.maximizer.EquipScope.SPECULATE_INVENTORY,
-              f);
-      if (!ok && !KoLmafia.permitsContinue()) return "{\"ok\":false,\"error\":\"Could not understand: " + expression.replace("\"", "'") + "\"}";
-      StringBuilder sb = new StringBuilder("{\"ok\":true,\"boosts\":[");
+      kv(sb, "scope", Preferences.getInteger("maximizerEquipmentScope"));
+      kv(sb, "priceLevel", Preferences.getInteger("maximizerPriceLevel"));
+      kv(sb, "maxPrice", Preferences.getInteger("maximizerMaxPrice"));
+      String last = Preferences.getString("maximizerLastFilters");
+      java.util.Set<String> saved = java.util.Set.of(last.split(","));
+      sb.append(",\"filters\":[");
       boolean first = true;
-      for (net.sourceforge.kolmafia.maximizer.Boost b : net.sourceforge.kolmafia.maximizer.Maximizer.boosts) {
-        if (b.isEquipment() || b.getCmd().isEmpty()) continue;
-        String text = b.toString().replaceAll("<[^>]*>", "").replace("&amp;", "&").trim();
+      for (String f : FILTER_NAMES) {
+        boolean underLimit =
+            switch (f) {
+              case "booze" -> KoLCharacter.canDrink() && KoLCharacter.getInebriety() < KoLCharacter.getLiverCapacity();
+              case "food" -> KoLCharacter.canEat() && KoLCharacter.getFullness() < KoLCharacter.getStomachCapacity();
+              case "spleen" -> KoLCharacter.getSpleenUse() < KoLCharacter.getSpleenLimit();
+              default -> true;
+            };
+        if ((last.isEmpty() || saved.contains(f)) && underLimit) {
+          if (!first) sb.append(',');
+          first = false;
+          sb.append(quote(f));
+        }
+      }
+      sb.append("],\"recent\":[");
+      first = true;
+      for (String e : Preferences.getString("maximizerMRUList").split(";")) {
+        if (e.isBlank()) continue;
         if (!first) sb.append(',');
         first = false;
-        sb.append("{\"text\":").append(quote(text)).append(",\"cmd\":").append(quote(b.getCmd()))
-            .append(",\"gain\":").append(b.getBoost()).append('}');
+        sb.append(quote(e.trim()));
+      }
+      return sb.append("]}").toString();
+    } catch (Throwable t) {
+      return "{\"error\":" + quote(String.valueOf(t)) + "}";
+    }
+  }
+
+  /**
+   * Runs the maximizer for [expression] without changing anything, as JSON {"ok","score","failed","boosts":[{"i","text",
+   * "cmd","gain","equip","slot","item"}]}. [scope] 0 on hand, 1 creatable, 2 pullable/buyable; [priceLevel] 0 don't check, 1 buyable
+   * only, 2 all consumables; [filters] a comma list of FILTER_NAMES. The choices are saved like the desktop saves them.
+   */
+  public static synchronized String maximizer(String expression, int scope, int maxPrice, int priceLevel, String filters) {
+    try {
+      KoLmafia.forceContinue();
+      java.util.Set<String> wanted = java.util.Set.of(filters.split(","));
+      java.util.EnumSet<KoLConstants.filterType> f = java.util.EnumSet.noneOf(KoLConstants.filterType.class);
+      for (KoLConstants.filterType t : KoLConstants.filterType.values()) {
+        if (wanted.contains(t.toString().toLowerCase())) f.add(t);
+      }
+      Preferences.setInteger("maximizerEquipmentScope", scope);
+      Preferences.setBoolean("maximizerUseScope", true);
+      Preferences.setInteger("maximizerPriceLevel", priceLevel);
+      Preferences.setInteger("maximizerMaxPrice", maxPrice);
+      Preferences.setString("maximizerLastFilters", filters);
+
+      net.sourceforge.kolmafia.maximizer.Maximizer.setExpression(expression);
+      net.sourceforge.kolmafia.maximizer.Maximizer.maximize(
+          net.sourceforge.kolmafia.maximizer.EquipScope.byIndex(scope),
+          maxPrice,
+          net.sourceforge.kolmafia.maximizer.PriceLevel.byIndex(priceLevel),
+          Preferences.getBoolean("maximizerIncludeAll"),
+          f);
+      var eval = net.sourceforge.kolmafia.maximizer.Maximizer.eval;
+      if (eval == null || !KoLmafia.permitsContinue()) {
+        maximizerBoosts = java.util.List.of();
+        String why = KoLmafia.getLastMessage();
+        return "{\"ok\":false,\"error\":" + quote(why == null || why.isBlank() ? "Could not understand: " + expression : why) + "}";
+      }
+      maximizerBoosts = new java.util.ArrayList<>(net.sourceforge.kolmafia.maximizer.Maximizer.boosts);
+      StringBuilder sb = new StringBuilder("{\"ok\":true");
+      sb.append(",\"score\":").append(eval.getScore(KoLCharacter.getCurrentModifiers()));
+      sb.append(",\"failed\":").append(eval.failed);
+      sb.append(",\"boosts\":[");
+      for (int i = 0; i < maximizerBoosts.size(); i++) {
+        var b = maximizerBoosts.get(i);
+        if (i > 0) sb.append(',');
+        String text = b.toString().replaceAll("<[^>]*>", "").replace("&amp;", "&").replace("&nbsp;", " ").trim();
+        sb.append("{\"i\":").append(i).append(",\"text\":").append(quote(text))
+            .append(",\"cmd\":").append(quote(b.getCmd())).append(",\"gain\":").append(b.getBoost())
+            .append(",\"equip\":").append(b.isEquipment())
+            .append(",\"slot\":").append(quote(b.getSlot() == null ? "" : b.getSlot().name))
+            .append(",\"item\":").append(quote(b.getItem() == null ? "" : b.getItem().getName())).append('}');
       }
       return sb.append("]}").toString();
     } catch (Throwable t) {
       return "{\"ok\":false,\"error\":" + quote(String.valueOf(t)) + "}";
     }
+  }
+
+  /**
+   * Does suggestions from the last run, like the desktop's buttons: [indexes] "all-gear" is "equip all" (every gear
+   * change), otherwise the picked indexes are run in order ("exec selected"). With [checkpoint] the gear worn now is
+   * saved first, so "outfit checkpoint" puts it back. Stops at the first one KoLmafia refuses, as JSON
+   * {"ok","did","error"}.
+   */
+  public static synchronized String maximizerApply(String indexes, boolean checkpoint) {
+    try {
+      KoLmafia.forceContinue();
+      if (checkpoint) KoLmafiaCLI.DEFAULT_SHELL.executeLine("checkpoint");
+      boolean equipOnly = indexes.equals("all-gear");
+      java.util.List<net.sourceforge.kolmafia.maximizer.Boost> todo = new java.util.ArrayList<>();
+      if (equipOnly) todo.addAll(maximizerBoosts);
+      else for (int i : parseIndexes(indexes)) todo.add(maximizerBoosts.get(i));
+      int did = 0;
+      for (var b : todo) {
+        if (b.execute(equipOnly)) did++;
+        if (!KoLmafia.permitsContinue()) {
+          return "{\"ok\":false,\"did\":" + did + ",\"error\":" + quote(String.valueOf(KoLmafia.getLastMessage())) + "}";
+        }
+      }
+      return "{\"ok\":true,\"did\":" + did + "}";
+    } catch (Throwable t) {
+      return "{\"ok\":false,\"did\":0,\"error\":" + quote(String.valueOf(t)) + "}";
+    }
+  }
+
+  private static int[] parseIndexes(String indexes) {
+    return java.util.Arrays.stream(indexes.split(",")).filter(x -> !x.isBlank()).mapToInt(x -> Integer.parseInt(x.trim())).toArray();
   }
 
   public static String copyRootFile(String fromRel, String toRel) {

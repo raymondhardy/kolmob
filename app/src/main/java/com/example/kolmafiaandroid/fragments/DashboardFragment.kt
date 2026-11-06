@@ -39,8 +39,6 @@ import org.json.JSONObject
 class DashboardFragment : Fragment() {
     private val green = KC.accent
     private val muted = KC.muted
-    private var skillTurns = mapOf<String, Int>() // buff skill name -> turns per cast
-    private var skillMp = mapOf<String, Long>()
 
     // Layout: a compact character header that is always visible, then sub-tabs that group the rest.
     private lateinit var headerBox: LinearLayout
@@ -163,9 +161,6 @@ class DashboardFragment : Fragment() {
 
     private fun render(o: JSONObject) {
         snapshot = o
-        val skills = (o.optJSONArray("skills") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
-        skillTurns = skills.filter { it.optInt("perCast") > 0 }.associate { it.getString("name") to it.getInt("perCast") }
-        skillMp = skills.associate { it.getString("name") to it.optLong("mpCost") }
         renderHeader(o)
         if (tabIndex != ITEMS_TAB && tabIndex != QUESTS_TAB) renderBody() // the Items/Quests tabs hosts its own fragment: leave it alone on refresh
     }
@@ -530,48 +525,12 @@ class DashboardFragment : Fragment() {
         com.example.kolmafiaandroid.tools.SkillSheet.show(this, skill, mp) { act(it) }
     }
 
-    /** An effect from one of your own skills opens that skill's sheet; any other effect gets the extend / remove menu. */
+    /** An effect from one of your own skills opens that skill's card; any other effect opens the effect card. */
     private fun tapEffect(e: JSONObject, o: JSONObject) {
         val source = Regex("^cast\\s+\\d+\\s+(.+)$").find(e.optString("action"))?.groupValues?.get(1)
         val skills = (o.optJSONArray("skills") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
         val skill = if (source == null) null else skills.firstOrNull { it.getString("name").equals(source, ignoreCase = true) }
-        if (skill != null) openSkill(skill, o.optLong("mp")) else effectDialog(e, o.optLong("mp"))
-    }
-
-    /** Active-effect actions: extend (recast / reuse the source) or remove. */
-    private fun effectDialog(e: JSONObject, mp: Long) {
-        val name = e.getString("name")
-        val turns = e.getInt("turns")
-        val action = e.optString("action")
-        val m = Regex("^(cast|use)\\s+\\d+\\s+(.+)$").find(action)
-        val options = mutableListOf<Pair<String, () -> Unit>>()
-        if (m != null) {
-            val verb = m.groupValues[1]
-            val source = m.groupValues[2]
-            val per = skillTurns[source] ?: 0
-            val cost = skillMp[source] ?: 0
-            fun run(n: Int) = act("$verb $n $source")
-            fun turnsText(n: Int) = if (per > 0) " (+${n * per} turns)" else ""
-            options += "Extend: 1 ${if (verb == "cast") "cast" else "use"} of $source${turnsText(1)}" to { run(1) }
-            options += "Extend: 5×${turnsText(5)}" to { run(5) }
-            options += "Extend: 10×${turnsText(10)}" to { run(10) }
-            if (per > 0) {
-                for (target in listOf(100, 200, 500)) {
-                    if (turns < target) {
-                        val n = (target - turns + per - 1) / per
-                        val mpNote = if (cost > 0) ", ${n * cost} MP" + (if (n * cost > mp) " - more than you have" else "") else ""
-                        options += "Extend to $target turns ($n casts$mpNote)" to { run(n) }
-                    }
-                }
-            }
-            options += "Extend: custom amount…" to {
-                askQuantity("Extend $name", "How many times to $verb $source?", if (cost > 0) (mp / cost).toInt().coerceAtLeast(1) else 99, "Go") { run(it) }
-            }
-        } else if (action.isNotEmpty()) {
-            options += "Extend: $action" to { act(action) }
-        }
-        options += "Remove this effect" to { act("uneffect $name") }
-        pick("$name  ($turns turns)", options.map { it.first }, searchable = false) { options[it].second() }
+        if (skill != null) openSkill(skill, o.optLong("mp")) else com.example.kolmafiaandroid.tools.EffectSheet.show(this, e) { act(it) }
     }
 
     /** HP/MP restore picker: auto-restore, rest, and every item/skill KoLmafia knows heals this stat. */

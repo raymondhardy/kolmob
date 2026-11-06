@@ -1972,7 +1972,7 @@ public final class KolEngine {
 
   /**
    * Everything the skill sheet shows, as JSON {"id","name","img","mpCost","perCast","buff","castsLeft","desc",
-   * "effect":{"name","img","turns","mods":[...]}}. castsLeft is -1 when there is no daily limit; effect is absent when
+   * "effect":{"name","img","turns","shruggable","removable","mods":[...]}}. castsLeft is -1 when there is no daily limit; effect is absent when
    * the skill gives none. The description is KoL's own text from the skill's description page.
    */
   public static String skillInfo(int id) {
@@ -2003,6 +2003,8 @@ public final class KolEngine {
         kv(sb, "name", net.sourceforge.kolmafia.persistence.EffectDatabase.getEffectName(effectId));
         kv(sb, "img", eimg == null ? "" : eimg);
         kv(sb, "turns", turns);
+        kv(sb, "shruggable", net.sourceforge.kolmafia.request.UneffectRequest.isShruggable(effectId));
+        kv(sb, "removable", net.sourceforge.kolmafia.request.UneffectRequest.isRemovable(effectId));
         sb.append(",\"mods\":[");
         boolean first = true;
         for (String m : (mods == null ? "" : mods).split(", ")) {
@@ -2021,22 +2023,125 @@ public final class KolEngine {
 
   /** The description text from KoL's skill description page, without the markup. */
   private static String skillDescription(int id) {
-    return skillDescriptions.computeIfAbsent(id, k -> {
-      try {
-        GenericRequest r = new GenericRequest("desc_skill.php");
-        r.addFormField("whichskill", String.valueOf(k));
-        r.addFormField("self", "true");
-        r.run();
-        String html = r.responseText == null ? "" : r.responseText;
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?is)<blockquote[^>]*>(.*?)</blockquote>").matcher(html);
-        String part = m.find() ? m.group(1) : "";
-        return part.replaceAll("(?i)<br\\s*/?>", "\n").replaceAll("(?i)</?p[^>]*>", "\n").replaceAll("<[^>]*>", "")
-            .replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'")
-            .replaceAll("[ \t]+", " ").replaceAll("\\s*\n\\s*", "\n").trim();
-      } catch (Throwable t) {
-        return "";
+    return skillDescriptions.computeIfAbsent(id, k -> descriptionPage("desc_skill.php", "whichskill", String.valueOf(k), true));
+  }
+
+  /** KoL's own effect descriptions, by description id, fetched once per session. */
+  private static final java.util.Map<String, String> effectDescriptions = new java.util.concurrent.ConcurrentHashMap<>();
+
+  /** The text inside a KoL description page's blockquote, without the markup; "" when it can't be loaded. */
+  private static String descriptionPage(String page, String field, String value, boolean self) {
+    try {
+      GenericRequest r = new GenericRequest(page);
+      r.addFormField(field, value);
+      if (self) r.addFormField("self", "true");
+      r.run();
+      String html = r.responseText == null ? "" : r.responseText;
+      java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?is)<blockquote[^>]*>(.*?)</blockquote>").matcher(html);
+      String part = m.find() ? m.group(1) : "";
+      return part.replaceAll("(?i)<br\\s*/?>", "\n").replaceAll("(?i)</?p[^>]*>", "\n").replaceAll("<[^>]*>", "")
+          .replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'")
+          .replaceAll("[ \t]+", " ").replaceAll("\\s*\n\\s*", "\n").trim();
+    } catch (Throwable t) {
+      return "";
+    }
+  }
+
+  /**
+   * Everything the effect card shows, as JSON {"id","name","img","turns","quality","desc","mods":[...],"action","keepUp",
+   * "note","sources":[{"item","have","perUse"}],"otherSources","item","have","perUse","shruggable","removable"}.
+   * keepUp is KoLmafia's usual way to get more ("use 1 X", "use either 1 A, 1 B", "cast 1 X" or ""); action is the same
+   * with one item you have picked, so it can be repeated; sources are the items you have that give it, most first, and
+   * otherSources how many other items would. item, have and perUse describe the one action uses (perUse 0 when unknown).
+   */
+  public static String effectInfo(String effectName) {
+    StringBuilder sb = new StringBuilder("{");
+    try {
+      int id = net.sourceforge.kolmafia.persistence.EffectDatabase.getEffectId(effectName);
+      if (id <= 0) return "{\"error\":\"Effect not found\"}";
+      kv(sb, "id", id);
+      kv(sb, "name", net.sourceforge.kolmafia.persistence.EffectDatabase.getEffectName(id));
+      String img = net.sourceforge.kolmafia.persistence.EffectDatabase.getImageName(id);
+      kv(sb, "img", img == null ? "" : img);
+      int turns = 0;
+      for (AdventureResult r : KoLConstants.activeEffects) {
+        if (r.getEffectId() == id) turns = r.getCount();
       }
-    });
+      kv(sb, "turns", turns);
+      kv(sb, "quality", String.valueOf(net.sourceforge.kolmafia.persistence.EffectDatabase.getQuality(id)).toLowerCase());
+      String descId = net.sourceforge.kolmafia.persistence.EffectDatabase.getDescriptionId(id);
+      kv(sb, "desc", descId == null || descId.isEmpty() ? ""
+          : effectDescriptions.computeIfAbsent(descId, k -> descriptionPage("desc_effect.php", "whicheffect", k, false)));
+      String mods = net.sourceforge.kolmafia.persistence.ModifierDatabase.getStringModifier(
+          ModifierType.EFFECT, id, net.sourceforge.kolmafia.modifiers.StringModifier.EVALUATED_MODIFIERS);
+      sb.append(",\"mods\":[");
+      boolean first = true;
+      for (String m : (mods == null ? "" : mods).split(", ")) {
+        if (m.isBlank()) continue;
+        if (!first) sb.append(',');
+        first = false;
+        sb.append(quote(m.trim()));
+      }
+      sb.append(']');
+      String action = "";
+      try {
+        String a = net.sourceforge.kolmafia.persistence.EffectDatabase.getDefaultAction(id);
+        if (a != null) action = a;
+      } catch (RuntimeException ignored) {
+        // no known source
+      }
+      // "use 1 X", or "use either 1 A, 1 B, ..." when many items give it (KoLmafia then uses whichever you have)
+      String verb = null;
+      java.util.List<String> candidates = new java.util.ArrayList<>();
+      java.util.regex.Matcher either = java.util.regex.Pattern.compile("^(use|eat|drink|chew)\\s+either\\s+(.+)$").matcher(action);
+      java.util.regex.Matcher single = java.util.regex.Pattern.compile("^(use|eat|drink|chew)\\s+\\d+\\s+(.+)$").matcher(action);
+      if (either.find()) {
+        verb = either.group(1);
+        for (String part : either.group(2).split(",\\s*")) candidates.add(part.replaceFirst("^\\d+\\s+", "").trim());
+      } else if (single.find()) {
+        verb = single.group(1);
+        candidates.add(single.group(2).trim());
+      }
+      // the items you have that give it, most first; the extend buttons use the first
+      java.util.List<int[]> owned = new java.util.ArrayList<>();
+      for (String c : candidates) {
+        int itemId = net.sourceforge.kolmafia.persistence.ItemDatabase.getItemId(c);
+        if (itemId <= 0) continue;
+        int have = net.sourceforge.kolmafia.session.InventoryManager.getCount(itemId);
+        if (have > 0 || candidates.size() == 1) owned.add(new int[] {itemId, have});
+      }
+      owned.sort((x, y) -> y[1] - x[1]);
+      kv(sb, "keepUp", action);
+      kv(sb, "otherSources", Math.max(0, candidates.size() - owned.size()));
+      sb.append(",\"sources\":[");
+      for (int i = 0; i < owned.size(); i++) {
+        int itemId = owned.get(i)[0];
+        if (i > 0) sb.append(',');
+        sb.append('{');
+        kv(sb, "item", net.sourceforge.kolmafia.persistence.ItemDatabase.getItemName(itemId));
+        kv(sb, "have", owned.get(i)[1]);
+        kv(sb, "perUse", (int) net.sourceforge.kolmafia.persistence.ModifierDatabase.getNumericModifier(
+            ModifierType.ITEM, itemId, net.sourceforge.kolmafia.modifiers.DoubleModifier.EFFECT_DURATION));
+        sb.append('}');
+      }
+      sb.append(']');
+      if (!owned.isEmpty()) {
+        String firstItem = net.sourceforge.kolmafia.persistence.ItemDatabase.getItemName(owned.get(0)[0]);
+        action = verb + " 1 " + firstItem;
+        kv(sb, "item", firstItem);
+        kv(sb, "have", owned.get(0)[1]);
+        kv(sb, "perUse", (int) net.sourceforge.kolmafia.persistence.ModifierDatabase.getNumericModifier(
+            ModifierType.ITEM, owned.get(0)[0], net.sourceforge.kolmafia.modifiers.DoubleModifier.EFFECT_DURATION));
+      }
+      kv(sb, "action", action);
+      String note = net.sourceforge.kolmafia.persistence.EffectDatabase.getActionNote(id);
+      kv(sb, "note", note == null ? "" : note);
+      kv(sb, "shruggable", net.sourceforge.kolmafia.request.UneffectRequest.isShruggable(id));
+      kv(sb, "removable", net.sourceforge.kolmafia.request.UneffectRequest.isRemovable(id));
+      return sb.append('}').toString();
+    } catch (Throwable t) {
+      return "{\"error\":" + quote(String.valueOf(t)) + "}";
+    }
   }
 
   /** Database describe: returns longer multi-line text for a specific item/monster/skill/effect by ID. */

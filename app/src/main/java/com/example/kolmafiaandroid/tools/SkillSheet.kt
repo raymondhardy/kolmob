@@ -43,7 +43,8 @@ object SkillSheet {
         val buff = skill.optBoolean("buff")
         val affordable = if (cost > 0) (mp / cost).toInt() else 99
 
-        val sheet = Dialog(ctx).apply { requestWindowFeature(android.view.Window.FEATURE_NO_TITLE) }
+        val scroll = ScrollView(ctx)
+        val sheet = floatingCard(ctx, scroll)
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(ctx, 20), dp(ctx, 18), dp(ctx, 20), dp(ctx, 20)) }
 
         // name, icon and the basics
@@ -76,7 +77,7 @@ object SkillSheet {
         fun run(cmd: String) { sheet.dismiss(); act(cmd) }
 
         /** The buttons, once we know whether the effect is active. */
-        fun buildActions(effect: String?, turns: Int) {
+        fun buildActions(effect: String?, turns: Int, shruggable: Boolean = false, removable: Boolean = false) {
             actions.removeAllViews()
             val buttons = mutableListOf<Triple<Int, String, (() -> Unit)?>>()
             val canCast = cost <= mp
@@ -94,35 +95,14 @@ object SkillSheet {
                 })
             }
             if (buff) buttons += Triple(R.drawable.web_person, "On someone", if (canCast) ({ castOnSomeone(ctx, sheet, name, act) }) else null)
-            if (effect != null && turns > 0) buttons += Triple(R.drawable.ic_close, "Shrug", {
-                ScrollSafeDialogBuilder(ctx).setTitle("Shrug off $effect?")
-                    .setMessage("You lose the $turns turns you have left.")
-                    .setPositiveButton("Shrug") { _, _ -> run("uneffect $effect") }
-                    .setNegativeButton("Cancel", null).show()
-            })
-            for (rowItems in buttons.chunked(3)) {
-                val r = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
-                rowItems.forEachIndexed { i, (icon, text, onTap) ->
-                    r.addView(actionButton(ctx, icon, text, onTap), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { if (i < 2) marginEnd = dp(ctx, 8) })
-                }
-                repeat(3 - rowItems.size) { k -> r.addView(View(ctx), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply { if (rowItems.size + k < 2) marginEnd = dp(ctx, 8) }) }
-                actions.addView(r, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(ctx, 8) })
-            }
+            // KoLmafia's own rule: only real buffs shrug off for free; anything else needs a remedy item
+            if (effect != null && turns > 0 && (shruggable || removable)) buttons += removeButton(ctx, effect, turns, shruggable) { run("uneffect $effect") }
+            actions.addView(actionGrid(ctx, buttons))
             if (!canCast) actions.addView(label(ctx, "You need $cost MP to cast it; you have $mp.", 12f, KC.bad))
         }
         buildActions(null, 0)
 
-        // a card floating in the middle of the screen, with the page dimmed behind it
-        sheet.setContentView(ScrollView(ctx).apply {
-            addView(col)
-            background = GradientDrawable().apply { cornerRadius = dp(ctx, 20).toFloat(); setColor(KC.surface); setStroke(dp(ctx, 1), KC.faint) }
-            clipToOutline = true
-        })
-        sheet.window?.apply {
-            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-            setLayout(ctx.resources.displayMetrics.widthPixels - 2 * dp(ctx, 16), ViewGroup.LayoutParams.WRAP_CONTENT)
-            setGravity(Gravity.CENTER)
-        }
+        scroll.addView(col)
         sheet.show()
 
         KolEngineHost.skillInfo(skill.optInt("id")) { json ->
@@ -150,25 +130,63 @@ object SkillSheet {
                     for (i in 0 until (mods?.length() ?: 0)) {
                         effectBox.addView(label(ctx, "•  " + readableModifier(mods!!.getString(i)), 14f, KC.soft).apply { setPadding(dp(ctx, 4), dp(ctx, 3), 0, 0) })
                     }
-                    buildActions(e.optString("name"), e.optInt("turns"))
+                    buildActions(e.optString("name"), e.optInt("turns"), e.optBoolean("shruggable"), e.optBoolean("removable"))
                 }
             }
         }
     }
 
-    /** KoL ends the description with "Gives Effect: X (N Adventures)"; the Gives section shows that already. */
-    private fun cleanDescription(text: String, hasEffect: Boolean): String {
+    /** KoL ends a skill's description with "Gives Effect: X (N Adventures)"; the Gives section shows that already. */
+    internal fun cleanDescription(text: String, hasEffect: Boolean): String {
         if (!hasEffect) return text
         return text.lines().filterNot { it.trim().startsWith("Gives Effect", ignoreCase = true) || Regex("""^\(\d+ Adventures?\)$""").matches(it.trim()) }
             .joinToString("\n").trim()
     }
 
     /** "Mysticality Percent: +50" reads "Mysticality +50%"; "Item Drop: +10" reads "Item Drop +10". */
-    private fun readableModifier(m: String): String {
+    internal fun readableModifier(m: String): String {
         val name = m.substringBefore(':').trim()
         val value = m.substringAfter(':', "").trim()
         if (value.isEmpty()) return m
         return if (name.endsWith(" Percent")) "${name.removeSuffix(" Percent")} $value%" else "$name $value"
+    }
+
+    /** Shrug (free, for real buffs) or Remove (uses a remedy item); both ask first and say which it is. */
+    internal fun removeButton(ctx: Context, effect: String, turns: Int, shruggable: Boolean, remove: () -> Unit): Triple<Int, String, (() -> Unit)?> =
+        Triple(R.drawable.ic_close, if (shruggable) "Shrug" else "Remove", {
+            ScrollSafeDialogBuilder(ctx).setTitle("${if (shruggable) "Shrug off" else "Remove"} $effect?")
+                .setMessage("You lose the $turns turns you have left." +
+                    if (shruggable) "\nShrugging off a buff is free." else "\nThis isn't a buff you can shrug off, so it uses up a remedy item (such as a soft green echo eyedrop antidote), which KoLmafia may buy.")
+                .setPositiveButton(if (shruggable) "Shrug" else "Remove") { _, _ -> remove() }
+                .setNegativeButton("Cancel", null).show()
+        })
+
+    /** Buttons three to a row; a button with no action is greyed out. */
+    internal fun actionGrid(ctx: Context, buttons: List<Triple<Int, String, (() -> Unit)?>>): View {
+        val grid = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        for (rowItems in buttons.chunked(3)) {
+            val r = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+            rowItems.forEachIndexed { i, (icon, text, onTap) ->
+                r.addView(actionButton(ctx, icon, text, onTap), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { if (i < 2) marginEnd = dp(ctx, 8) })
+            }
+            repeat(3 - rowItems.size) { k -> r.addView(View(ctx), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply { if (rowItems.size + k < 2) marginEnd = dp(ctx, 8) }) }
+            grid.addView(r, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(ctx, 8) })
+        }
+        return grid
+    }
+
+    /** A card floating in the middle of the screen, with the page dimmed behind it; [content] fills it. */
+    internal fun floatingCard(ctx: Context, content: View): Dialog {
+        val d = Dialog(ctx).apply { requestWindowFeature(android.view.Window.FEATURE_NO_TITLE) }
+        content.background = GradientDrawable().apply { cornerRadius = dp(ctx, 20).toFloat(); setColor(KC.surface); setStroke(dp(ctx, 1), KC.faint) }
+        content.clipToOutline = true
+        d.setContentView(content)
+        d.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            setLayout(ctx.resources.displayMetrics.widthPixels - 2 * dp(ctx, 16), ViewGroup.LayoutParams.WRAP_CONTENT)
+            setGravity(Gravity.CENTER)
+        }
+        return d
     }
 
     private fun actionButton(ctx: Context, icon: Int, text: String, onTap: (() -> Unit)?): View {

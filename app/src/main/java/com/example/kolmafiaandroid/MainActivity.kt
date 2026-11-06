@@ -221,7 +221,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Chat is a panel on the lower part of the screen (the game stays playable above it) or full screen; the bottom bar always shows. */
+    /**
+     * Chat is a panel on the lower part of the screen or full screen; the bottom bar always shows. A touch outside the
+     * panel closes it back to its side tab, so the panel's window takes outside touches (no FLAG_NOT_TOUCH_MODAL).
+     */
     private fun fitChatPanel(dialog: android.app.Dialog) {
         val w = dialog.window ?: return
         val loc = IntArray(2)
@@ -231,7 +234,7 @@ class MainActivity : AppCompatActivity() {
         if (navTop <= 0) return
         val dm = resources.displayMetrics
         w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        w.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+        w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
         // landscape is short: a lower panel would leave a few lines for messages, so chat takes the whole height there
         val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         if (com.example.kolmafiaandroid.tools.ChatFragment.panelFull || landscape) {

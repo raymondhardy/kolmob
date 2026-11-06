@@ -448,6 +448,11 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.skillInfo(id) } catch (t: Throwable) { "{\"error\":\"$t\"}" }) }
     }
 
+    /** What an effect does, where it comes from and how to remove it (see KolEngine.effectInfo); may load KoL's page. */
+    fun effectInfo(name: String, done: (String) -> Unit) {
+        reader.execute { done(try { KolEngine.effectInfo(name) } catch (t: Throwable) { "{\"error\":\"$t\"}" }) }
+    }
+
     fun describe(kind: String, id: Int, done: (String) -> Unit) {
         reader.execute { done(try { KolEngine.describe(kind, id) } catch (t: Throwable) { "Error: $t" }) }
     }

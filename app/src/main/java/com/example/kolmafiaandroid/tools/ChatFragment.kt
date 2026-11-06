@@ -82,7 +82,9 @@ class ChatFragment : FullScreenDialog() {
     override fun onCreateDialog(savedInstanceState: Bundle?): android.app.Dialog =
         super.onCreateDialog(savedInstanceState).also {
             it.window?.setWindowAnimations(R.style.ChatPanelAnim)
-            it.setCanceledOnTouchOutside(false) // the lower panel leaves the game playable above it
+            // touching anywhere outside the panel puts chat away to its tab on the side (like the ✕); that touch
+            // only closes chat, so it can't also press something in the game behind it
+            it.setCanceledOnTouchOutside(true)
             panelDialog = it
         }
 

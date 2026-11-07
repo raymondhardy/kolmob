@@ -13,7 +13,6 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Html
 import android.text.InputType
-import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -230,8 +229,8 @@ class ConsoleFragment : Fragment() {
             typeface = Typeface.MONOSPACE
             textSize = 12f
             setTextColor(0xFFE0E0E0.toInt())
+            // selectable so a long press picks words or lines to copy; the ScrollView does the scrolling
             setTextIsSelectable(true)
-            movementMethod = ScrollingMovementMethod()
         }
         scroll = ScrollView(ctx).apply {
             addView(output)
@@ -589,12 +588,13 @@ class ConsoleFragment : Fragment() {
         if (entries.size > 5000) {
             entries.removeFirst()
             // drop old lines from the screen in batches rather than on every line
-            if (++trimmed >= 1000) { rebuildOutput(); return }
+            // (not while a selection is open: redrawing would drop it)
+            if (++trimmed >= 1000 && !output.hasSelection()) { rebuildOutput(); return }
         }
         if (level >= minLevel) {
             output.append(ConsoleThemes.themed(spanned, theme()))
             output.append("\n")
-            if (autoScroll) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+            if (autoScroll && !output.hasSelection()) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
         } else {
             hiddenCount++
             updateLevelNote()

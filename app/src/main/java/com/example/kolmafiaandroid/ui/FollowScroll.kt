@@ -1,28 +1,26 @@
 package com.example.kolmafiaandroid.ui
 
 import android.view.MotionEvent
-import android.view.ViewConfiguration
 import android.widget.ScrollView
 
 /**
- * Calls [stop] only when the user deliberately drags the output up to read older lines: the touch must start inside this
- * view, travel clearly further than a tap or a wobble, go in the scroll-up direction, and still be inside the view.
- * Taps, touches that start elsewhere, drags down towards the newest line and releases outside never stop following.
+ * Calls [stop] as soon as the user drags the output up to read older lines, even while new lines keep arriving.
+ *
+ * The text inside is selectable, so it takes the finger's first touch and the ScrollView only sees the drag once it
+ * takes over scrolling. So this watches the scroll position instead: while a finger is dragging the ScrollView,
+ * any move towards older lines stops following. Following only ever scrolls down, and trimming old lines only
+ * happens with no finger down, so neither can trigger it. Taps and drags down towards the newest line never stop it.
  */
 fun ScrollView.stopFollowingOnDragUp(stop: () -> Unit) {
-    val slop = ViewConfiguration.get(context).scaledTouchSlop * 3
-    var armed = false
-    var startY = 0f
+    var dragging = false
     setOnTouchListener { _, ev ->
         when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { armed = true; startY = ev.y }
-            MotionEvent.ACTION_MOVE ->
-                if (armed && ev.y - startY > slop && ev.x >= 0 && ev.x <= width && ev.y >= 0 && ev.y <= height && canScrollVertically(-1)) {
-                    armed = false
-                    stop()
-                }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> armed = false
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> dragging = true
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> dragging = false
         }
         false
+    }
+    setOnScrollChangeListener { _, _, y, _, oldY ->
+        if (dragging && y < oldY) stop()
     }
 }

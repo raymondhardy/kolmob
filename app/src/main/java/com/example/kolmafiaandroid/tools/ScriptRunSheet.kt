@@ -73,7 +73,10 @@ class ScriptRunSheet : DialogFragment() {
         }
         levelRow.addView(followBtn)
         root.addView(levelRow)
-        log = TextView(ctx).apply { textSize = 12f; typeface = Typeface.MONOSPACE; setTextIsSelectable(true) }
+        log = TextView(ctx).apply {
+            textSize = 12f; typeface = Typeface.MONOSPACE; setTextIsSelectable(true)
+            setText("", TextView.BufferType.EDITABLE)
+        }
         scroll = ScrollView(ctx).apply { addView(log) }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
@@ -115,9 +118,14 @@ class ScriptRunSheet : DialogFragment() {
                     if (entries.size > 4000) entries.removeFirst()
                     if (level >= minLevel) {
                         text.append(spanned).append("\n")
-                        if (text.length > 80_000) text.delete(0, text.length - 60_000)
-                        log.text = text
-                        if (follow) scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
+                        // add the line to what is shown rather than redrawing it all, so a selection survives
+                        log.append(spanned); log.append("\n")
+                        val selecting = log.hasSelection()
+                        if (text.length > 80_000 && !selecting) {
+                            text.delete(0, text.length - 60_000)
+                            log.setText(text, TextView.BufferType.EDITABLE)
+                        }
+                        if (follow && !selecting) scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
                     } else {
                         hidden++
                         refreshStatus()
@@ -149,7 +157,7 @@ class ScriptRunSheet : DialogFragment() {
             if (level >= minLevel) text.append(line).append("\n") else hidden++
         }
         if (text.length > 80_000) text.delete(0, text.length - 60_000)
-        log.text = text
+        log.setText(text, TextView.BufferType.EDITABLE)
         refreshStatus()
         if (follow) scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
     }

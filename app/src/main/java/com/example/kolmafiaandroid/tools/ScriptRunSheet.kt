@@ -25,7 +25,7 @@ import java.io.File
  */
 class ScriptRunSheet : DialogFragment() {
     private lateinit var log: TextView
-    private lateinit var scroll: ScrollView
+    private lateinit var scroll: com.example.kolmafiaandroid.ui.FollowScrollView
     private lateinit var status: TextView
     private lateinit var stop: Button
     private val text = android.text.SpannableStringBuilder()
@@ -67,6 +67,7 @@ class ScriptRunSheet : DialogFragment() {
             textSize = 12f
             setOnClickListener {
                 follow = !follow
+                scroll.following = follow
                 text = if (follow) "Scroll: on" else "Scroll: off"
                 if (follow) scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
             }
@@ -77,7 +78,7 @@ class ScriptRunSheet : DialogFragment() {
             textSize = 12f; typeface = Typeface.MONOSPACE; setTextIsSelectable(true)
             setText("", TextView.BufferType.EDITABLE)
         }
-        scroll = ScrollView(ctx).apply { addView(log) }
+        scroll = com.example.kolmafiaandroid.ui.FollowScrollView(ctx).apply { addView(log) }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, (8 * dp).toInt(), 0, 0) }
@@ -94,7 +95,7 @@ class ScriptRunSheet : DialogFragment() {
             cm.setPrimaryClip(android.content.ClipData.newPlainText("script output", text.toString()))
             Toast.makeText(ctx, "Output copied", Toast.LENGTH_SHORT).show()
         }
-        scroll.stopFollowingOnDragUp { if (follow) { follow = false; followBtn.text = "Scroll: off" } }
+        scroll.stopFollowingOnDragUp { if (follow) { follow = false; scroll.following = false; followBtn.text = "Scroll: off" } }
         btn("Hide") { dismissAllowingStateLoss() }
         root.addView(row)
 

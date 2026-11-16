@@ -1,7 +1,25 @@
 package com.example.kolmafiaandroid.ui
 
+import android.content.Context
+import android.graphics.Rect
 import android.view.MotionEvent
+import android.view.View
 import android.widget.ScrollView
+import android.widget.TextView
+
+/**
+ * A ScrollView for live output. While [following] is off it ignores the selectable text's own requests to scroll:
+ * once touched, that text keeps an invisible cursor at its end, and every new line asks to bring the cursor into
+ * view, which kept dragging the view down with Scroll off. A real selection can still scroll the view.
+ */
+class FollowScrollView(context: Context) : ScrollView(context) {
+    var following = true
+
+    override fun requestChildRectangleOnScreen(child: View, rectangle: Rect, immediate: Boolean): Boolean {
+        if (!following && (child as? TextView)?.hasSelection() != true) return false
+        return super.requestChildRectangleOnScreen(child, rectangle, immediate)
+    }
+}
 
 /**
  * Calls [stop] as soon as the user drags the output up to read older lines, even while new lines keep arriving.

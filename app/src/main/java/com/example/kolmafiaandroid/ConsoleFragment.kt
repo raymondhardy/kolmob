@@ -36,7 +36,7 @@ import kotlinx.coroutines.withContext
 /** Console for KoLmafia CLI and ASH: the real engine's output plus a command line. */
 class ConsoleFragment : Fragment() {
     private lateinit var output: TextView
-    private lateinit var scroll: ScrollView
+    private lateinit var scroll: com.example.kolmafiaandroid.ui.FollowScrollView
     private lateinit var input: EditText
     private lateinit var copyBtn: Button
     private lateinit var clearBtn: Button
@@ -232,7 +232,7 @@ class ConsoleFragment : Fragment() {
             // selectable so a long press picks words or lines to copy; the ScrollView does the scrolling
             setTextIsSelectable(true)
         }
-        scroll = ScrollView(ctx).apply {
+        scroll = com.example.kolmafiaandroid.ui.FollowScrollView(ctx).apply {
             addView(output)
             setBackgroundResource(R.drawable.bg_console_output)
             setPadding((12 * dp).toInt(), (12 * dp).toInt(), (12 * dp).toInt(), (12 * dp).toInt())
@@ -621,6 +621,7 @@ class ConsoleFragment : Fragment() {
     /** On: the output follows new lines. Off: it stays where you are reading. */
     private fun setAutoScroll(on: Boolean) {
         autoScroll = on
+        if (::scroll.isInitialized) scroll.following = on
         autoScrollBtn.text = if (on) "Scroll: on" else "Scroll: off"
         if (on && ::scroll.isInitialized) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
     }

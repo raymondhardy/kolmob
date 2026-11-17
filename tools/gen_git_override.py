@@ -14,6 +14,7 @@ REMOVE = [  # (regex matched against the member header incl. preceding javadoc)
     r'static void printCommitMessages\(', r'static ZonedDateTime getCommitDate\(', r'static String getAuthor\(',
     r'public static Optional<GitInfo> getInfo\(', r'public static boolean isValidRepo\(', r'public static boolean isUpToDate\(',
     r'class MafiaProgressMonitor', r'public static RepoDetails getRepoDetails\(',
+    r'static void recoverInterruptedUpdate\(',
 ]
 i = s.index('public class GitManager'); j = s.index('{', i)
 depth = 1; pos = j + 1; members = []; last = j + 1

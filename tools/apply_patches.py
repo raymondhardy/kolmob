@@ -3,6 +3,13 @@
 import os, sys
 ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'kolmafia-core/src/main/java')
 PATCHES = [
+    # The desktop's main() installs the Swing user interface; Kolmob leaves out swingui and sets its own (KolEngine).
+    ('net/sourceforge/kolmafia/KoLmafia.java',
+     'import net.sourceforge.kolmafia.swingui.SwingUserInterface;\n',
+     '// Kolmob: no swingui\n'),
+    ('net/sourceforge/kolmafia/KoLmafia.java',
+     '    if (!StaticEntity.isHeadless()) {\n      UserInterfaceManager.setUserInterface(new SwingUserInterface());\n    }\n',
+     '    // Kolmob: KolEngine sets the user interface\n'),
     # Android ignores System.setProperty("user.dir"), so let the app choose the data root explicitly.
     ('net/java/dev/spellcast/utilities/UtilityConstants.java',
      '\tpublic static final File ROOT_LOCATION =\n\t\tBoolean.getBoolean( "useCWDasROOT" ) ?',

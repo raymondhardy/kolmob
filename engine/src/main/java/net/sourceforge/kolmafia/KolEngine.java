@@ -120,7 +120,7 @@ public final class KolEngine {
   private static final String[] FILTER_NAMES = {"equip", "cast", "wish", "usable", "booze", "food", "spleen", "other"};
 
   /**
-   * The desktop window's saved choices, as JSON {"scope","priceLevel","maxPrice","filters":[...],"recent":[...]}. Food,
+   * The desktop window's saved choices, as JSON {"scope","priceLevel","maxPrice","filters":[...],"recent":[...],"goals":[...]}. Food,
    * booze and spleen start unchecked when that organ is full, as on the desktop.
    */
   public static synchronized String maximizerSettings() {
@@ -150,6 +150,16 @@ public final class KolEngine {
       sb.append("],\"recent\":[");
       first = true;
       for (String e : Preferences.getString("maximizerMRUList").split(";")) {
+        if (e.isBlank()) continue;
+        if (!first) sb.append(',');
+        first = false;
+        sb.append(quote(e.trim()));
+      }
+      // what the desktop window's expression box offers: your recent expressions, then the maximizerList presets
+      sb.append("],\"goals\":[");
+      first = true;
+      for (String e :
+          new java.util.LinkedHashSet<>(KoLConstants.maximizerMList.getComboItems())) {
         if (e.isBlank()) continue;
         if (!first) sb.append(',');
         first = false;

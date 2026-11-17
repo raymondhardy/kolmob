@@ -55,7 +55,8 @@ class MaximizerFragment : FullScreenDialog() {
     private val scopes = listOf("On hand", "Can make", "Pull or buy")
     private val prices = listOf("Ignore", "Buyable", "All")
 
-    private val goals: List<Pair<String, String>> = GearGoals.list
+    // replaced by KoLmafia's own list (recent expressions, then its presets) once the settings load
+    private var goals: List<Pair<String, String>> = GearGoals.list
     private var goalIndex = 0
     private var customExpr = ""
     private var scope = 0
@@ -217,6 +218,16 @@ class MaximizerFragment : FullScreenDialog() {
                     val on = (0 until a.length()).map { a.getString(it) }.toSet()
                     filters.forEach { (k, _) -> filterOn[k] = k in on }
                     for (i in 0 until filterChips.childCount) (filterChips.getChildAt(i) as Chip).let { it.isChecked = filterOn[it.tag] == true }
+                }
+                o.optJSONArray("goals")?.let { a ->
+                    val list = (0 until a.length()).map { a.getString(it) }
+                    if (list.isNotEmpty()) {
+                        val was = expression()
+                        goals = list.map { GearGoals.label(it) to it }
+                        if (customExpr.isEmpty()) goalIndex = goals.indexOfFirst { it.second == was }.coerceAtLeast(0)
+                        goal.options = goalNames()
+                        restoreGoal()
+                    }
                 }
                 loading = false
                 maximize()

@@ -1,6 +1,7 @@
 package com.example.kolmafiaandroid
 
 import com.example.kolmafiaandroid.ui.pick
+import com.example.kolmafiaandroid.ui.pickList
 import com.example.kolmafiaandroid.ui.KC
 
 import android.annotation.SuppressLint
@@ -204,6 +205,8 @@ class KolWebFragment : Fragment() {
         more.setOnClickListener { anchor ->
             val popup = android.widget.PopupMenu(ctx, anchor)
             menu.drop(3).forEachIndexed { i, sc -> popup.menu.add(0, i, 10 + i, sc.desc).setIcon(sc.icon) }
+            // KoLmafia's quick and relay script menus, which KoL's icon menu row is too short to show
+            popup.menu.add(0, 300, 0, "Run a script…").setIcon(R.drawable.ic_scripts)
             popup.menu.add(0, 100, 110, "Text size…").setIcon(R.drawable.web_text_size)
             val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             if (landscape) { // the bottom tabs are hidden on the Game tab in landscape: offer them here
@@ -216,6 +219,7 @@ class KolWebFragment : Fragment() {
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     100 -> chooseTextSize()
+                    300 -> showScriptMenu()
                     in 200..202 -> (activity as? MainActivity)?.goToTab(item.itemId - 200)
                     203 -> (activity as? MainActivity)?.openMore()
                     else -> {
@@ -601,6 +605,26 @@ class KolWebFragment : Fragment() {
         }
     }
 
+    /** KoLmafia's quick scripts and relay scripts, read from its own top-menu controls and run through them. */
+    private fun showScriptMenu() {
+        val w = web ?: return
+        w.evaluateJavascript(SCRIPT_MENU_JS) { json ->
+            if (!isAdded) return@evaluateJavascript
+            val o = try { org.json.JSONObject(json ?: "{}") } catch (_: Exception) { org.json.JSONObject() }
+            fun list(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
+            val rows = list("quick").mapIndexed { i, t -> com.example.kolmafiaandroid.ui.PickRow(t, group = "Quick scripts", tag = "quick" to i) } +
+                list("relay").mapIndexed { i, t -> com.example.kolmafiaandroid.ui.PickRow(t, group = "Relay scripts", tag = "relay" to i) }
+            if (rows.isEmpty()) {
+                android.widget.Toast.makeText(requireContext(), "KoLmafia's script menu isn't on this page yet. Load the game page first.", android.widget.Toast.LENGTH_SHORT).show()
+                return@evaluateJavascript
+            }
+            requireContext().pickList("Run a script", rows) { r ->
+                @Suppress("UNCHECKED_CAST") val (kind, i) = r.tag as Pair<String, Int>
+                web?.evaluateJavascript(SCRIPT_MENU_RUN_JS.replace("__KIND__", kind).replace("__I__", i.toString()), null)
+            }
+        }
+    }
+
     private fun applyPanes() {
         updateStatusBar()
         val i = panePref().getInt("web_panes", 0).coerceIn(0, paneCols.size - 1)
@@ -775,6 +799,28 @@ function walk(w){hook(w);try{for(var i=0;i<w.frames.length;i++){walk(w.frames[i]
 walk(T);
 if(!T.__kolSelTimer){T.__kolSelTimer=setInterval(function(){walk(T);},400);}
 })();"""
+        /**
+         * KoLmafia's quick-script and relay-script menus from the game's top menu, as JSON {"quick":[...],"relay":[...]}.
+         * In KoL's icon menu they sit below the 42px menu row and can't be seen, so the toolbar offers them instead.
+         */
+        private const val SCRIPT_MENU_JS = """(function(){try{
+var d=null;for(var i=0;i<top.frames.length;i++){if(top.frames[i].name==='menupane')d=top.frames[i].document;}
+if(!d)return {quick:[],relay:[]};
+var q=[],r=[];var sb=d.getElementById('scriptbar');
+if(sb){for(var k=0;k<sb.options.length;k++)q.push(sb.options[k].text);}
+var sels=d.querySelectorAll('select');
+for(var s=0;s<sels.length;s++){var o=sels[s].options;if(o.length&&o[0].text==='-run script-'){for(var k=1;k<o.length;k++)r.push(o[k].text);}}
+return {quick:q,relay:r};}catch(e){return {quick:[],relay:[],error:String(e)};}})()"""
+
+        /** Runs entry __I__ of KoLmafia's own quick-script ("quick") or relay-script ("relay") menu, the way its own controls do. */
+        private const val SCRIPT_MENU_RUN_JS = """(function(kind,idx){try{
+var d=null;for(var i=0;i<top.frames.length;i++){if(top.frames[i].name==='menupane')d=top.frames[i].document;}
+if(!d)return 'no';
+if(kind==='quick'){var sb=d.getElementById('scriptbar');var b=d.querySelector('input[value="exec"]');if(!sb||!b)return 'no';sb.selectedIndex=idx;b.click();return 'ok';}
+var sels=d.querySelectorAll('select');
+for(var s=0;s<sels.length;s++){var o=sels[s].options;if(o.length&&o[0].text==='-run script-'){sels[s].selectedIndex=idx+1;var ev=d.createEvent('HTMLEvents');ev.initEvent('change',true,true);sels[s].dispatchEvent(ev);return 'ok';}}
+return 'no';}catch(e){return 'err '+e;}})("__KIND__",__I__)"""
+
         /** Banner with a 2-second countdown, then KoLmafia's own "auto" button for the choice (choice.php?action=auto). */
         /**
          * Puts all the vitals into the game's own icon row, after a divider next to the "Support the Kingdom" (Mr. Store) icon, as a

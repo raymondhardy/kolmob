@@ -316,6 +316,15 @@ class KolWebFragment : Fragment() {
             addJavascriptInterface(object {
                 @android.webkit.JavascriptInterface
                 fun id(name: String): Int = KolEngineHost.itemId(name)
+                /** The item's color for the "Color item names" setting as "#rrggbb", or "" for none. */
+                @android.webkit.JavascriptInterface
+                fun color(name: String): String {
+                    val mode = context?.getSharedPreferences("kolmob", android.content.Context.MODE_PRIVATE)?.getString("relay_item_colors", "iotm") ?: "off"
+                    if (mode == "off") return ""
+                    val tier = com.example.kolmafiaandroid.ui.ItemTier.of(name) ?: return ""
+                    if (mode == "iotm" && tier != com.example.kolmafiaandroid.ui.ItemTier.Tier.IOTM) return ""
+                    return String.format("#%06X", tier.light and 0xFFFFFF) // game pages keep KoL's white background
+                }
             }, "KolItem")
             // the Guide overlay: the page script fetches relay_Guide.ash, boils it down to cards and hands them back here
             addJavascriptInterface(object {
@@ -424,6 +433,7 @@ class KolWebFragment : Fragment() {
 
                 override fun onPageFinished(view: WebView, url: String) {
                     view.evaluateJavascript(SELECT_JS, null)
+                    view.evaluateJavascript(ITEM_COLOR_JS, null)
                     if (url.contains("game.php")) resumePath?.let { p ->
                         resumePath = null
                         view.postDelayed({ view.evaluateJavascript("try{for(var i=0;i<top.frames.length;i++){if(top.frames[i].name==='mainpane'){top.frames[i].location='/" + p.replace("'", "%27") + "';}}}catch(e){}", null) }, 1500)
@@ -774,6 +784,22 @@ d.querySelectorAll('.r_cl_checklist_container').forEach(function(c){
 KolGuide.done(JSON.stringify(out));}).catch(function(e){KolGuide.fail(String(e));});})()"""
 
         /** Intercepts taps on <select> and hands them to KolSelect.open; window.__kolSelSet writes the choice back. */
+        /**
+         * Colors item names in every frame (bold names, as in inventory and "You acquire" lines) with KolItem.color.
+         * Each name is looked up once; new page content is picked up by the same timer.
+         */
+        const val ITEM_COLOR_JS = """(function(){
+var T=window.top;if(T.__kolColorTimer)return;
+var known={};
+function color(t){if(t in known)return known[t];var c='';try{c=KolItem.color(t);}catch(x){}known[t]=c;return c;}
+function paint(w){try{var d=w.document;if(!d||!d.body)return;
+ var els=d.querySelectorAll('b:not([data-kc]),.ircm:not([data-kc])');
+ for(var i=0;i<els.length;i++){var e=els[i];e.setAttribute('data-kc','1');
+  if(e.children.length>1)continue;var t=(e.textContent||'').trim().replace(/\s*\(\d[\d,]*\)$/,'');
+  if(t.length<2||t.length>70)continue;var c=color(t);if(c)e.style.color=c;}}catch(x){}
+ try{for(var k=0;k<w.frames.length;k++){paint(w.frames[k]);}}catch(x){}}
+paint(T);T.__kolColorTimer=setInterval(function(){paint(T);},1000);})();"""
+
         const val SELECT_JS = """(function(){
 var T=window.top;
 if(T===window&&window.frames.length===0&&!/game\.php$/.test(location.pathname)&&!window.mainpane){var stub={location:{reload:function(){}},document:document};

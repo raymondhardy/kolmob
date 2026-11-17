@@ -138,6 +138,7 @@ fun Context.pickList(
     sheet.behavior.skipCollapsed = true // a sheet that opens half-collapsed shows only a sliver in landscape
     sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
     sheet.show()
+    OpenDialogs.track(sheet)
     // the sheet ends where the bottom nav starts, so the nav stays usable
     var host: android.content.Context = ctx
     while (host is android.content.ContextWrapper && host !is com.example.kolmafiaandroid.MainActivity) host = host.baseContext

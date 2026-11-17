@@ -25,4 +25,6 @@ class ScrollSafeDialogBuilder(context: Context) : MaterialAlertDialogBuilder(con
         val sv = ScrollView(context).apply { isFillViewport = false; addView(v, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)) }
         return super.setView(sv)
     }
+
+    override fun show(): androidx.appcompat.app.AlertDialog = super.show().also { OpenDialogs.track(it) }
 }

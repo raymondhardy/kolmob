@@ -163,6 +163,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         promptDialog = b.show()
+        promptDialog?.let { com.example.kolmafiaandroid.ui.OpenDialogs.untrack(it) } // KoLmafia waits on the answer
         // scripts that say "will default to 'No' in 15 seconds" (user_confirm with a timeout): honour it
         Regex("(?i)default(?:s)? to '?([A-Za-z]+)'? in (\\d+) seconds").find(text)?.let { m ->
             val secs = m.groupValues[2].toLongOrNull() ?: return@let
@@ -280,6 +281,7 @@ class MainActivity : AppCompatActivity() {
     private fun dismissOpenDialogs() {
         for (f in supportFragmentManager.fragments) (f as? androidx.fragment.app.DialogFragment)?.dismissAllowingStateLoss()
         moreSheet?.let { if (it.isShowing) it.dismiss() } // the More sheet is a plain dialog, not a fragment
+        com.example.kolmafiaandroid.ui.OpenDialogs.dismissAll()
     }
 
     /** Pre-select a location on the Adventure tab and go there. */

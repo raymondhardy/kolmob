@@ -19,7 +19,23 @@ object ItemTier {
         fun color() = if (KC.dark) dark else light
     }
 
-    // Listed names; a trailing * matches any item starting with the text. Edit to add new items of the month.
+    /**
+     * KoLmafia's own Item of the Month data, ahead of our list: what Mr. Store sells (the unopened forms), the 2002
+     * catalog, Replica Mr. Store, and every garden's seeds. Our list below adds what KoLmafia does not name, mostly the
+     * opened forms.
+     */
+    private val kolmafiaIotm: List<String> by lazy {
+        try {
+            val out = ArrayList<String>()
+            for (shop in listOf("Mr. Store", "Mr. Store 2002", "Replica Mr. Store")) {
+                net.sourceforge.kolmafia.persistence.CoinmastersDatabase.getBuyItems(shop)?.forEach { out.add(it.name) }
+            }
+            net.sourceforge.kolmafia.request.CampgroundRequest.CropType.values().forEach { out.add(it.seeds.name) }
+            out
+        } catch (t: Throwable) { emptyList() }
+    }
+
+    // Listed names, added after KoLmafia's; a trailing * matches any item starting with the text.
     private val iotmNames = """
 1950 Vampire Vintner wine
 2002 Mr. Store Catalog
@@ -390,7 +406,10 @@ Cursed monkey*
 cursed monkey*
 """.trim().lines().map { it.trim() }.filter { it.isNotEmpty() }
     private fun norm(s: String) = android.text.Html.fromHtml(s, 0).toString().lowercase().filter { it.isLetterOrDigit() }
-    private val exact = iotmNames.filter { !it.endsWith("*") }.map { norm(it) }.toHashSet()
+    private val exact: HashSet<String> by lazy {
+        val all = kolmafiaIotm + kolmafiaIotm.map { it.replace(states, "") } + iotmNames.filter { !it.endsWith("*") }
+        all.map { norm(it) }.filter { it.isNotEmpty() }.toHashSet()
+    }
     private val prefixes = iotmNames.filter { it.endsWith("*") }.map { norm(it) }
 
     private val states = Regex("^(corked|uncorked|empty|used|open|opened|unopened|unwrapped|packaged|boxed|wrapped|mint condition|mint-in-box|shrink-wrapped|replica|bagged|sealed|bottled|undamaged)\\s+|\\s*\\((open|used|empty|closed|unopened)\\)$", RegexOption.IGNORE_CASE)

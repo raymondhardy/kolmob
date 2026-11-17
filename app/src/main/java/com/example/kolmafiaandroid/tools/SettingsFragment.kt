@@ -308,6 +308,13 @@ class SettingsFragment : FullScreenDialog() {
         toggleRow(links, "Quick scripts", "Show your quick-script buttons", "relayAddsQuickScripts")
         toggleRow(links, "Custom combat links", "Add combat shortcuts to fights", "relayAddsCustomCombat")
         toggleRow(links, "Disco Bandit helper", "Show the Disco Bandit combat helper", "relayAddsDiscoHelper")
+        // Kolmob's own: color item names in the game pages the way the app's lists do
+        val colors = card(ctx, col, "Item colors")
+        val modes = listOf("off" to "Off", "iotm" to "Items of the Month only", "all" to "All: Items of the Month, price tiers, quest items")
+        val kp = ctx.getSharedPreferences("kolmob", android.content.Context.MODE_PRIVATE)
+        val cur = kp.getString("relay_item_colors", "iotm")
+        spinnerRow(colors, "Color item names", "Shows item names in the game pages in the app's item colors", modes.map { it.second },
+            modes.indexOfFirst { it.first == cur }.coerceAtLeast(0)) { pos -> kp.edit().putString("relay_item_colors", modes[pos].first).apply() }
         val info = card(ctx, col, "Information and warnings")
         toggleRow(info, "Show spoilers", "Show monster and item details KoL does not tell you", "relayShowSpoilers")
         toggleRow(info, "Show warnings", "Warn before risky actions", "relayShowWarnings")

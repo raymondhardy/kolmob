@@ -800,6 +800,8 @@ function paint(w){try{var d=w.document;if(!d||!d.body)return;
  try{for(var k=0;k<w.frames.length;k++){paint(w.frames[k]);}}catch(x){}}
 paint(T);T.__kolColorTimer=setInterval(function(){paint(T);},1000);})();"""
 
+        // SELECT_JS also hides KoL's item hover tooltips (jQuery UI ".ui-tooltip.tip"): a tap is a hover and a click at
+        // once, so the tooltip showed behind the description pop-up the same tap opens.
         const val SELECT_JS = """(function(){
 var T=window.top;
 if(T===window&&window.frames.length===0&&!/game\.php$/.test(location.pathname)&&!window.mainpane){var stub={location:{reload:function(){}},document:document};
@@ -809,6 +811,7 @@ if(!T.__kolSelSet){T.__kolSelSet=function(idx){var s=T.__kolSelEl;if(!s)return;
  s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));};}
 function hook(w){
  try{var d=w.document;if(!d||d.__kolSelHooked)return;d.__kolSelHooked=true;
+ var nt=d.createElement('style');nt.textContent='.ui-tooltip.tip{display:none!important}';(d.head||d.documentElement).appendChild(nt);
  function find(e){var t=e.target;return t&&t.closest?t.closest('select'):null;}
  function open(e){var s=find(e);if(!s||s.disabled)return;e.preventDefault();e.stopPropagation();
   var labels=[],sel=[];for(var i=0;i<s.options.length;i++){labels.push(s.options[i].text);sel.push(s.options[i].selected);}

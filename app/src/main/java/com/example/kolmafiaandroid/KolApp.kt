@@ -25,6 +25,12 @@ class KolApp : Application() {
             registerReceiver(object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
                     intent.getStringExtra("cmd")?.let { KolEngineHost.execute(it) }
+                    // `--es chat '<text>'` (debug only) sends a chat line as if typed in the chat box, then logs the chat state under KolChat.
+                    intent.getStringExtra("chat")?.let { t ->
+                        KolEngineHost.chatSend(intent.getStringExtra("chatkey") ?: "", t) {
+                            KolEngineHost.chatState { st -> android.util.Log.i("KolChat", "state=$st") }
+                        }
+                    }
                     // `--es fakeui 1` (debug only) hides the login screen so offline-capable screens can be inspected.
                     if (intent.hasExtra("fakeui")) { KolEngineHost.devForceUi = true; KolEngineHost.loginState.value = true }
                     // `--es probe '<ash string expression>'` (debug only) logs the answer under tag KolProbe.

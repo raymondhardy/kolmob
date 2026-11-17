@@ -123,8 +123,9 @@ class ConsoleFragment : Fragment() {
         val picker = scriptPicker ?: return
         val dir = java.io.File(ctx.filesDir, "kolmafia/scripts")
         val keep = scriptFiles.getOrNull(picker.selectedIndex)?.let { rel(it) } ?: prefs?.getString("last_script", null)
-        scriptFiles = com.example.kolmafiaandroid.ui.ScriptFiles.list(dir).sortedBy { rel(it).lowercase() }
-        picker.options = scriptFiles.map { rel(it) }
+        val sf = com.example.kolmafiaandroid.ui.ScriptFiles
+        scriptFiles = sf.forLists(ctx, dir, compareBy { rel(it).lowercase() })
+        picker.options = scriptFiles.map { (if (sf.isFavourite(ctx, rel(it))) "★ " else "") + rel(it) }
         scriptFiles.indexOfFirst { rel(it) == keep }.takeIf { it >= 0 }?.let { picker.selectedIndex = it }
     }
 
@@ -415,6 +416,7 @@ class ConsoleFragment : Fragment() {
         host.removeAllViews()
         if (index == 0) {
             consoleRoot?.let { host.addView(it, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)) }
+            reloadScripts() // favourites or hidden scripts may have changed in the Scripts pane
         } else {
             val holder = android.widget.FrameLayout(ctx).apply { id = scriptsHostId }
             host.addView(holder, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))

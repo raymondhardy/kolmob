@@ -2415,6 +2415,14 @@ public final class KolEngine {
     return sb.append("]}").toString();
   }
 
+  /**
+   * Leaves a channel the way KoLmafia's chat window does when its tab is closed: /listen toggles it off, or for the
+   * channel you talk in, /channel moves you to another one first. Does nothing if you are not listening to it.
+   */
+  public static void chatLeave(String channel) {
+    net.sourceforge.kolmafia.chat.ChatManager.closeWindow(channel);
+  }
+
   /** Sends text to a channel ("/newbie") or whispers a player (name), exactly like KoLmafia's chat window. */
   public static void chatSend(String key, String text) {
     net.sourceforge.kolmafia.chat.ChatSender.sendMessage(key, text, false);

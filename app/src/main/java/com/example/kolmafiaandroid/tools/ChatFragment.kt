@@ -73,6 +73,8 @@ class ChatFragment : FullScreenDialog() {
     private var statusRow: View? = null
     private var compact = false
     private lateinit var tabsBox: LinearLayout
+    private lateinit var actionsBox: LinearLayout
+    private lateinit var actionsScroll: android.widget.HorizontalScrollView
     private lateinit var jumpPill: TextView
     private lateinit var sendBtn: TextView
     private val drafts = mutableMapOf<String, String>()
@@ -136,8 +138,15 @@ class ChatFragment : FullScreenDialog() {
         statusRow = status
         // quick switcher between open conversations, with unread dots
         tabsBox = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(8), 0, dp(8), dp(6)) }
-        tabsScroll = android.widget.HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(tabsBox) }
+        // the strip scrolls sideways; faded edges show there is more past either side
+        tabsScroll = android.widget.HorizontalScrollView(ctx).apply {
+            isHorizontalScrollBarEnabled = false; isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(28)); addView(tabsBox)
+        }
         root.addView(tabsScroll)
+        // KoL's chat commands (who's here, friends online) get a row of their own under the conversations
+        actionsBox = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(8), 0, dp(8), dp(6)) }
+        actionsScroll = android.widget.HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(actionsBox) }
+        root.addView(actionsScroll)
         // conversation list
         listBox = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), 0, dp(8), dp(8)) }
         listScroll = ScrollView(ctx).apply { addView(listBox) }
@@ -220,6 +229,7 @@ class ChatFragment : FullScreenDialog() {
         composer.visibility = if (inConvo) View.VISIBLE else View.GONE
         title.text = if (inConvo) label(selected!!) else "Chat"
         tabsScroll.visibility = if (inConvo && !compact) View.VISIBLE else View.GONE
+        actionsScroll.visibility = tabsScroll.visibility
         if (inConvo) {
             input.hint = "Message " + label(selected!!)
             val d = drafts[selected!!] ?: ""
@@ -233,7 +243,9 @@ class ChatFragment : FullScreenDialog() {
     private fun renderTabs() {
         if (!::tabsBox.isInitialized) return
         tabsBox.removeAllViews()
+        actionsBox.removeAllViews()
         val ctx = requireContext()
+        var selectedChip: View? = null
         val open = keys.filter { !ChatNotifier.isHidden(it) || it == selected }
             .sortedWith(compareBy<String> { it.startsWith("/").not() }.thenBy { it })
         for (k in open) {
@@ -248,6 +260,7 @@ class ChatFragment : FullScreenDialog() {
                 setPadding(dp(12), dp(6), dp(12), dp(6))
                 setOnClickListener { if (!on) { drafts[selected ?: ""] = input.text.toString(); openThread(k) } }
             }
+            if (on) selectedChip = chip
             tabsBox.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
         }
         // KoL's own chat commands: who is in this channel, and which friends are online
@@ -264,11 +277,21 @@ class ChatFragment : FullScreenDialog() {
                     }
                 }
             }
-            tabsBox.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
+            actionsBox.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
         }
+        // keep the open conversation's chip in view, a little in from the edge
+        selectedChip?.let { c -> tabsScroll.post { if (c.left < tabsScroll.scrollX || c.right > tabsScroll.scrollX + tabsScroll.width) tabsScroll.smoothScrollTo((c.left - dp(28)).coerceAtLeast(0), 0) } }
         val sel = selected
         if (sel != null && sel.startsWith("/")) action("👥 Who's here", "/who " + sel.removePrefix("/"))
         action("⭐ Friends online", "/friends")
+        if (sel != null && sel.startsWith("/")) {
+            actionsBox.addView(TextView(ctx).apply {
+                text = "Leave ${label(sel)}"; textSize = 13f; maxLines = 1; setTextColor(KC.muted)
+                background = roundBg(KC.surface, 16)
+                setPadding(dp(12), dp(6), dp(12), dp(6))
+                setOnClickListener { leave(sel) }
+            })
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -620,7 +643,8 @@ class ChatFragment : FullScreenDialog() {
     }
 
     private fun joinChannel() {
-        val common = listOf("normal", "newbie", "trade", "games", "haiku", "hardcore", "clan", "Other…")
+        // channels KoL's /channels lists for most accounts; "Other…" takes any name
+        val common = listOf("normal", "newbie", "trade", "games", "clan", "hardcore", "pvp", "radio", "foodcourt", "veteran", "Other…")
         com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle("Join a channel")
             .setItems(common.toTypedArray()) { _, i ->
                 if (common[i] == "Other…") ask("Channel name") { join(it.trimStart('/')) } else join(common[i])
@@ -629,7 +653,17 @@ class ChatFragment : FullScreenDialog() {
 
     private fun join(name: String) {
         if (name.isBlank()) return
-        KolEngineHost.chatSend("", "/join $name") { activity?.runOnUiThread { handler.postDelayed({ refresh(); openThread("/" + name.lowercase()) }, 1500) } }
+        val key = "/" + name.trim().lowercase()
+        KolEngineHost.chatState { st ->
+            val active = try { JSONObject(st).optJSONArray("channels") } catch (_: Exception) { null }
+            val listening = active != null && (0 until active.length()).any { active.optString(it).equals(key, true) }
+            ui {
+                // already listening: just open it (/listen would toggle it off)
+                if (listening) { openThread(key); return@ui }
+                // /join is /channel, which also stops listening to the channel you talk in; /listen adds one and keeps the rest
+                KolEngineHost.chatSend("", "/listen ${name.trim()}") { activity?.runOnUiThread { handler.postDelayed({ refresh(); openThread(key) }, 1500) } }
+            }
+        }
     }
 
     private fun whisper() = ask("Player name") { name ->
@@ -721,11 +755,29 @@ class ChatFragment : FullScreenDialog() {
     private fun leave(key: String) {
         if (!key.startsWith("/")) return
         com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(requireContext()).setTitle("Leave ${label(key)}?")
-            .setPositiveButton("Leave") { _, _ ->
-                KolEngineHost.chatSend("", "/leave ${key.removePrefix("/")}") {
-                    ui { if (selected == key) closeConvo() ; handler.postDelayed({ refresh() }, 1200) }
+            .setPositiveButton("Leave") { _, _ -> stopListening(key) }
+            .setNegativeButton("Cancel", null).show()
+    }
+
+    /** KoL has no /leave: leave the way KoLmafia's own chat window does when you close a channel's tab. */
+    private fun stopListening(key: String) {
+        KolEngineHost.chatLeave(key) {
+            KolEngineHost.chatState { st ->
+                val active = try { JSONObject(st).optJSONArray("channels") } catch (_: Exception) { null }
+                val stillIn = active != null && (0 until active.length()).any { active.optString(it).equals(key, true) }
+                ui {
+                    if (stillIn) {
+                        // the channel you talk in can only be left by moving to another one, and there is none
+                        Toast.makeText(requireContext(), "You talk in ${label(key)}. Join another channel before leaving it.", Toast.LENGTH_LONG).show()
+                        return@ui
+                    }
+                    // KoLmafia keeps the channel's old messages; hide the row until something new arrives there
+                    ChatNotifier.hide(requireContext(), key, msgs[key] ?: 0)
+                    if (selected == key) closeConvo() else renderList()
+                    handler.postDelayed({ refresh() }, 1200)
                 }
-            }.setNegativeButton("Cancel", null).show()
+            }
+        }
     }
 
     private fun send() {
@@ -733,6 +785,15 @@ class ChatFragment : FullScreenDialog() {
         val key = selected ?: return
         if (text.isEmpty()) return
         input.setText(""); drafts.remove(key)
+        // "/leave [channel]" is what people type, but KoL answers "Unknown command": leave the way the Leave button does
+        val leave = Regex("^/leave(?:\\s+#?(\\S+))?\\s*$", RegexOption.IGNORE_CASE).find(text)
+        if (leave != null) {
+            val channel = leave.groupValues[1].ifEmpty { if (key.startsWith("/")) key.removePrefix("/") else "" }
+            if (channel.isNotEmpty()) {
+                stopListening("/" + channel.lowercase())
+                return
+            }
+        }
         KolEngineHost.chatSend(key, text) { ui { handler.postDelayed({ refresh() }, 900) } }
     }
 

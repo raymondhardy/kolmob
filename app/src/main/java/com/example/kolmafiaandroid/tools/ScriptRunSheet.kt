@@ -176,7 +176,7 @@ class ScriptRunSheet : DialogFragment() {
         /** Pick one of your ASH scripts (newest first), then run it with live output. */
         fun pick(activity: FragmentActivity) {
             val dir = File(activity.filesDir, "kolmafia/scripts")
-            val files = com.example.kolmafiaandroid.ui.ScriptFiles.list(dir)
+            val files = com.example.kolmafiaandroid.ui.ScriptFiles.forLists(activity, dir, compareByDescending { it.lastModified() })
             if (files.isEmpty()) {
                 Toast.makeText(activity, "No scripts yet. Add one in the Script manager.", Toast.LENGTH_SHORT).show()
                 return
@@ -184,7 +184,7 @@ class ScriptRunSheet : DialogFragment() {
             val names = files.map { com.example.kolmafiaandroid.ui.ScriptFiles.relName(dir, it) }
             val dp = activity.resources.displayMetrics.density
             val col = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding((20 * dp).toInt(), (12 * dp).toInt(), (20 * dp).toInt(), 0) }
-            val spinner = Dropdown(activity, "Script", names)
+            val spinner = Dropdown(activity, "Script", names.map { (if (com.example.kolmafiaandroid.ui.ScriptFiles.isFavourite(activity, it)) "★ " else "") + it })
             col.addView(spinner)
             val args = android.widget.EditText(activity).apply { hint = "Arguments (optional)"; setSingleLine() }
             col.addView(args)

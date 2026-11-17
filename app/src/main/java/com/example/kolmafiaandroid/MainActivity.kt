@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
         setupViewPager()
         setupBottomNavigation()
         setupChatHandle()
+        setupTaskHandle()
         com.example.kolmafiaandroid.ChatNotifier.onUnreadChanged = {
             val n = com.example.kolmafiaandroid.ChatNotifier.unreadTotal
             val badge = binding.bottomNavigation.getOrCreateBadge(R.id.nav_menu)
@@ -734,16 +735,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** A spinner tab on the right edge while a hidden screen's task runs (a fax request, for one); tap brings the screen back. */
+    private fun setupTaskHandle() {
+        val dp = resources.displayMetrics.density
+        val content = findViewById<ViewGroup>(android.R.id.content)
+        val tab = android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xCC37474F.toInt())
+                cornerRadii = floatArrayOf(14 * dp, 14 * dp, 0f, 0f, 0f, 0f, 14 * dp, 14 * dp)
+            }
+            elevation = 6 * dp
+            contentDescription = "Task in progress"
+            addView(android.widget.ProgressBar(this@MainActivity),
+                android.widget.FrameLayout.LayoutParams((22 * dp).toInt(), (22 * dp).toInt(), android.view.Gravity.CENTER).apply { marginStart = (2 * dp).toInt() })
+            setOnClickListener { com.example.kolmafiaandroid.ui.BackgroundTask.current.value?.reopen?.invoke(this@MainActivity) }
+            visibility = View.GONE
+        }
+        val lp = android.widget.FrameLayout.LayoutParams((30 * dp).toInt(), (48 * dp).toInt(), android.view.Gravity.END or android.view.Gravity.TOP)
+        lp.topMargin = (content.height * 0.4f).toInt().takeIf { it > 0 } ?: (300 * dp).toInt()
+        content.post { lp.topMargin = (content.height * 0.4f).toInt(); tab.layoutParams = lp }
+        content.addView(tab, lp)
+        lifecycleScope.launch {
+            kotlinx.coroutines.flow.combine(
+                com.example.kolmafiaandroid.ui.BackgroundTask.current,
+                com.example.kolmafiaandroid.ui.BackgroundTask.screenOpen,
+            ) { task, open -> task != null && !open }.collect { show -> tab.visibility = if (show) View.VISIBLE else View.GONE }
+        }
+    }
+
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemReselectedListener { dismissOpenDialogs() } // tapping the current tab closes a dialog too
         binding.bottomNavigation.setOnItemSelectedListener { item ->
+            val menuWasOpen = moreSheet?.isShowing == true
             dismissOpenDialogs()
             when (item.itemId) {
                 R.id.nav_dashboard -> binding.viewPager.currentItem = 0
                 R.id.nav_adventure -> binding.viewPager.currentItem = 1
                 R.id.nav_combat -> binding.viewPager.currentItem = 2
                 R.id.nav_scripts -> binding.viewPager.currentItem = 3
-                R.id.nav_menu -> { showMoreSheet(); return@setOnItemSelectedListener false } // opens a sheet; does not stay selected
+                // opens a sheet and does not stay selected; a second tap closes it
+                R.id.nav_menu -> { if (!menuWasOpen) showMoreSheet(); return@setOnItemSelectedListener false }
             }
             true
         }

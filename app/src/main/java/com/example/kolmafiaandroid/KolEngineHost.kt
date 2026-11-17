@@ -500,6 +500,14 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.chatContacts() } catch (t: Throwable) { "{}" }) }
     }
 
+    /** Leaves a channel ("/newbie") the way KoLmafia's chat window does (see KolEngine.chatLeave). */
+    fun chatLeave(channel: String, done: () -> Unit = {}) {
+        executor.execute {
+            try { KolEngine.chatLeave(channel) } catch (t: Throwable) { lines.tryEmit("CHAT ERROR: $t") }
+            done()
+        }
+    }
+
     fun chatSend(key: String, text: String, done: () -> Unit = {}) {
         executor.execute {
             try { KolEngine.chatSend(key, text) } catch (t: Throwable) { lines.tryEmit("CHAT ERROR: $t") }

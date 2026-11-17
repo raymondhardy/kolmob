@@ -250,9 +250,6 @@ class DashboardFragment : Fragment() {
 
     private fun gearTab(o: JSONObject) {
         val ctx = requireContext()
-        val eqCard = card(ctx, body, "Equipment")
-        val eq = o.optJSONArray("equipment") ?: JSONArray()
-        for (i in 0 until eq.length()) eqCard.addView(equipmentRow(eq.getJSONObject(i)))
         val best = card(ctx, body, "Best gear for…")
         best.addView(row(ctx, "Open the Maximizer", "Best gear and boosts for any goal, with scores", { com.example.kolmafiaandroid.tools.MaximizerFragment.show(requireActivity().supportFragmentManager) }, green))
         best.addView(label(ctx, "Or tap a goal to wear the best gear you own for it right away (ties go to the stronger item).", 12f, muted).apply { setPadding(0, dp(ctx, 6), 0, dp(ctx, 6)) })
@@ -267,6 +264,9 @@ class DashboardFragment : Fragment() {
                 .setNegativeButton("Cancel", null).show()
         }, green))
         best.addView(row(ctx, "Undo the last change", "Back to what you wore before", { act("outfit checkpoint") }, green))
+        val eqCard = card(ctx, body, "Equipment")
+        val eq = o.optJSONArray("equipment") ?: JSONArray()
+        for (i in 0 until eq.length()) eqCard.addView(equipmentRow(eq.getJSONObject(i)))
         val more = card(ctx, body, "Outfits and familiar")
         // KoLmafia lists a pseudo-outfit " - No Change - "; it is not wearable
         val outfits = (o.optJSONArray("outfits") ?: JSONArray()).let { a -> (0 until a.length()).map { a.getString(it) } }.filter { !it.trim().startsWith("-") }

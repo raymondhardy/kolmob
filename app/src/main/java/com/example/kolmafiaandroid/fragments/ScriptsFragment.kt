@@ -206,8 +206,12 @@ class ScriptsFragment : FullScreenDialog() {
             val n = f.listFiles()?.count { !hidden.matches(it.name) } ?: 0
             row("folder", KC.accent, f.name, if (n == 1) "1 item" else "$n items", true, { dir = f; render(); scroll.scrollTo(0, 0) }, { itemMenu(f) })
         }
+        val listed = ScriptFiles.list(scriptsDir).toSet()
         for (f in files) {
-            row(if (f.extension.isEmpty()) "file" else "ext:" + f.extension, KC.muted, f.name, size(f.length()) + " · " + fmt.format(Date(f.lastModified())), false, { itemMenu(f) }, { itemMenu(f) })
+            val r = ScriptFiles.relName(scriptsDir, f)
+            val mark = if (f !in listed) "" else if (ScriptFiles.isHidden(requireContext(), r)) " · hidden from the script list"
+                else if (ScriptFiles.isFavourite(requireContext(), r)) " · ★ favourite" else ""
+            row(if (f.extension.isEmpty()) "file" else "ext:" + f.extension, KC.muted, f.name, size(f.length()) + " · " + fmt.format(Date(f.lastModified())) + mark, false, { itemMenu(f) }, { itemMenu(f) })
         }
         if (atRoot) {
             val relay = (relayDir.listFiles() ?: emptyArray()).filter {
@@ -235,6 +239,16 @@ class ScriptsFragment : FullScreenDialog() {
         if (runnable(f)) { labels.add("Run"); acts.add { runScript(f) } }
         if (editable(f)) { labels.add("Edit"); acts.add { ScriptEditorFragment.newInstance(f).show(parentFragmentManager, "script_editor") } }
         if (f.isDirectory) { labels.add("Open"); acts.add { dir = f; render() } }
+        if (f in ScriptFiles.list(scriptsDir)) {
+            val ctx = requireContext()
+            val r = ScriptFiles.relName(scriptsDir, f)
+            val fav = ScriptFiles.isFavourite(ctx, r)
+            val hid = ScriptFiles.isHidden(ctx, r)
+            labels.add(if (fav) "Remove from favourites" else "Add to favourites (top of the script list)")
+            acts.add { ScriptFiles.setFavourite(ctx, r, !fav); if (!fav) ScriptFiles.setHidden(ctx, r, false); render() }
+            labels.add(if (hid) "Show in the script list" else "Hide from the script list (stays here)")
+            acts.add { ScriptFiles.setHidden(ctx, r, !hid); if (!hid) ScriptFiles.setFavourite(ctx, r, false); render() }
+        }
         labels.add("Rename"); acts.add { renameDialog(f) }
         labels.add("Delete"); acts.add { deleteDialog(f) }
         ScrollSafeDialogBuilder(requireContext()).setTitle(f.name)

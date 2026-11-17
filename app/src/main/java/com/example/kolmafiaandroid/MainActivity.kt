@@ -196,14 +196,28 @@ class MainActivity : AppCompatActivity() {
 
     // ---- "More" sheet: Chat, Quests, Tools, Settings, switch account / log out ----
 
+    /**
+     * Where the bottom bar starts with the keyboard closed. While the keyboard is up the bar rides above it, and a
+     * screen sized then would stay cut off at the keyboard's top after it closes.
+     */
+    private fun navTopNoKeyboard(): Int {
+        val loc = IntArray(2)
+        binding.bottomNavigation.getLocationOnScreen(loc)
+        var navTop = loc[1]
+        if (navTop <= 0) return resources.displayMetrics.heightPixels - binding.bottomNavigation.height - (48 * resources.displayMetrics.density).toInt()
+        androidx.core.view.ViewCompat.getRootWindowInsets(binding.root)?.let { ins ->
+            val ime = ins.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom
+            val bars = ins.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
+            if (ime > bars) navTop += ime - bars
+        }
+        return navTop
+    }
+
     /** Make a full-screen dialog end where the bottom bar starts, and let touches below it reach the bar. */
     fun fitDialogAboveNav(dialog: android.app.Dialog) {
         if (dialog === com.example.kolmafiaandroid.tools.ChatFragment.panelDialog) { fitChatPanel(dialog); return }
         val w = dialog.window ?: return
-        val loc = IntArray(2)
-        binding.bottomNavigation.getLocationOnScreen(loc)
-        var navTop = loc[1]
-        if (navTop <= 0) navTop = resources.displayMetrics.heightPixels - binding.bottomNavigation.height - (48 * resources.displayMetrics.density).toInt()
+        val navTop = navTopNoKeyboard()
         if (navTop <= 0) return
         w.setGravity(android.view.Gravity.TOP)
         w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, navTop)
@@ -229,10 +243,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun fitChatPanel(dialog: android.app.Dialog) {
         val w = dialog.window ?: return
-        val loc = IntArray(2)
-        binding.bottomNavigation.getLocationOnScreen(loc)
-        var navTop = loc[1]
-        if (navTop <= 0) navTop = resources.displayMetrics.heightPixels - binding.bottomNavigation.height - (48 * resources.displayMetrics.density).toInt()
+        val navTop = navTopNoKeyboard()
         if (navTop <= 0) return
         val dm = resources.displayMetrics
         w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)

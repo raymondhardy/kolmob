@@ -33,8 +33,10 @@ object BackgroundTask {
         lines?.cancel()
         lines = scope.launch {
             KolEngineHost.lines.drop(skip).collect { line ->
-                val plain = android.text.Html.fromHtml(line, 0).toString().trim()
-                if (plain.isNotEmpty()) lastLine.value = plain
+                // KoLmafia's lines can carry HTML comments (e.g. "<!-- monsterid: 1 -->"), escaped or cut off at the line end
+                val plain = android.text.Html.fromHtml(line, 0).toString().replace(Regex("<!--[\\s\\S]*?(-->|$)"), "").trim()
+                // "Returned: ..." is the ASH snippet's own result, not news from KoLmafia
+                if (plain.isNotEmpty() && !plain.startsWith("Returned:")) lastLine.value = plain
             }
         }
     }

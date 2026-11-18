@@ -108,7 +108,6 @@ class DietFragment : Fragment() {
             return
         }
         val items = o.optJSONArray("items")
-        val cmds = o.optJSONArray("commands")
         val sb = StringBuilder()
         sb.append("Room left: food ${o.optInt("foodSpace")}, booze ${o.optInt("boozeSpace")}, spleen ${o.optInt("spleenSpace")}\n")
         if (o.optBoolean("simulated")) sb.append("(Preview only: pretending the day just started.)\n")
@@ -117,7 +116,7 @@ class DietFragment : Fragment() {
             sb.append("\nNothing worth eating or drinking with these settings.")
         } else {
             sb.append("\nAbout ${o.optDouble("totalAdventures")} adventures for ${o.optLong("totalCost")} meat.\n\n")
-            if (o.optBoolean("useMilk")) sb.append("• Milk of magnesium first (+5 adventures)\n")
+            if (o.optBoolean("useMilk")) sb.append("• Milk of magnesium first (+${o.optDouble("milkGain")} adventures)\n")
             if (o.optBoolean("useOde")) sb.append("• Ode to Booze will be cast right before the booze (+${o.optDouble("odeGain")} adventures)\n")
             for (i in 0 until items!!.length()) {
                 val it = items.getJSONObject(i)
@@ -127,16 +126,26 @@ class DietFragment : Fragment() {
                     "(${it.optDouble("adventuresEach")} adv each)\n")
             }
         }
+        val notes = o.optJSONArray("notes")
+        if (notes != null && notes.length() > 0) {
+            sb.append("\nHelpers:\n")
+            for (i in 0 until notes.length()) sb.append("• ${notes.getString(i)}\n")
+        }
         val night = o.optJSONObject("nightcap")
         sb.append("\nYou have ${o.optInt("adventuresNow")} adventures; keep ${o.optInt("reserve")} in reserve. Drink once you are down to about that.")
         sb.append("\nEat next / Drink next do one item and re-plan. Hold the booze until adventures are nearly gone so better drops can replace it.")
         if (night != null) sb.append("\nOverdrink last: ${night.optString("name")} (${night.optDouble("adventures")} adv, ${night.optInt("overshoot")} past the liver limit, ${night.optDouble("netGain")} adv more than stopping at the limit). Do this when you are done adventuring for the day.")
         val tips = o.optJSONArray("tips")
         if (tips != null) for (i in 0 until tips.length()) sb.append("\n" + tips.getString(i))
-        val list = (0 until (cmds?.length() ?: 0)).map { cmds!!.getString(it) }
-        val bc = o.optJSONArray("boozeCommands")
-        val boozeList = (0 until (bc?.length() ?: 0)).map { bc!!.getString(it) }.toMutableList()
-        // "Drink all booze" fills the liver up to its limit and stops; the overdrink is its own button below
+
+        // Steps in order; each holds one unit with what goes with it (buy/create, helpers), or a setup step (pill, Ode, cleaner).
+        data class Step(val group: String, val kind: String, val label: String, val commands: List<String>)
+        val sa = o.optJSONArray("steps")
+        val steps = (0 until (sa?.length() ?: 0)).map { i ->
+            val j = sa!!.getJSONObject(i)
+            val c = j.optJSONArray("commands")
+            Step(j.optString("group"), j.optString("kind"), j.optString("label"), (0 until (c?.length() ?: 0)).map { c!!.getString(it) })
+        }
         val live = !o.optBoolean("simulated")
         val dp = ctx.resources.displayMetrics.density
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), 0) }
@@ -146,46 +155,29 @@ class DietFragment : Fragment() {
             col.addView(android.widget.Button(ctx).apply {
                 this.text = text
                 setOnClickListener {
-                    val go = {
-                        dlg.dismiss()
-                        Toast.makeText(ctx, "Running. See the Console tab.", Toast.LENGTH_SHORT).show()
-                        runAll(run, 0) { lastSpec?.let { s -> KolEngineHost.dietPlan(s) { j -> activity?.runOnUiThread { showPlan(j) } } } }
-                    }
-                    // Overdrinking: the nightcap, or any drink when the liver has no room left.
-                    val over = run.any { c -> c.startsWith("drink ") && (c == night?.optString("command") || o.optInt("boozeSpace") <= 0) }
-                    if (over) {
-                        com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Overdrink?")
-                            .setMessage("This takes you past your liver limit, so you end the day drunk and cannot adventure until rollover. Are you sure?")
-                            .setPositiveButton("Yes, overdrink") { _, _ -> go() }
-                            .setNegativeButton("Cancel", null).show()
-                    } else go()
+                    dlg.dismiss()
+                    Toast.makeText(ctx, "Running. See the Console tab.", Toast.LENGTH_SHORT).show()
+                    // KoLmafia's drink asks "Are you sure you want to overdrink?" itself when a drink goes past the limit
+                    runAll(run, 0) { lastSpec?.let { s -> KolEngineHost.dietPlan(s) { j -> activity?.runOnUiThread { showPlan(j) } } } }
                 }
             })
         }
-        // The first item of a kind, count cut to one, with ONLY what that item needs: its own buy/create step, plus the helper
-        // that goes with its kind (milk of magnesium before food, Ode to Booze before drink). Never the other items in the plan.
-        fun next(cmds: List<String>, verbs: List<String>): Pair<String, List<String>>? {
-            val idx = cmds.indexOfFirst { c -> verbs.any { c.startsWith("$it ") } }
+        // "Next": the setup steps of that group up to its first item, and that item; the plan is made again afterwards.
+        fun next(group: String, kind: String): Pair<String, List<String>>? {
+            val mine = steps.filter { it.group == group }
+            val idx = mine.indexOfFirst { it.kind == kind }
             if (idx < 0) return null
-            val m = Regex("^(\\w+)\\s+(\\d+)\\s+(.*)$").find(cmds[idx])
-            val one = if (m != null) "${m.groupValues[1]} 1 ${m.groupValues[3]}" else cmds[idx]
-            val name = m?.groupValues?.get(3) ?: cmds[idx]
-            val before = cmds.subList(0, idx)
-            var p = before.size
-            while (p > 0 && (before[p - 1].startsWith("buy ") || before[p - 1].startsWith("create "))) p--
-            val prep = before.subList(p, before.size)
-            val helpers = before.subList(0, p).filter { c ->
-                (verbs.contains("eat") && c.startsWith("use ")) || (verbs.contains("drink") && c.startsWith("cast "))
-            }
-            return name to (helpers + prep + one)
+            return mine[idx].label to mine.subList(0, idx + 1).flatMap { it.commands }
         }
         if (live) {
-            next(list, listOf("eat"))?.let { btn("Eat next: ${it.first}", it.second) }
-            next(list, listOf("chew"))?.let { btn("Chew next: ${it.first}", it.second) }
-            next(boozeList, listOf("drink"))?.let { btn("Drink next: ${it.first}", it.second) }
-            if (list.isNotEmpty()) btn("Run all food & spleen", list)
-            if (boozeList.isNotEmpty()) btn("Drink all booze (up to the liver limit)", boozeList)
-            if (night != null) btn("Overdrink: ${night.optString("name")} (ends the day)", listOf(night.optString("command")))
+            next("food", "eat")?.let { btn("Eat next: ${it.first}", it.second) }
+            next("spleen", "chew")?.let { btn("Chew next: ${it.first}", it.second) }
+            next("booze", "drink")?.let { btn("Drink next: ${it.first}", it.second) }
+            val foodSpleen = steps.filter { it.group == "food" || it.group == "spleen" }.flatMap { it.commands }
+            if (foodSpleen.isNotEmpty()) btn("Run all food & spleen", foodSpleen)
+            val boozeAll = steps.filter { it.group == "booze" }.flatMap { it.commands }
+            if (boozeAll.isNotEmpty()) btn("Drink all booze (up to the liver limit)", boozeAll)
+            steps.firstOrNull { it.group == "night" }?.let { btn("Overdrink: ${it.label} (ends the day)", it.commands) }
         }
         col.addView(android.widget.Button(ctx).apply { text = "Change options"; setOnClickListener { dlg.dismiss(); showOptions() } })
         dlg = com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Diet plan").setView(ScrollView(ctx).apply { addView(col) })

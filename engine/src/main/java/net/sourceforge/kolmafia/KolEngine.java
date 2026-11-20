@@ -48,15 +48,16 @@ public final class KolEngine {
     RequestLogger.openCustom(
         new PrintStream(
             new OutputStream() {
-              private final StringBuilder line = new StringBuilder();
+              // Bytes, decoded once per line: the stream is UTF-8, and a character can span several bytes.
+              private final java.io.ByteArrayOutputStream line = new java.io.ByteArrayOutputStream();
 
               @Override
               public void write(int b) {
                 if (b == '\n') {
-                  output.accept(line.toString());
-                  line.setLength(0);
+                  output.accept(line.toString(java.nio.charset.StandardCharsets.UTF_8));
+                  line.reset();
                 } else if (b != '\r') {
-                  line.append((char) b);
+                  line.write(b);
                 }
               }
             },

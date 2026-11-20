@@ -8,7 +8,7 @@ PATCHES = [
      'import net.sourceforge.kolmafia.swingui.SwingUserInterface;\n',
      '// Kolmob: no swingui\n'),
     ('net/sourceforge/kolmafia/KoLmafia.java',
-     '    if (!StaticEntity.isHeadless()) {\n      UserInterfaceManager.set(new SwingUserInterface());\n    }\n',
+     '    if (!StaticEntity.isHeadless()) {\n      UserInterfaceManager.set(new SwingUserInterface());\n      UserInterfaceManager.get().installEditorKits();\n    }\n',
      '    // Kolmob: KolEngine sets the user interface\n'),
     # Android ignores System.setProperty("user.dir"), so let the app choose the data root explicitly.
     ('net/java/dev/spellcast/utilities/UtilityConstants.java',

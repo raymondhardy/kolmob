@@ -8,7 +8,7 @@ PATCHES = [
      'import net.sourceforge.kolmafia.swingui.SwingUserInterface;\n',
      '// Kolmob: no swingui\n'),
     ('net/sourceforge/kolmafia/KoLmafia.java',
-     '    if (!StaticEntity.isHeadless()) {\n      UserInterfaceManager.setUserInterface(new SwingUserInterface());\n    }\n',
+     '    if (!StaticEntity.isHeadless()) {\n      UserInterfaceManager.set(new SwingUserInterface());\n    }\n',
      '    // Kolmob: KolEngine sets the user interface\n'),
     # Android ignores System.setProperty("user.dir"), so let the app choose the data root explicitly.
     ('net/java/dev/spellcast/utilities/UtilityConstants.java',
@@ -433,17 +433,19 @@ PATCHES = [
   }'''),
     ('net/sourceforge/kolmafia/KoLCharacter.java',
      '''  public static final synchronized void recalculateAdjustments(boolean debug) {
-    KoLCharacter.currentModifiers.set(''',
+    var withoutAccumulators = new Modifiers();''',
      '''  public static final synchronized void recalculateAdjustments(boolean debug) {
     final int kolmobSeen = KolmobCharacterGuard.recalculationStarting();
-    KoLCharacter.currentModifiers.set('''),
+    var withoutAccumulators = new Modifiers();'''),
     ('net/sourceforge/kolmafia/KoLCharacter.java',
      '''            Modeable.getStateMap(),
             false));
+    KoLCharacter.currentModifiers = withoutAccumulators;
   }
 ''',
      '''            Modeable.getStateMap(),
             false));
+    KoLCharacter.currentModifiers = withoutAccumulators;
     KolmobCharacterGuard.recalculationDone(kolmobSeen);
   }
 '''),

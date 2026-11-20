@@ -42,7 +42,7 @@ public final class KolEngine {
     System.setProperty("user.dir", root.getAbsolutePath());
     System.setProperty("user.home", root.getAbsolutePath());
     // The engine reaches the user interface only through this (chat buffers' work runs on one thread, as on Swing's).
-    net.sourceforge.kolmafia.ui.UserInterfaceManager.setUserInterface(KolmobUserInterface.INSTANCE);
+    net.sourceforge.kolmafia.ui.UserInterfaceManager.set(KolmobUserInterface.INSTANCE);
 
     StaticEntity.setGUIRequired(false);
     RequestLogger.openCustom(

@@ -45,15 +45,13 @@ public final class KolmobUserInterface implements UserInterface {
    * the list here instead, where the desktop opens its contact list window. Kolmob keeps it for the chat screen.
    */
   @Override
-  public void showContacts(final String title, final LockableListModel<?> list) {
+  public void showChatContacts(final String title, final LockableListModel<HTMLListEntry> list) {
     List<String> names = new ArrayList<>();
     List<Boolean> inChat = new ArrayList<>();
-    for (Object o : list.toArray()) {
-      if (o instanceof HTMLListEntry entry) {
-        names.add(entry.getValue());
-        // ContactManager colors players in chat black and the rest gray; the color is only in the HTML
-        inChat.add(!entry.toString().contains("\"gray\""));
-      }
+    for (HTMLListEntry entry : list) {
+      names.add(entry.getValue());
+      // ContactManager colors players in chat black and the rest gray; the color is only in the HTML
+      inChat.add(!entry.toString().contains("\"gray\""));
     }
     synchronized (this) {
       this.contacts = new Contacts(this.contacts.version() + 1, title, List.copyOf(names), List.copyOf(inChat));

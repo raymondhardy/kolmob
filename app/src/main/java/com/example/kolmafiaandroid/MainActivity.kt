@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity() {
             }
         }, true)
         binding = ActivityMainBinding.inflate(layoutInflater)
+        CrashLog.showIfAny(this)
         setContentView(binding.root)
 
         setupViewPager()
@@ -431,6 +432,12 @@ class MainActivity : AppCompatActivity() {
                 getSharedPreferences("kolmob", MODE_PRIVATE).edit().putBoolean("chat_autostart", on).apply()
             }
         })
+        box.addView(com.google.android.material.checkbox.MaterialCheckBox(this).apply {
+            text = "Save crash details so I can copy them next time"
+            setTextColor(KC.soft)
+            isChecked = CrashLog.enabled(this@MainActivity)
+            setOnCheckedChangeListener { _, on -> CrashLog.setEnabled(this@MainActivity, on) }
+        })
         box.addView(note("Chat only polls KoL while you are active; once chat goes quiet (away mode) it stops until you open the panel, unless chat alerts are on.", 12f))
         box.addView(note("Keep logs for", 13f).apply { setPadding(0, (12 * dp).toInt(), 0, 0) })
         val keepSpinner = Dropdown(this, "Keep logs for", LogPruner.choices.map { it.second },
@@ -598,9 +605,11 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         setBusy(false)
                         if (status.text.toString().startsWith("Starting")) status.text = ""
-                        // Cold start: sign straight in as the last account if its password is saved.
+                        // Cold start: sign straight in if there is one account and its password is saved.
                         val last = accounts.lastUser()
-                        val saved = if (autoLoginAllowed && last != null && com.example.kolmafiaandroid.ui.Eula.accepted(this@MainActivity)) accounts.password(last) else null
+                        // With several accounts, wait for the player to pick one.
+                        val single = accounts.accounts().size <= 1
+                        val saved = if (autoLoginAllowed && single && last != null && com.example.kolmafiaandroid.ui.Eula.accepted(this@MainActivity)) accounts.password(last) else null
                         if (saved != null) {
                             autoLoginAllowed = false
                             signIn(last!!, saved, true)

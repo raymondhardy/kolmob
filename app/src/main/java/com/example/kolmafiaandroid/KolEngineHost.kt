@@ -460,7 +460,8 @@ object KolEngineHost {
     /** Stops the running adventure/script immediately (not queued behind it). */
     fun abort() {
         paused.value = false
-        try { KolEngine.abort() } catch (t: Throwable) { lines.tryEmit("ERROR: $t") }
+        // Off the UI thread: aborting logs, stops relay scripts and posts to chat, which can block.
+        Thread({ try { KolEngine.abort() } catch (t: Throwable) { lines.tryEmit("ERROR: $t") } }, "kol-abort").start()
     }
 
     // ---- chat (see KolEngine) ----

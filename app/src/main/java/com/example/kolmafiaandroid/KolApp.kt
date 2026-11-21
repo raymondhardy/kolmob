@@ -11,6 +11,7 @@ import android.content.pm.ApplicationInfo
 class KolApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
         val hooks = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) ||
             (packageManager.getApplicationInfo(packageName, android.content.pm.PackageManager.GET_META_DATA)
                 .metaData?.get("kolmob.hooks")?.toString() == "true")

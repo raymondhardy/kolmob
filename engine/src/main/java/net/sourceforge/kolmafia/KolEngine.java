@@ -272,11 +272,13 @@ public final class KolEngine {
   }
 
   /** Runs one CLI command line (e.g. {@code ash print("hi");}) and blocks until it finishes. */
-  public static void execute(String commandLine) {
+  /** Runs one command line; false if it ended in an error or abort. */
+  public static boolean execute(String commandLine) {
     // The desktop shell clears the error/abort state before every typed line; without this, one failed command
     // makes executeLine skip every later command silently.
     KoLmafia.forceContinue();
     KoLmafiaCLI.DEFAULT_SHELL.executeLine(commandLine);
+    return KoLmafia.permitsContinue();
   }
 
   /** Logs in through KoLmafia's real LoginRequest (blocks until the login attempt finishes). */

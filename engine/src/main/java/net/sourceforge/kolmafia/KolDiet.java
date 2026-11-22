@@ -37,6 +37,8 @@ public final class KolDiet {
     boolean mall = false;
     boolean craft = false;
     boolean nightcap = false;
+    boolean expanders = true; // false: no distention pill, cuppa Voraci tea or sweet tooth (they add room for the day)
+    boolean cleaners = true; // false: no pills, teas or other items that empty an organ, and no credit for spleen a food empties
     boolean food = true;
     boolean booze = true;
     boolean spleen = true;
@@ -75,6 +77,8 @@ public final class KolDiet {
           case "mall" -> o.mall = b;
           case "craft" -> o.craft = b;
           case "night" -> o.nightcap = b;
+          case "cleaners" -> o.cleaners = b;
+          case "expanders" -> o.expanders = b;
           case "food" -> o.food = b;
           case "booze" -> o.booze = b;
           case "spleen" -> o.spleen = b;
@@ -322,7 +326,7 @@ public final class KolDiet {
 
   /** Adds the uses of an item that makes room: owned ones first (free), then bought ones if a source allows it. */
   private static void addRoom(List<Room> out, Options o, String name, boolean usedToday, int limit, int food, int booze, int spleen, boolean cleaner) {
-    if (usedToday || limit <= 0) return;
+    if (usedToday || limit <= 0 || (cleaner ? !o.cleaners : !o.expanders)) return;
     int owned = Math.min(have(name), limit);
     for (int i = 0; i < owned; i++) out.add(new Room(name, food, booze, spleen, cleaner, List.of("use 1 " + name), 0));
     long price = buyPrice(name, o);
@@ -336,13 +340,14 @@ public final class KolDiet {
     addRoom(r, o, "distention pill", Preferences.getBoolean("_distentionPillUsed"), 1, 1, 0, 0, false);
     addRoom(r, o, "cuppa Voraci tea", Preferences.getBoolean("_voraciTeaUsed"), 1, 1, 0, 0, false);
     addRoom(r, o, "sweet tooth", Preferences.getBoolean("_sweetToothUsed"), 1, 1, 0, 0, false);
-    addRoom(r, o, "synthetic dog hair pill", Preferences.getBoolean("_syntheticDogHairPillUsed"), 1, 0, 1, 0, false);
-    addRoom(r, o, "cuppa Sobrie tea", Preferences.getBoolean("_sobrieTeaUsed"), 1, 0, 1, 0, false);
+    // these take away 1 drunkenness you already have (sober, they do nothing), so they are cleaners, not extra liver
+    addRoom(r, o, "synthetic dog hair pill", Preferences.getBoolean("_syntheticDogHairPillUsed"), 1, 0, 1, 0, true);
+    addRoom(r, o, "cuppa Sobrie tea", Preferences.getBoolean("_sobrieTeaUsed"), 1, 0, 1, 0, true);
     addRoom(r, o, "spice melange", Preferences.getBoolean("spiceMelangeUsed"), 1, 3, 3, 0, true);
     addRoom(r, o, "Ultra Mega Sour Ball", Preferences.getBoolean("_ultraMegaSourBallUsed"), 1, 3, 3, 0, true);
     addRoom(r, o, "mojo filter", false, 3 - Preferences.getInteger("currentMojoFilters"), 0, 0, 1, true);
     int pants = id("designer sweatpants");
-    if (pants > 0 && KoLCharacter.hasEquipped(ItemPool.get(pants, 1))) {
+    if (o.cleaners && pants > 0 && KoLCharacter.hasEquipped(ItemPool.get(pants, 1))) {
       int casts = Math.min(3 - Preferences.getInteger("_sweatOutSomeBoozeUsed"), Preferences.getInteger("sweat") / 25);
       for (int i = 0; i < casts; i++) r.add(new Room("Sweat Out Some Booze", 0, 1, 0, true, List.of("cast 1 Sweat Out Some Booze"), 0));
     }
@@ -442,7 +447,7 @@ public final class KolDiet {
     boolean odeMaybe = haveOde || odeActive;
 
     // Spleen cleaned by the extra-greasy slider or pickle juice (5 each) is worth what the best spleen item gives for 5 spleen.
-    if (o.spleen) {
+    if (o.spleen && o.cleaners) {
       double perSpleen = 0;
       for (Cand c : all) {
         if (c.organ == Organ.SPLEEN && c.max * c.size >= 5) perSpleen = Math.max(perSpleen, c.value(mpa, false) / c.size);
@@ -672,7 +677,16 @@ public final class KolDiet {
         boozeRoom += rm.booze(); // a stomach-and-liver cleaner, used with the food above
       }
     }
-    if (useOde) steps.add(new Step("booze", "setup", "Ode to Booze", List.of("cast 1 The Ode to Booze")));
+    // A failed cast (e.g. no room for another song) is only a warning in KoLmafia, so check the effect and abort the run.
+    if (useOde)
+      steps.add(
+          new Step(
+              "booze",
+              "setup",
+              "Ode to Booze",
+              List.of(
+                  "cast 1 The Ode to Booze",
+                  "ash if (have_effect($effect[Ode to Booze]) == 0) abort(\"Ode to Booze is not active; stopping before the booze.\");")));
     for (Unit u : boozeUnits) {
       boolean free = u == shotUnit;
       while (!free && u.c.size > boozeRoom && !boozeCleaners.isEmpty()) {
@@ -707,6 +721,7 @@ public final class KolDiet {
           notes.add("Stooper: switch to it at the end of the day for one more " + extra.name + " (+" + round(a) + " adventures)");
         }
       }
+      for (Room rm : boozeCleaners) nightCmds.addAll(0, rm.commands());
       nightCmds.add("drink 1 " + night.name);
       steps.add(new Step("night", "drink", night.name, nightCmds));
     }

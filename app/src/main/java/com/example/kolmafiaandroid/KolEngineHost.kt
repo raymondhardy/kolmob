@@ -165,6 +165,10 @@ object KolEngineHost {
     }
 
     /** Runs a KoLmafia CLI line, e.g. `ash print("hi");`, then calls [done] on the engine thread. */
+    /** Whether the last command run by [execute] finished without an error or abort. */
+    @Volatile var lastOk = true
+        private set
+
     fun execute(command: String, done: () -> Unit = {}) {
         executor.execute {
             val ctx = appContext
@@ -176,10 +180,11 @@ object KolEngineHost {
                 stateChanged.tryEmit(Unit)
                 try { KolEngine.dumpIfHung(hangSeconds * 1000L)?.let { lines.tryEmit(it) } } catch (_: Throwable) {}
             }, 6, 6, java.util.concurrent.TimeUnit.SECONDS)
-            try {
+            lastOk = try {
                 watched("cmd") { KolEngine.execute(command) }
             } catch (t: Throwable) {
                 lines.tryEmit("ERROR: $t")
+                false
             }
             tick.cancel(false)
             if (runningCount.decrementAndGet() <= 0) { runningCount.set(0); running.value = false }

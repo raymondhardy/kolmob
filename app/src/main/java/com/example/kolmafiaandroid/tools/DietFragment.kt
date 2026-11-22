@@ -65,6 +65,8 @@ class DietFragment : Fragment() {
         val food = check("Food", "food", true)
         val booze = check("Booze", "booze", true)
         val spleen = check("Spleen", "spleen", true)
+        val expanders = check("Use pills and teas that add room for the day: distention pill, cuppa Voraci tea, sweet tooth", "expanders", true)
+        val cleaners = check("Use cleaners: pills, teas, spice melange, mojo filters and the like that empty part of an organ", "cleaners", true)
         val night = check("Overdrink: one big drink last for extra adventures (you cannot adventure again until rollover; the liver resets)", "night", true)
         val sim = check("Preview as if it were a fresh day (empty organs)", "sim", false)
 
@@ -85,12 +87,12 @@ class DietFragment : Fragment() {
                     .putBoolean("diet_owned", owned.isChecked).putBoolean("diet_npc", npc.isChecked)
                     .putBoolean("diet_mall", mall.isChecked).putBoolean("diet_craft", craft.isChecked)
                     .putBoolean("diet_food", food.isChecked).putBoolean("diet_booze", booze.isChecked)
-                    .putBoolean("diet_spleen", spleen.isChecked).putBoolean("diet_night", night.isChecked)
+                    .putBoolean("diet_spleen", spleen.isChecked).putBoolean("diet_night", night.isChecked).putBoolean("diet_cleaners", cleaners.isChecked).putBoolean("diet_expanders", expanders.isChecked)
                     .putBoolean("diet_sim", sim.isChecked).apply()
                 fun b(v: Boolean) = if (v) "1" else "0"
                 val spec = "mpa=${mpa.text.toString().toLongOrNull() ?: 0};reserve=${reserve.text.toString().toIntOrNull() ?: 3};owned=${b(owned.isChecked)};npc=${b(npc.isChecked)};" +
                     "mall=${b(mall.isChecked)};craft=${b(craft.isChecked)};food=${b(food.isChecked)};booze=${b(booze.isChecked)};" +
-                    "spleen=${b(spleen.isChecked)};night=${b(night.isChecked)};sim=${b(sim.isChecked)}"
+                    "spleen=${b(spleen.isChecked)};night=${b(night.isChecked)};cleaners=${b(cleaners.isChecked)};expanders=${b(expanders.isChecked)};sim=${b(sim.isChecked)}"
                 Toast.makeText(ctx, "Planning…", Toast.LENGTH_SHORT).show()
                 lastSpec = spec
                 KolEngineHost.dietPlan(spec) { json -> activity?.runOnUiThread { showPlan(json) } }
@@ -188,9 +190,17 @@ class DietFragment : Fragment() {
 
     private var lastSpec: String? = null
 
+    /** Runs the commands in order and stops at the first one that fails, so nothing is eaten or drunk after a failed step. */
     private fun runAll(cmds: List<String>, i: Int, then: (() -> Unit)? = null) {
         if (i >= cmds.size) { then?.invoke(); return }
-        KolEngineHost.execute(cmds[i]) { runAll(cmds, i + 1, then) }
+        KolEngineHost.execute(cmds[i]) {
+            if (KolEngineHost.lastOk) { runAll(cmds, i + 1, then); return@execute }
+            val left = cmds.size - i - 1
+            activity?.runOnUiThread {
+                context?.let { Toast.makeText(it, "Stopped: \"${cmds[i]}\" failed" + (if (left > 0) "; $left step(s) not run" else "") + ". See the Console tab.", Toast.LENGTH_LONG).show() }
+            }
+            then?.invoke()
+        }
     }
 
     companion object {

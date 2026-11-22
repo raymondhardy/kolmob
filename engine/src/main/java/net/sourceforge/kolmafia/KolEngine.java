@@ -739,6 +739,11 @@ public final class KolEngine {
     KolmobUserInterface.INSTANCE.setDarkTheme(dark);
   }
 
+  /** A command typed while the script is paused started or finished; the script stays held until it is done. */
+  public static void aside(boolean started) {
+    KolPause.aside(started);
+  }
+
   public static boolean isWaitingPaused() {
     return KolPause.isWaiting();
   }
@@ -2455,6 +2460,11 @@ public final class KolEngine {
       kv(sb, "meat", KoLCharacter.getAvailableMeat());
       kv(sb, "adventures", KoLCharacter.getAdventuresLeft());
       kv(sb, "turnsPlayed", KoLCharacter.getTurnsPlayed());
+      kv(sb, "daysThisRun", KoLCharacter.getCurrentDays());
+      kv(sb, "turnsThisRun", KoLCharacter.getCurrentRun());
+      kv(sb, "ascensions", KoLCharacter.getAscensions());
+      kv(sb, "sign", KoLCharacter.getSign().getName());
+      kv(sb, "hardcore", KoLCharacter.isHardcore());
       kv(sb, "familiar", KoLCharacter.getFamiliar() == null ? "" : KoLCharacter.getFamiliar().getRace());
       kv(sb, "path", String.valueOf(KoLCharacter.getPath()));
       kv(sb, "lastAdventure", Preferences.getString("lastAdventure"));

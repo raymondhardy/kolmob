@@ -424,3 +424,76 @@ private fun toolCard(context: Context, title: String, detail: String, open: () -
     clickable(c, open)
     return c
 }
+
+/**
+ * A row of small squares that fill up: [count] squares (10 = one per 10%), as many filled as [cur] out of [max]
+ * covers (rounded up, so anything above zero shows at least one). Past the limit (overdrunk, say) red squares cover the full ones from the
+ * left, one per 10% over, so 150% shows half red. Squares shrink to fit the width.
+ */
+class SegmentMeter(context: Context, private val cur: Long, private val max: Long, private val count: Int, color: Int) :
+    View(context) {
+    private val on = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+    private val off = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = KC.faint }
+    private val over = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = KC.danger }
+    private val gap = dp(context, 3).toFloat()
+    private val size = dp(context, 10).toFloat()
+    private val r = android.graphics.RectF()
+
+    private fun filled(): Int =
+        if (max <= 0 || cur <= 0) 0 else ((cur * count + max - 1) / max).toInt().coerceIn(0, count)
+
+    private fun extra(): Int =
+        if (max <= 0 || cur <= max) 0 else (((cur - max) * count + max - 1) / max).toInt().coerceIn(1, count)
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), size.toInt())
+    }
+
+    override fun onDraw(canvas: android.graphics.Canvas) {
+        val side = minOf(size, (width - gap * (count - 1)) / count)
+        val n = filled()
+        val red = extra()
+        val corner = side / 4
+        for (i in 0 until count) {
+            val x = i * (side + gap)
+            r.set(x, (height - side) / 2, x + side, (height + side) / 2)
+            canvas.drawRoundRect(r, corner, corner, if (i < red) over else if (i < n) on else off)
+        }
+    }
+}
+
+/** A small tinted icon from the vitals set. */
+fun vitalIcon(context: Context, iconRes: Int, tint: Int, sizeDp: Int = 18): View =
+    android.widget.ImageView(context).apply {
+        setImageResource(iconRes)
+        imageTintList = android.content.res.ColorStateList.valueOf(tint)
+        layoutParams = LinearLayout.LayoutParams(dp(context, sizeDp), dp(context, sizeDp)).apply { marginEnd = dp(context, 6) }
+    }
+
+/** Icon, label and "cur / max" over a [SegmentMeter]; tappable when [onClick] is set. */
+fun vital(
+    context: Context,
+    iconRes: Int,
+    labelText: String,
+    cur: Long,
+    max: Long,
+    color: Int,
+    squares: Int,
+    hint: String? = null,
+    onClick: (() -> Unit)? = null
+): View {
+    val box = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(context, 4), 0, dp(context, 4))
+    }
+    val head = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    head.addView(vitalIcon(context, iconRes, color))
+    head.addView(label(context, labelText + (if (hint != null) "  · $hint" else ""), 13f, KC.muted),
+        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+    head.addView(label(context, "$cur / $max", 13f, if (max in 1 until cur) KC.danger else KC.text, true))
+    box.addView(head)
+    box.addView(SegmentMeter(context, cur, max, squares, color),
+        LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(context, 6) })
+    if (onClick != null) clickable(box, onClick)
+    return box
+}

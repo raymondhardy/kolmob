@@ -30,6 +30,9 @@ import com.example.kolmafiaandroid.ui.pick
 import com.example.kolmafiaandroid.ui.row
 import com.example.kolmafiaandroid.ui.tile
 import com.example.kolmafiaandroid.ui.tileRow
+import com.example.kolmafiaandroid.ui.SegmentMeter
+import com.example.kolmafiaandroid.ui.vital
+import com.example.kolmafiaandroid.ui.vitalIcon
 import java.text.NumberFormat
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -165,7 +168,7 @@ class DashboardFragment : Fragment() {
         if (tabIndex != ITEMS_TAB && tabIndex != QUESTS_TAB) renderBody() // the Items/Quests tabs hosts its own fragment: leave it alone on refresh
     }
 
-    /** Name, level, HP/MP and the three numbers you check most often: always on screen. */
+    /** Name, level, HP/MP, meat, adventures and organs: always on screen. */
     private fun renderHeader(o: JSONObject) {
         val ctx = requireContext()
         headerBox.removeAllViews()
@@ -176,10 +179,33 @@ class DashboardFragment : Fragment() {
         top.addView(label(ctx, o.optString("name"), 22f, KC.text, true), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         top.addView(label(ctx, "L${o.optInt("level")} ${o.optString("class")}", 13f, green))
         head.addView(top)
-        head.addView(label(ctx, o.optString("path"), 12f, muted))
-        head.addView(bar(ctx, "HP", o.optLong("hp"), o.optLong("maxHp"), KC.danger, "tap to restore") { showRestore(true, o) }.apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 2)) })
-        head.addView(bar(ctx, "MP", o.optLong("mp"), o.optLong("maxMp"), KC.info, "tap to restore") { showRestore(false, o) })
-        head.addView(label(ctx, "${nf.format(o.optLong("meat"))} meat   ·   ${o.optString("adventures")} adventures   ·   ${nf.format(o.optLong("turnsPlayed"))} turns", 13f).apply { setPadding(0, dp(ctx, 8), 0, 0) })
+        head.addView(vital(ctx, R.drawable.ic_vital_hp, "HP", o.optLong("hp"), o.optLong("maxHp"), KC.danger, 10, "tap to restore") { showRestore(true, o) }.apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 2)) })
+        head.addView(vital(ctx, R.drawable.ic_vital_mp, "MP", o.optLong("mp"), o.optLong("maxMp"), KC.info, 10, "tap to restore") { showRestore(false, o) })
+        val money = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(ctx, 10), 0, 0) }
+        money.addView(vitalIcon(ctx, R.drawable.ic_vital_meat, KC.muted, 16))
+        money.addView(label(ctx, "${nf.format(o.optLong("meat"))} meat", 13f).apply { setPadding(0, 0, dp(ctx, 16), 0) })
+        money.addView(vitalIcon(ctx, R.drawable.ic_vital_adv, KC.muted, 16))
+        money.addView(label(ctx, "${o.optString("adventures")} adventures", 13f))
+        head.addView(money)
+        o.optJSONObject("organs")?.let { g ->
+            val organs = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(ctx, 10), 0, 0) }
+            fun organ(icon: Int, name: String, cur: Int, max: Int, color: Int) {
+                val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+                val top = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+                top.addView(vitalIcon(ctx, icon, color, 16))
+                // a limit of 0 means no such organ right now (Ed before he buys it, some paths)
+                val none = max <= 0 && cur <= 0
+                top.addView(label(ctx, if (none) "$name: none" else "$name $cur/$max", 13f, if (max in 0 until cur) KC.danger else KC.text))
+                col.addView(top)
+                if (!none) col.addView(SegmentMeter(ctx, cur.toLong(), max.toLong(), 10, color),
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, 4) })
+                organs.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { if (organs.childCount > 0) marginStart = dp(ctx, 12) })
+            }
+            organ(R.drawable.ic_vital_food, "Full", g.optInt("fullness"), g.optInt("fullnessLimit"), 0xFFFFB300.toInt())
+            organ(R.drawable.ic_vital_drink, "Drunk", g.optInt("drunk"), g.optInt("drunkLimit"), 0xFF8E24AA.toInt())
+            organ(R.drawable.ic_vital_spleen, "Spleen", g.optInt("spleen"), g.optInt("spleenLimit"), 0xFF00897B.toInt())
+            head.addView(organs)
+        }
     }
 
     private fun renderBody() {
@@ -224,6 +250,17 @@ class DashboardFragment : Fragment() {
     /** What you do most days: the day's routine and a couple of facts. */
     private fun overviewTab(o: JSONObject) {
         val ctx = requireContext()
+        val nf = NumberFormat.getIntegerInstance()
+        val run = card(ctx, body, "This ascension")
+        run.addView(tileRow(ctx,
+            tile(ctx, "Path", o.optString("path").ifBlank { "none" }),
+            tile(ctx, "Day", "${o.optInt("daysThisRun")}")))
+        run.addView(tileRow(ctx,
+            tile(ctx, "Turns this ascension", nf.format(o.optLong("turnsThisRun"))),
+            tile(ctx, "Ascensions done", "${o.optInt("ascensions")}")))
+        run.addView(tileRow(ctx,
+            tile(ctx, "Mode", if (o.optBoolean("hardcore")) "Hardcore" else "Softcore"),
+            tile(ctx, "Moon sign", o.optString("sign").ifBlank { "none" })))
         val daily = card(ctx, body, "Today")
         daily.addView(row(ctx, "Run breakfast", "KoLmafia's daily free actions", {
             com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Run breakfast?")

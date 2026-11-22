@@ -54,6 +54,9 @@ class ConsoleFragment : Fragment() {
     private var minLevel = 1
     private var hiddenCount = 0
     private var trimmed = 0
+    /** Lines that arrived while the user was pressing on or selecting the output; shown once they let go. */
+    private val held = android.text.SpannableStringBuilder()
+    private lateinit var hold: com.example.kolmafiaandroid.ui.SelectionHold
     private var levelNote: TextView? = null
     private var pauseButton: ImageButton? = null
     private var pausedNow = false
@@ -233,6 +236,7 @@ class ConsoleFragment : Fragment() {
             // selectable so a long press picks words or lines to copy; the ScrollView does the scrolling
             setTextIsSelectable(true)
         }
+        hold = com.example.kolmafiaandroid.ui.SelectionHold(output) { showHeldLines() }
         scroll = com.example.kolmafiaandroid.ui.FollowScrollView(ctx).apply {
             addView(output)
             setBackgroundResource(R.drawable.bg_console_output)
@@ -567,7 +571,9 @@ class ConsoleFragment : Fragment() {
         for (cmd in cmds) {
             addToHistory(cmd)
             addLine(android.text.TextUtils.htmlEncode("> $cmd"))
-            KolEngineHost.execute(cmd)
+            // a paused script holds the engine thread; typed commands go round it
+            if (KolEngineHost.paused.value && KolEngineHost.running.value) KolEngineHost.executeAside(cmd)
+            else KolEngineHost.execute(cmd)
         }
     }
 
@@ -591,21 +597,31 @@ class ConsoleFragment : Fragment() {
             entries.removeFirst()
             // drop old lines from the screen in batches rather than on every line
             // (not while a selection is open: redrawing would drop it)
-            if (++trimmed >= 1000 && !output.hasSelection()) { rebuildOutput(); return }
+            if (++trimmed >= 1000 && !hold.holding) { rebuildOutput(); return }
         }
         if (level >= minLevel) {
+            if (hold.holding) { held.append(ConsoleThemes.themed(spanned, theme())).append("\n"); return }
             output.append(ConsoleThemes.themed(spanned, theme()))
             output.append("\n")
-            if (autoScroll && !output.hasSelection()) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+            if (autoScroll) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
         } else {
             hiddenCount++
             updateLevelNote()
         }
     }
 
+    private fun showHeldLines() {
+        if (held.isEmpty()) return
+        if (trimmed >= 1000) { rebuildOutput(); return }
+        output.append(held)
+        held.clear()
+        if (autoScroll) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
     /** Redraws the screen from the history for the chosen log level. */
     private fun rebuildOutput() {
         if (!::output.isInitialized) return
+        held.clear()
         val t = theme()
         val sb = android.text.SpannableStringBuilder()
         hiddenCount = 0
@@ -636,6 +652,7 @@ class ConsoleFragment : Fragment() {
         entries.clear()
         hiddenCount = 0
         trimmed = 0
+        held.clear()
         updateLevelNote()
         output.setText("")
         Toast.makeText(requireContext(), "Output cleared", Toast.LENGTH_SHORT).show()

@@ -194,6 +194,30 @@ object KolEngineHost {
         }
     }
 
+    private val asideExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(null, r, "kol-aside", 64L * 1024 * 1024).apply { isDaemon = true }
+    }
+
+    /**
+     * Runs a typed command while the script is paused. The script holds the engine thread while it waits, so the
+     * command runs on its own thread instead; the script stays held until the command is done.
+     */
+    fun executeAside(command: String, done: () -> Unit = {}) {
+        KolEngine.aside(true)
+        asideExecutor.execute {
+            KolEngine.markActive()
+            try {
+                watched("cmd") { KolEngine.execute(command) }
+            } catch (t: Throwable) {
+                lines.tryEmit("ERROR: $t")
+            } finally {
+                KolEngine.aside(false)
+            }
+            stateChanged.tryEmit(Unit)
+            done()
+        }
+    }
+
     fun login(username: String, password: String, done: (Boolean) -> Unit) {
         executor.execute {
             try {

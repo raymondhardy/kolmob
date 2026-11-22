@@ -66,6 +66,8 @@ class AdventureFragment : Fragment() {
     private lateinit var autoAttackButton: MaterialButton
     private lateinit var log: TextView
     private lateinit var logScroll: ScrollView
+    private lateinit var logHold: com.example.kolmafiaandroid.ui.SelectionHold
+    private var logStale = false
     private val logBuffer = ArrayDeque<CharSequence>()
 
     private fun outlined(text: String, onClick: () -> Unit) =
@@ -212,6 +214,7 @@ class AdventureFragment : Fragment() {
             setTextColor(KC.soft)
             setTextIsSelectable(true)
         }
+        logHold = com.example.kolmafiaandroid.ui.SelectionHold(log) { if (logStale) showLog() }
         logScroll = ScrollView(ctx).apply { addView(log) }
         logCard.addView(logScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(if (wide) 560 else 260)))
         logCard.addView(MaterialButton(ctx, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
@@ -407,6 +410,13 @@ class AdventureFragment : Fragment() {
         if (text.isEmpty()) return
         logBuffer.addLast(Html.fromHtml(html, Html.FROM_HTML_MODE_COMPACT).trimEndSpaces())
         while (logBuffer.size > 300) logBuffer.removeFirst()
+        if (logHold.holding) { logStale = true; return }
+        showLog()
+    }
+
+    /** Redraws the log; it is redrawn whole, so not while the user is selecting from it. */
+    private fun showLog() {
+        logStale = false
         val sb = android.text.SpannableStringBuilder()
         logBuffer.forEach { sb.append(it).append('\n') }
         log.text = sb

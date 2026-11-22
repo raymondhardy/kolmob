@@ -37,6 +37,9 @@ class ScriptRunSheet : DialogFragment() {
     private var statusBase = "Running…"
     private var running = true
     private var follow = true
+    /** Lines that arrived while the user was pressing on or selecting the log; shown once they let go. */
+    private val held = android.text.SpannableStringBuilder()
+    private lateinit var hold: com.example.kolmafiaandroid.ui.SelectionHold
     private lateinit var followBtn: Button
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -77,6 +80,9 @@ class ScriptRunSheet : DialogFragment() {
         log = TextView(ctx).apply {
             textSize = 12f; typeface = Typeface.MONOSPACE; setTextIsSelectable(true)
             setText("", TextView.BufferType.EDITABLE)
+        }
+        hold = com.example.kolmafiaandroid.ui.SelectionHold(log) {
+            if (held.isNotEmpty()) { val lines = android.text.SpannableStringBuilder(held); held.clear(); showLines(lines) }
         }
         scroll = com.example.kolmafiaandroid.ui.FollowScrollView(ctx).apply { addView(log) }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -119,14 +125,8 @@ class ScriptRunSheet : DialogFragment() {
                     if (entries.size > 4000) entries.removeFirst()
                     if (level >= minLevel) {
                         text.append(spanned).append("\n")
-                        // add the line to what is shown rather than redrawing it all, so a selection survives
-                        log.append(spanned); log.append("\n")
-                        val selecting = log.hasSelection()
-                        if (text.length > 80_000 && !selecting) {
-                            text.delete(0, text.length - 60_000)
-                            log.setText(text, TextView.BufferType.EDITABLE)
-                        }
-                        if (follow && !selecting) scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
+                        if (hold.holding) { held.append(spanned).append("\n"); return@collect }
+                        showLines(spanned)
                     } else {
                         hidden++
                         refreshStatus()
@@ -151,7 +151,19 @@ class ScriptRunSheet : DialogFragment() {
         status.text = statusBase + if (hidden > 0) " · $hidden hidden" else ""
     }
 
+    /** Adds lines to what is shown rather than redrawing it all; [text] already holds them. */
+    private fun showLines(lines: CharSequence) {
+        log.append(lines)
+        if (!lines.endsWith("\n")) log.append("\n")
+        if (text.length > 80_000) {
+            text.delete(0, text.length - 60_000)
+            log.setText(text, TextView.BufferType.EDITABLE)
+        }
+        if (follow) scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
+    }
+
     private fun rebuild() {
+        held.clear()
         text.clear()
         hidden = 0
         for ((level, line) in entries) {

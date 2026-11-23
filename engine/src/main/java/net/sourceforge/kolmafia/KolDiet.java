@@ -106,6 +106,7 @@ public final class KolDiet {
     int size;
     double adv; // expected adventures per unit, before helpers
     double odeBonus; // extra adventures per unit when Ode to Booze is active
+    boolean odeHelps; // Ode to Booze adds adventures to this drink (true even when Ode is already active)
     double milkBonus; // extra adventures when milk of magnesium is active (KoLmafia: only foods that give adventures)
     long cost; // meat per unit (0 = already owned)
     int max; // units available
@@ -232,8 +233,21 @@ public final class KolDiet {
     c.adv = ConsumablesDatabase.getAverageAdventures(k, false, odeActive, false);
     if (c.adv <= 0) return null; // stat-only items are not planned here
     if (c.organ == Organ.BOOZE && !odeActive) c.odeBonus = ConsumablesDatabase.getAverageAdventures(k, false, true, false) - c.adv;
+    if (c.organ == Organ.BOOZE)
+      c.odeHelps = ConsumablesDatabase.getAverageAdventures(k, false, true, false) > ConsumablesDatabase.getAverageAdventures(k, false, false, false);
     if (c.organ == Organ.FOOD) c.milkBonus = ConsumablesDatabase.getAverageAdventures(k, false, false, true) - c.adv;
     return c;
+  }
+
+  /**
+   * Casts Ode to Booze until it has at least {@code turns} turns. A failed cast (e.g. no room for another song) is only a
+   * warning in KoLmafia, so the command aborts the run when the turns are still short; in Ronin or Hardcore KoLmafia
+   * would otherwise ask whether to drink without it.
+   */
+  static String odeCommand(int turns) {
+    return "ash int need = " + turns + "; int t = have_effect($effect[Ode to Booze]); "
+        + "while (t < need) { use_skill(1, $skill[The Ode to Booze]); if (have_effect($effect[Ode to Booze]) <= t) break; t = have_effect($effect[Ode to Booze]); } "
+        + "if (t < need) abort(\"Ode to Booze has \" + t + \" of the \" + need + \" turns the booze needs; stopping before the booze.\");";
   }
 
   /** Bounded knapsack for one organ. */
@@ -677,16 +691,10 @@ public final class KolDiet {
         boozeRoom += rm.booze(); // a stomach-and-liver cleaner, used with the food above
       }
     }
-    // A failed cast (e.g. no room for another song) is only a warning in KoLmafia, so check the effect and abort the run.
-    if (useOde)
-      steps.add(
-          new Step(
-              "booze",
-              "setup",
-              "Ode to Booze",
-              List.of(
-                  "cast 1 The Ode to Booze",
-                  "ash if (have_effect($effect[Ode to Booze]) == 0) abort(\"Ode to Booze is not active; stopping before the booze.\");")));
+    // Each drink uses up as many Ode turns as its drunkenness, so cast until the whole planned booze is covered.
+    int odeNeed = 0;
+    for (Unit u : boozeUnits) if (u != shotUnit && u.c.odeHelps) odeNeed += u.c.size;
+    if (odeNow && haveOde && odeNeed > 0) steps.add(new Step("booze", "setup", "Ode to Booze", List.of(odeCommand(odeNeed))));
     for (Unit u : boozeUnits) {
       boolean free = u == shotUnit;
       while (!free && u.c.size > boozeRoom && !boozeCleaners.isEmpty()) {
@@ -722,6 +730,7 @@ public final class KolDiet {
         }
       }
       for (Room rm : boozeCleaners) nightCmds.addAll(0, rm.commands());
+      if (odeNow && haveOde && night.odeHelps) nightCmds.add(odeCommand(night.size));
       nightCmds.add("drink 1 " + night.name);
       steps.add(new Step("night", "drink", night.name, nightCmds));
     }
@@ -789,7 +798,7 @@ public final class KolDiet {
       sb.append(",\"nightcap\":{");
       put(sb, "name", night.name);
       put(sb, "size", night.size);
-      put(sb, "adventures", round(night.adv));
+      put(sb, "adventures", round(night.adv + (odeNow ? night.odeBonus : 0)));
       put(sb, "overshoot", nightOver);
       put(sb, "netGain", round(nightNet));
       sb.append('}');

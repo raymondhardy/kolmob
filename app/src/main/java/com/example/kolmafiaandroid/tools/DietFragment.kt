@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import net.sourceforge.kolmafia.utilities.StringUtilities
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.example.kolmafiaandroid.KolEngineHost
@@ -151,11 +152,12 @@ class DietFragment : Fragment() {
         val live = !o.optBoolean("simulated")
         val dp = ctx.resources.displayMetrics.density
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), 0) }
-        col.addView(TextView(ctx).apply { text = sb.toString(); textSize = 14f })
+        // KoLmafia item names keep HTML entities (bu&ntilde;uelos Jaliscos): show them decoded
+        col.addView(TextView(ctx).apply { text = StringUtilities.getEntityDecode(sb.toString()); textSize = 14f })
         lateinit var dlg: androidx.appcompat.app.AlertDialog
         fun btn(text: String, run: List<String>) {
             col.addView(android.widget.Button(ctx).apply {
-                this.text = text
+                this.text = StringUtilities.getEntityDecode(text)
                 setOnClickListener {
                     dlg.dismiss()
                     Toast.makeText(ctx, "Running. See the Console tab.", Toast.LENGTH_SHORT).show()

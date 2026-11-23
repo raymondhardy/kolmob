@@ -84,7 +84,10 @@ class KolApp : Application() {
                     }
                     // `--es copy from>to` (debug only) copies a file inside KoLmafia's root folder.
                     intent.getStringExtra("diet")?.let { a ->
-                        android.util.Log.i("KolDiet", net.sourceforge.kolmafia.KolEngine.dietPlan(a))
+                        // logcat cuts a message at ~4 KB, so a long plan goes out in numbered chunks
+                        val plan = net.sourceforge.kolmafia.KolEngine.dietPlan(a)
+                        val parts = plan.chunked(3000)
+                        parts.forEachIndexed { i, part -> android.util.Log.i("KolDiet", "${i + 1}/${parts.size} $part") }
                     }
                     intent.getStringExtra("copy")?.let {
                         val (f, t) = it.split(">", limit = 2)

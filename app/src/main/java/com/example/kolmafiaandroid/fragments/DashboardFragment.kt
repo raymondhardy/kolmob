@@ -239,6 +239,9 @@ class DashboardFragment : Fragment() {
 
     private fun renderBody() {
         val ctx = requireContext()
+        // on a phone the character card shows on Overview only, so the other tabs (Items above all) get the screen;
+        // tablets keep it in its own column
+        if (ctx.resources.configuration.screenWidthDp < 600) headerBox.visibility = if (tabIndex == 0) View.VISIBLE else View.GONE
         val o = snapshot
         // leaving the Items tab: remove its fragment
         childFragmentManager.findFragmentByTag("items")?.let { if (tabIndex != ITEMS_TAB) childFragmentManager.beginTransaction().remove(it).commitAllowingStateLoss() }

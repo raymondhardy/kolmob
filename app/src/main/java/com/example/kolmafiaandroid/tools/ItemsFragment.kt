@@ -42,13 +42,10 @@ class ItemsFragment : FullScreenDialog() {
     private lateinit var listView: ListView
     private lateinit var searchEdit: EditText
     private lateinit var filterBar: com.example.kolmafiaandroid.ui.ItemFilterBar
-    private lateinit var headerText: TextView
     private var inventoryItems: List<ItemEntry> = emptyList()
     private var closetItems: List<ItemEntry> = emptyList()
     private var storageItems: List<ItemEntry> = emptyList()
     private var displayItems: List<ItemEntry> = emptyList()
-    private var closetMeat = 0L
-    private var storageMeat = 0L
     private var filteredItems: List<ItemEntry> = emptyList()
 
 
@@ -60,15 +57,11 @@ class ItemsFragment : FullScreenDialog() {
         val ctx = requireContext()
         val view = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 16))
+            setPadding(dp(ctx, 16), dp(ctx, 8), dp(ctx, 16), dp(ctx, 16))
         }
         // landscape has no room for the controls above the list: they get their own scrolling pane on the left
         val land = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         val controls = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-
-        // Header with meat info
-        headerText = label(ctx, "", 13f, KC.muted)
-        controls.addView(headerText)
 
         // Tab buttons
         val tabs = listOf(Tab.INVENTORY, Tab.CLOSET, Tab.STORAGE, Tab.DISPLAY)
@@ -152,8 +145,6 @@ class ItemsFragment : FullScreenDialog() {
         KolEngineHost.items { json ->
             try {
                 val o = JSONObject(json)
-                closetMeat = o.optLong("closetMeat")
-                storageMeat = o.optLong("storageMeat")
 
                 val closetArr = o.optJSONArray("closet") ?: JSONArray()
                 closetItems = (0 until closetArr.length()).map { closetArr.getJSONObject(it) }
@@ -174,15 +165,7 @@ class ItemsFragment : FullScreenDialog() {
                 storageItems = emptyList()
                 displayItems = emptyList()
             }
-            activity?.runOnUiThread { updateHeader(); updateList() }
-        }
-    }
-
-    private fun updateHeader() {
-        when (currentTab) {
-            Tab.CLOSET -> headerText.text = "Closet meat: ${formatNumber(closetMeat)}"
-            Tab.STORAGE -> headerText.text = "Storage meat: ${formatNumber(storageMeat)}"
-            else -> headerText.text = ""
+            activity?.runOnUiThread { updateList() }
         }
     }
 

@@ -123,7 +123,8 @@ class AdventureFragment : Fragment() {
         stopButton = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = "Stop"
             isEnabled = false
-            setOnClickListener { KolEngineHost.abort(); append("<font color='#ff8a65'>Stopping…</font>") }
+            // this@AdventureFragment: inside the button's apply, a bare append() is the button's own TextView.append
+            setOnClickListener { KolEngineHost.abort(); this@AdventureFragment.append("<font color='#ff8a65'>Stopping…</font>") }
         }
         buttons.addView(goButton, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         buttons.addView(stopButton, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(8) })
@@ -439,7 +440,8 @@ class AdventureFragment : Fragment() {
         val started = System.currentTimeMillis()
         val appCtx = requireContext().applicationContext
         // KoLmafia's own stop conditions: the adventure loop ends when they are all met
-        val script = (listOf("conditions clear") + conds.map { "conditions add $it" } + "adventure $turns $name")
+        val advCmd = com.example.kolmafiaandroid.DebugHooks.adventureCommand?.invoke(turns, name) ?: "adventure $turns $name"
+        val script = (listOf("conditions clear") + conds.map { "conditions add $it" } + advCmd)
         fun runNext(i: Int) {
             if (i >= script.size) {
                 // a condition that was met stops the run once; KoLmafia drops it, so we drop ours too

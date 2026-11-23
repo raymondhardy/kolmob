@@ -16,6 +16,8 @@ class KolApp : Application() {
             (packageManager.getApplicationInfo(packageName, android.content.pm.PackageManager.GET_META_DATA)
                 .metaData?.get("kolmob.hooks")?.toString() == "true")
         if (hooks) System.setProperty("kolmob.http.debug", "true")
+        // test-only code from app/src/debug, when this build has it
+        if (hooks) try { Class.forName("com.example.kolmafiaandroid.DebugOnly").getMethod("install").invoke(null) } catch (_: ClassNotFoundException) {}
         com.example.kolmafiaandroid.ui.KC.apply(this)
         Thread { LogPruner.prune(this) }.start()
         KolEngineHost.start(this)

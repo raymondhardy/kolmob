@@ -61,6 +61,8 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    // Test-only code lives in src/debug; the fast build keeps the test hooks, so it gets it too.
+    sourceSets.getByName("fast").kotlin.srcDir("src/debug/java")
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21

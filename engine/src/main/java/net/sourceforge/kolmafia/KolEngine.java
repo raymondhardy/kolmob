@@ -2455,6 +2455,10 @@ public final class KolEngine {
       kv(sb, "name", KoLCharacter.getUserName());
       kv(sb, "level", KoLCharacter.getLevel());
       kv(sb, "class", KoLCharacter.getAscensionClassName());
+      // prime-stat substats at this level, at the next level, and now (what KoLmafia's level meter uses)
+      kv(sb, "levelFrom", KoLCharacter.calculateLastLevel());
+      kv(sb, "levelTo", KoLCharacter.calculateNextLevel());
+      kv(sb, "levelNow", KoLCharacter.getTotalPrime());
       kv(sb, "hp", KoLCharacter.getCurrentHP());
       kv(sb, "maxHp", KoLCharacter.getMaximumHP());
       kv(sb, "mp", KoLCharacter.getCurrentMP());

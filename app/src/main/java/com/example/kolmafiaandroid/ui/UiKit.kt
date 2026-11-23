@@ -426,39 +426,65 @@ private fun toolCard(context: Context, title: String, detail: String, open: () -
 }
 
 /**
- * A row of small squares that fill up: [count] squares (10 = one per 10%), as many filled as [cur] out of [max]
- * covers (rounded up, so anything above zero shows at least one). Past the limit (overdrunk, say) red squares cover the full ones from the
- * left, one per 10% over, so 150% shows half red. Squares shrink to fit the width.
+ * A glass vial filled to [cur] out of [max], fractions included: dark glass with a thin rim, liquid shaded light at the
+ * top and dark at the bottom, a highlight along the top, and short sloped notches every 10% that stop short of the
+ * edges. Past the limit (overdrunk, say) the liquid turns red.
  */
-class SegmentMeter(context: Context, private val cur: Long, private val max: Long, private val count: Int, color: Int) :
-    View(context) {
-    private val on = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-    private val off = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = KC.faint }
-    private val over = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = KC.danger }
-    private val gap = dp(context, 3).toFloat()
-    private val size = dp(context, 10).toFloat()
+class MeterBar(context: Context, private val cur: Long, private val max: Long, private val color: Int) : View(context) {
+    private val d = context.resources.displayMetrics.density
+    private val thick = 14 * d
     private val r = android.graphics.RectF()
-
-    private fun filled(): Int =
-        if (max <= 0 || cur <= 0) 0 else ((cur * count + max - 1) / max).toInt().coerceIn(0, count)
-
-    private fun extra(): Int =
-        if (max <= 0 || cur <= max) 0 else (((cur - max) * count + max - 1) / max).toInt().coerceIn(1, count)
-
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), size.toInt())
+    private val glass = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    private val rim = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE; strokeWidth = d; this.color = 0x2EFFFFFF
+    }
+    private val liquid = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    private val shine = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = 0x38FFFFFF }
+    private val notch = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = 0x8C000000.toInt(); strokeWidth = 1.6f * d; strokeCap = android.graphics.Paint.Cap.ROUND
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), thick.toInt())
+    }
+
+    private fun mix(a: Int, b: Int, t: Float) = android.graphics.Color.rgb(
+        (android.graphics.Color.red(a) * (1 - t) + android.graphics.Color.red(b) * t).toInt(),
+        (android.graphics.Color.green(a) * (1 - t) + android.graphics.Color.green(b) * t).toInt(),
+        (android.graphics.Color.blue(a) * (1 - t) + android.graphics.Color.blue(b) * t).toInt())
+
     override fun onDraw(canvas: android.graphics.Canvas) {
-        val side = minOf(size, (width - gap * (count - 1)) / count)
-        val n = filled()
-        val red = extra()
-        val corner = side / 4
-        for (i in 0 until count) {
-            val x = i * (side + gap)
-            r.set(x, (height - side) / 2, x + side, (height + side) / 2)
-            canvas.drawRoundRect(r, corner, corner, if (i < red) over else if (i < n) on else off)
+        val w = width.toFloat()
+        val top = (height - thick) / 2
+        val bottom = top + thick
+        // the glass
+        glass.shader = android.graphics.LinearGradient(0f, top, 0f, bottom, 0x0FFFFFFF, 0x59000000, android.graphics.Shader.TileMode.CLAMP)
+        r.set(0f, top, w, bottom)
+        canvas.drawRoundRect(r, thick / 2, thick / 2, glass)
+        // the liquid
+        val fill = if (max <= 0 || cur <= 0) 0f else if (cur > max) 1f else cur.toFloat() / max
+        if (fill > 0) {
+            val c = if (cur > max) KC.danger else color
+            liquid.shader = android.graphics.LinearGradient(0f, top + d, 0f, bottom - d,
+                intArrayOf(mix(c, android.graphics.Color.WHITE, 0.4f), c, mix(c, android.graphics.Color.BLACK, 0.3f)),
+                floatArrayOf(0f, 0.45f, 1f), android.graphics.Shader.TileMode.CLAMP)
+            val right = d + (w - 2 * d) * fill
+            r.set(d, top + d, maxOf(right, d + thick - 2 * d), bottom - d)
+            canvas.drawRoundRect(r, thick / 2 - d, thick / 2 - d, liquid)
         }
+        // highlight along the top of the glass
+        r.set(6 * d, top + 2 * d, w - 6 * d, top + 5 * d)
+        canvas.drawRoundRect(r, 1.5f * d, 1.5f * d, shine)
+        // short sloped notches every 10%, clear of the top and bottom
+        val y1 = top + thick * 0.25f
+        val y2 = top + thick * 0.75f
+        for (i in 1 until 10) {
+            val x = w * i / 10
+            canvas.drawLine(x + 1.5f * d, y1, x - 1.5f * d, y2, notch)
+        }
+        // the rim
+        r.set(d / 2, top + d / 2, w - d / 2, bottom - d / 2)
+        canvas.drawRoundRect(r, thick / 2, thick / 2, rim)
     }
 }
 
@@ -470,7 +496,7 @@ fun vitalIcon(context: Context, iconRes: Int, tint: Int, sizeDp: Int = 18): View
         layoutParams = LinearLayout.LayoutParams(dp(context, sizeDp), dp(context, sizeDp)).apply { marginEnd = dp(context, 6) }
     }
 
-/** Icon, label and "cur / max" over a [SegmentMeter]; tappable when [onClick] is set. */
+/** Icon, label and "cur / max" over a [MeterBar]; tappable when [onClick] is set. */
 fun vital(
     context: Context,
     iconRes: Int,
@@ -478,7 +504,6 @@ fun vital(
     cur: Long,
     max: Long,
     color: Int,
-    squares: Int,
     hint: String? = null,
     onClick: (() -> Unit)? = null
 ): View {
@@ -492,7 +517,7 @@ fun vital(
         LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
     head.addView(label(context, "$cur / $max", 13f, if (max in 1 until cur) KC.danger else KC.text, true))
     box.addView(head)
-    box.addView(SegmentMeter(context, cur, max, squares, color),
+    box.addView(MeterBar(context, cur, max, color),
         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(context, 6) })
     if (onClick != null) clickable(box, onClick)
     return box

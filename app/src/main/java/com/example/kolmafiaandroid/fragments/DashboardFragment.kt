@@ -30,7 +30,7 @@ import com.example.kolmafiaandroid.ui.pick
 import com.example.kolmafiaandroid.ui.row
 import com.example.kolmafiaandroid.ui.tile
 import com.example.kolmafiaandroid.ui.tileRow
-import com.example.kolmafiaandroid.ui.SegmentMeter
+import com.example.kolmafiaandroid.ui.MeterBar
 import com.example.kolmafiaandroid.ui.vital
 import com.example.kolmafiaandroid.ui.vitalIcon
 import java.text.NumberFormat
@@ -54,6 +54,8 @@ class DashboardFragment : Fragment() {
     private var tabIndex = 0
     private val tabNames = listOf("Overview", "Gear", "Skills", "Appetite", "Items")
 
+    private var gearGoal = 0
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View {
         val ctx = requireContext()
         val wide = ctx.resources.configuration.screenWidthDp >= 600
@@ -69,15 +71,15 @@ class DashboardFragment : Fragment() {
         bodyHost = android.widget.FrameLayout(ctx)
         val match = ViewGroup.LayoutParams.MATCH_PARENT
         if (!wide) {
-            return LinearLayout(ctx).apply {
+            return pullToRefresh(LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(headerBox)
                 addView(tabs)
                 addView(bodyHost, LinearLayout.LayoutParams(match, 0, 1f))
-            }
+            })
         }
         // tablets / landscape: the character header on the left, the tabs on the right
-        return LinearLayout(ctx).apply {
+        return pullToRefresh(LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(ScrollView(ctx).apply { addView(headerBox) }, LinearLayout.LayoutParams(0, match, 1f))
             addView(LinearLayout(ctx).apply {
@@ -85,8 +87,25 @@ class DashboardFragment : Fragment() {
                 addView(tabs)
                 addView(bodyHost, LinearLayout.LayoutParams(match, 0, 1f))
             }, LinearLayout.LayoutParams(0, match, 2f))
-        }
+        })
     }
+
+    /** Pulling down from the top asks KoL for fresh HP, MP, adventures, meat and organs, then redraws. */
+    private fun pullToRefresh(content: View): View {
+        val swipe = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(requireContext())
+        swipe.addView(content)
+        // only when nothing under the finger can still scroll up (a scrolled tab, the Items list)
+        swipe.setOnChildScrollUpCallback { _, _ -> scrollsUp(bodyHost) }
+        swipe.setOnRefreshListener {
+            KolEngineHost.execute("refresh status") {
+                activity?.runOnUiThread { if (isAdded) { swipe.isRefreshing = false; refresh() } }
+            }
+        }
+        return swipe
+    }
+
+    private fun scrollsUp(v: View): Boolean =
+        v.isShown && (v.canScrollVertically(-1) || (v is ViewGroup && (0 until v.childCount).any { scrollsUp(v.getChildAt(it)) }))
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         viewLifecycleOwner.lifecycleScope.launch { KolEngineHost.loginState.collect { refresh() } }
@@ -177,10 +196,20 @@ class DashboardFragment : Fragment() {
         val head = card(ctx, headerBox)
         val top = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         top.addView(label(ctx, o.optString("name"), 22f, KC.text, true), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        top.addView(label(ctx, "L${o.optInt("level")} ${o.optString("class")}", 13f, green))
+        top.addView(label(ctx, o.optString("class"), 13f, green))
         head.addView(top)
-        head.addView(vital(ctx, R.drawable.ic_vital_hp, "HP", o.optLong("hp"), o.optLong("maxHp"), KC.danger, 10, "tap to restore") { showRestore(true, o) }.apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 2)) })
-        head.addView(vital(ctx, R.drawable.ic_vital_mp, "MP", o.optLong("mp"), o.optLong("maxMp"), KC.info, 10, "tap to restore") { showRestore(false, o) })
+        // level, then a bar of the way to the next one
+        val lvl = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(ctx, 4), 0, 0) }
+        lvl.addView(label(ctx, "Level ${o.optInt("level")}", 13f, KC.text, true).apply { setPadding(0, 0, dp(ctx, 10), 0) })
+        val span = o.optLong("levelTo") - o.optLong("levelFrom")
+        val done = (o.optLong("levelNow") - o.optLong("levelFrom")).coerceIn(0, maxOf(span, 0))
+        if (span > 0) {
+            lvl.addView(MeterBar(ctx, done, span, green), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            lvl.addView(label(ctx, "${done * 100 / span}% to ${o.optInt("level") + 1}", 12f, KC.muted).apply { setPadding(dp(ctx, 10), 0, 0, 0) })
+        }
+        head.addView(lvl)
+        head.addView(vital(ctx, R.drawable.ic_vital_hp, "HP", o.optLong("hp"), o.optLong("maxHp"), KC.danger, "tap to restore") { showRestore(true, o) }.apply { setPadding(0, dp(ctx, 8), 0, dp(ctx, 2)) })
+        head.addView(vital(ctx, R.drawable.ic_vital_mp, "MP", o.optLong("mp"), o.optLong("maxMp"), KC.info, "tap to restore") { showRestore(false, o) })
         val money = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(ctx, 10), 0, 0) }
         money.addView(vitalIcon(ctx, R.drawable.ic_vital_meat, KC.muted, 16))
         money.addView(label(ctx, "${nf.format(o.optLong("meat"))} meat", 13f).apply { setPadding(0, 0, dp(ctx, 16), 0) })
@@ -197,7 +226,7 @@ class DashboardFragment : Fragment() {
                 val none = max <= 0 && cur <= 0
                 top.addView(label(ctx, if (none) "$name: none" else "$name $cur/$max", 13f, if (max in 0 until cur) KC.danger else KC.text))
                 col.addView(top)
-                if (!none) col.addView(SegmentMeter(ctx, cur.toLong(), max.toLong(), 10, color),
+                if (!none) col.addView(MeterBar(ctx, cur.toLong(), max.toLong(), color),
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, 4) })
                 organs.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { if (organs.childCount > 0) marginStart = dp(ctx, 12) })
             }
@@ -288,18 +317,25 @@ class DashboardFragment : Fragment() {
     private fun gearTab(o: JSONObject) {
         val ctx = requireContext()
         val best = card(ctx, body, "Best gear for…")
-        best.addView(row(ctx, "Open the Maximizer", "Best gear and boosts for any goal, with scores", { com.example.kolmafiaandroid.tools.MaximizerFragment.show(requireActivity().supportFragmentManager) }, green))
-        best.addView(label(ctx, "Or tap a goal to wear the best gear you own for it right away (ties go to the stronger item).", 12f, muted).apply { setPadding(0, dp(ctx, 6), 0, dp(ctx, 6)) })
-        for ((name, expr) in com.example.kolmafiaandroid.tools.GearGoals.list) {
-            best.addView(row(ctx, name, "", { equipBest(name, expr) }, green))
-        }
-        best.addView(row(ctx, "Something else…", "Type your own goal", {
-            val input = android.widget.EditText(ctx).apply { hint = "e.g. item drop, -combat"; maxLines = 1 }
-            com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Best gear for")
-                .setView(input)
-                .setPositiveButton("Wear it") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let { equipBest(it, it) } }
-                .setNegativeButton("Cancel", null).show()
-        }, green))
+        best.addView(label(ctx, "Wear the best gear you own for a goal (ties go to the stronger item).", 12f, muted).apply { setPadding(0, dp(ctx, 2), 0, dp(ctx, 8)) })
+        val goals = com.example.kolmafiaandroid.tools.GearGoals.list
+        val goalPick = com.example.kolmafiaandroid.ui.Dropdown(ctx, "Best gear for", goals.map { it.first } + "Something else…", gearGoal.coerceIn(0, goals.size)) { gearGoal = it }
+        val goRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        goRow.addView(goalPick, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        goRow.addView(com.google.android.material.button.MaterialButton(ctx).apply {
+            text = "Wear it"
+            setOnClickListener {
+                val i = goalPick.selectedIndex
+                if (i < goals.size) equipBest(goals[i].first, goals[i].second) else {
+                    val input = android.widget.EditText(ctx).apply { hint = "e.g. item drop, -combat"; maxLines = 1 }
+                    com.example.kolmafiaandroid.ui.ScrollSafeDialogBuilder(ctx).setTitle("Best gear for")
+                        .setView(input)
+                        .setPositiveButton("Wear it") { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let { equipBest(it, it) } }
+                        .setNegativeButton("Cancel", null).show()
+                }
+            }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(ctx, 10) })
+        best.addView(goRow)
         best.addView(row(ctx, "Undo the last change", "Back to what you wore before", { act("outfit checkpoint") }, green))
         val eqCard = card(ctx, body, "Equipment")
         val eq = o.optJSONArray("equipment") ?: JSONArray()

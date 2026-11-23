@@ -251,15 +251,21 @@ class MainActivity : AppCompatActivity() {
         w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
         // landscape is short: a lower panel would leave a few lines for messages, so chat takes the whole height there
         val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        // A window shorter than the screen is not resized for the keyboard, so the panel would sit under it: end it at the
+        // keyboard's top while the keyboard shows (the visible frame ends there) and back at the bottom bar when it closes.
+        val frame = android.graphics.Rect()
+        w.decorView.getWindowVisibleDisplayFrame(frame)
+        val keyboardUp = androidx.core.view.ViewCompat.getRootWindowInsets(w.decorView)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+        val bottom = if (keyboardUp && frame.bottom in 1 until navTop) frame.bottom else navTop
         if (com.example.kolmafiaandroid.tools.ChatFragment.panelFull || landscape) {
             w.setGravity(android.view.Gravity.TOP)
-            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, navTop)
+            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, bottom)
             val lp = w.attributes; lp.y = 0; w.attributes = lp
         } else {
-            val h = (navTop * 0.5f).toInt().coerceAtLeast((190 * dm.density).toInt()).coerceAtMost(navTop)
+            val h = (navTop * 0.5f).toInt().coerceAtLeast((190 * dm.density).toInt()).coerceAtMost(bottom)
             w.setGravity(android.view.Gravity.TOP)
             w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, h)
-            val lp = w.attributes; lp.y = navTop - h; w.attributes = lp
+            val lp = w.attributes; lp.y = bottom - h; w.attributes = lp
         }
     }
 

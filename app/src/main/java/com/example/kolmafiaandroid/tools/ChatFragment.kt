@@ -90,10 +90,23 @@ class ChatFragment : FullScreenDialog() {
             panelDialog = it
         }
 
+    private var keyboardUp = false
+
     override fun onStart() {
         super.onStart()
         ChatNotifier.chatScreenOpen = true
         dialog?.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // move the panel up with the keyboard and back down when it closes (MainActivity.fitChatPanel does the sums)
+        dialog?.window?.decorView?.let { decor ->
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(decor) { v, insets ->
+                val up = insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())
+                if (up != keyboardUp) {
+                    keyboardUp = up
+                    v.post { dialog?.let { d -> (activity as? com.example.kolmafiaandroid.MainActivity)?.fitDialogAboveNav(d) } }
+                }
+                androidx.core.view.ViewCompat.onApplyWindowInsets(v, insets)
+            }
+        }
         dialog?.setOnKeyListener { _, code, ev ->
             if (code == KeyEvent.KEYCODE_BACK && ev.action == KeyEvent.ACTION_UP && selected != null) { closeConvo(); true } else false
         }

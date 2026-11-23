@@ -68,13 +68,7 @@ class MainActivity : AppCompatActivity() {
         setupBottomNavigation()
         setupChatHandle()
         setupTaskHandle()
-        com.example.kolmafiaandroid.ChatNotifier.onUnreadChanged = {
-            val n = com.example.kolmafiaandroid.ChatNotifier.unreadTotal
-            val badge = binding.bottomNavigation.getOrCreateBadge(R.id.nav_menu)
-            badge.isVisible = n > 0
-            if (n > 0) badge.number = n
-            updateChatHandleBadge(n)
-        }
+        com.example.kolmafiaandroid.ChatNotifier.onUnreadChanged = { updateChatHandleBadge(com.example.kolmafiaandroid.ChatNotifier.unreadTotal) }
         setupLoginOverlay()
         // fields that appear later (chat input, forms): clear the full-screen keyboard editor as soon as one takes focus
         window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, nf ->
@@ -680,12 +674,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateChatHandleBadge(n: Int) {
         chatBadge?.apply { visibility = if (n > 0) View.VISIBLE else View.GONE; text = if (n > 99) "99+" else n.toString() }
+        // the chat tab on the side shows unread chats; the menu button only does when that tab is switched off
+        val handleShown = chatHandle?.visibility == View.VISIBLE
+        val badge = binding.bottomNavigation.getOrCreateBadge(R.id.nav_menu)
+        badge.isVisible = n > 0 && !handleShown
+        if (badge.isVisible) badge.number = n
     }
 
     fun setChatHandleVisible(show: Boolean) {
         getSharedPreferences("kolmob", MODE_PRIVATE).edit().putBoolean("chat_handle", show).apply()
         chatHandle?.visibility = if (show && KolEngineHost.currentUser.isNotEmpty()) View.VISIBLE else View.GONE
         reserveChatHandleStrip()
+        updateChatHandleBadge(com.example.kolmafiaandroid.ChatNotifier.unreadTotal)
     }
 
     /** Landscape: the floating chat button would sit over the right edge of every screen (row arrows, the Run button), so leave it a strip of its own. */
@@ -759,6 +759,7 @@ class MainActivity : AppCompatActivity() {
                 val show = prefs.getBoolean("chat_handle", true) && KolEngineHost.currentUser.isNotEmpty()
                 tab.visibility = if (show) View.VISIBLE else View.GONE
                 reserveChatHandleStrip()
+                updateChatHandleBadge(com.example.kolmafiaandroid.ChatNotifier.unreadTotal)
             }
         }
     }

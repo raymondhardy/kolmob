@@ -15,6 +15,7 @@ repositories {
 // Upstream's test helpers come from tools/sync-core-tests.py (gitignored).
 dependencies {
     testImplementation(project(":kolmafia-core"))
+    testImplementation(project(":engine"))
     testImplementation("net.sourceforge.htmlcleaner:htmlcleaner:2.29")
     testImplementation("org.jsoup:jsoup:1.23.2")
     testImplementation("com.alibaba.fastjson2:fastjson2:2.0.66")

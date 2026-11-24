@@ -9,9 +9,10 @@ import net.sourceforge.kolmafia.utilities.HTMLListEntry;
 /**
  * Kolmob's user interface for the engine (see upstream devdoc/engine-ui-separation.md).
  *
- * <p>Everything else keeps the engine's defaults: work for the user interface thread (chat buffers, highlight
- * refreshes) runs one task at a time on the engine's own background thread, and prompts use the console, which the
- * app answers through KolStdin and KoLmafiaCLI.promptHook.
+ * <p>Work for the user interface thread (chat buffers, highlight refreshes) runs one task at a time on Kolmob's own
+ * "kol-ui" thread, and the engine counts that thread as the user interface's: it then sends requests from another
+ * thread instead of blocking it. Prompts use the console, which the app answers through KolStdin and
+ * KoLmafiaCLI.promptHook.
  */
 public final class KolmobUserInterface implements UserInterface {
   public static final KolmobUserInterface INSTANCE = new KolmobUserInterface();
@@ -24,6 +25,35 @@ public final class KolmobUserInterface implements UserInterface {
   private volatile Contacts contacts = new Contacts(0, "", List.of(), List.of());
 
   private KolmobUserInterface() {}
+
+  private static volatile Thread uiThread;
+
+  private static final java.util.concurrent.ExecutorService UI_EXECUTOR =
+      java.util.concurrent.Executors.newSingleThreadExecutor(
+          r -> {
+            Thread t = new Thread(r, "kol-ui");
+            t.setDaemon(true);
+            uiThread = t;
+            return t;
+          });
+
+  @Override
+  public void invokeLater(final Runnable runnable) {
+    UI_EXECUTOR.execute(
+        () -> {
+          // Like Swing's event thread, keep running after a task fails
+          try {
+            runnable.run();
+          } catch (Throwable e) {
+            StaticEntity.printStackTrace(e);
+          }
+        });
+  }
+
+  @Override
+  public boolean isEventDispatchThread() {
+    return Thread.currentThread() == uiThread;
+  }
 
   /** Tells scripts (is_dark_mode()) whether the app is showing its dark theme. */
   public void setDarkTheme(final boolean dark) {

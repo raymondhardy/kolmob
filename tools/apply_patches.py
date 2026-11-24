@@ -456,6 +456,38 @@ PATCHES = [
     KolmobCharacterGuard.checkAfterUnderworld();
 
 '''),
+    # Kolmob: the diet planner asks what an item would give with or without Ode to Booze and milk of magnesium, before
+    # they are cast or used. Upstream only answers for the current effects, so add an overload that takes them.
+    ('net/sourceforge/kolmafia/persistence/ConsumablesDatabase.java',
+     '''  public static double getAverageAdventures(Consumable consumable) {
+    if (consumable == null) {''',
+     '''  public static double getAverageAdventures(Consumable consumable) {
+    return getAverageAdventures(
+        consumable,
+        Preferences.getBoolean("showGainsPerUnit"),
+        KoLConstants.activeEffects.contains(ConsumablesDatabase.ODE),
+        Preferences.getBoolean("milkOfMagnesiumActive"));
+  }
+
+  /** Kolmob: average adventures as if Ode to Booze and milk of magnesium were (or were not) active. */
+  public static double getAverageAdventures(
+      Consumable consumable, boolean perUnit, boolean odeEffect, boolean milk) {
+    if (consumable == null) {'''),
+    ('net/sourceforge/kolmafia/persistence/ConsumablesDatabase.java',
+     '''    boolean perUnit = Preferences.getBoolean("showGainsPerUnit");
+    Double range = null;''',
+     '''    // Kolmob: perUnit, odeEffect and milk are parameters
+    Double range = null;'''),
+    ('net/sourceforge/kolmafia/persistence/ConsumablesDatabase.java',
+     '''      boolean milk = Preferences.getBoolean("milkOfMagnesiumActive");
+      boolean lunch =''',
+     '''      // Kolmob: milk is a parameter
+      boolean lunch ='''),
+    ('net/sourceforge/kolmafia/persistence/ConsumablesDatabase.java',
+     '''      boolean odeEffect = KoLConstants.activeEffects.contains(ConsumablesDatabase.ODE);
+      boolean rowdyDrinker =''',
+     '''      // Kolmob: odeEffect is a parameter
+      boolean rowdyDrinker ='''),
 ]
 bad = 0
 for rel, old, new in PATCHES:

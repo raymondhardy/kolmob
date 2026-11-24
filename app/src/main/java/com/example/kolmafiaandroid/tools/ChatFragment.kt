@@ -618,13 +618,16 @@ class ChatFragment : FullScreenDialog() {
         }
     }
 
-    /** Player names in chat open a small menu (whisper / profile) instead of a dead link. */
+    /** Player names in chat open a small menu (whisper / profile); other links open with [linkSpan]. */
     private fun playerLinks(text: CharSequence): CharSequence {
         val sp = android.text.SpannableStringBuilder(text)
         for (u in sp.getSpans(0, sp.length, android.text.style.URLSpan::class.java)) {
             val start = sp.getSpanStart(u); val end = sp.getSpanEnd(u); val flags = sp.getSpanFlags(u)
             sp.removeSpan(u)
-            if (!u.url.contains("showplayer.php")) continue
+            if (!u.url.contains("showplayer.php")) {
+                linkSpan(u.url)?.let { sp.setSpan(it, start, end, flags) }
+                continue
+            }
             val name = sp.subSequence(start, end).toString().trim()
             if (name.isEmpty()) continue
             // KoL colours names for a light page (often near-black); on the dark chat they would vanish
@@ -636,6 +639,25 @@ class ChatFragment : FullScreenDialog() {
             }, start, end, flags)
         }
         return sp
+    }
+
+    /** Other links: KoL pages open in the Game tab, other websites in the browser. */
+    private fun linkSpan(url: String): android.text.style.ClickableSpan? {
+        val uri = android.net.Uri.parse(url.trim())
+        val host = uri.host
+        val kol = host == null || host.endsWith("kingdomofloathing.com")
+        if (kol && uri.scheme != null && uri.scheme !in listOf("http", "https")) return null // javascript:, mailto: and the like
+        if (kol && uri.path.isNullOrBlank()) return null
+        return object : android.text.style.ClickableSpan() {
+            override fun onClick(widget: View) {
+                if (kol) {
+                    val path = uri.path!!.removePrefix("/") + (uri.encodedQuery?.let { "?$it" } ?: "")
+                    (activity as? com.example.kolmafiaandroid.MainActivity)?.openGamePage(path)
+                } else try {
+                    startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     private fun playerMenu(name: String) {

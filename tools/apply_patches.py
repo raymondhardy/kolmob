@@ -18,15 +18,6 @@ PATCHES = [
     ('net/sourceforge/kolmafia/KoLmafia.java',
      'if (Runtime.version().feature() >= UPCOMING_MINIMUM_JAVA_VERSION) return List.of();',
      'if (true) return List.of(); // Android: no Runtime.version()'),
-    # KoL's mchat names the recipient of a private message with spaces ("Firstname Lastname"); upstream only matches the
-    # underscored form, so a reply landed in a thread named after ourselves instead of the sender's.
-    ('net/sourceforge/kolmafia/chat/ChatManager.java',
-     '''    } else if (StringUtilities.globalStringReplace(KoLCharacter.getUserName(), " ", "_")
-        .equalsIgnoreCase(recipient)) {''',
-     '''    } else if (StringUtilities.globalStringReplace(KoLCharacter.getUserName(), " ", "_")
-            .equalsIgnoreCase(recipient)
-        // Kolmob: KoL's mchat names the recipient with spaces
-        || KoLCharacter.getUserName().equalsIgnoreCase(recipient)) {'''),
     # Scripts that ask a question (user_confirm, user_prompt, ...) wait in KoLmafiaCLI.getNextLine; let the app know
     # so it can show a dialog (the app then feeds the answer through System.in, see engine KolStdin).
     ('net/sourceforge/kolmafia/KoLmafiaCLI.java',

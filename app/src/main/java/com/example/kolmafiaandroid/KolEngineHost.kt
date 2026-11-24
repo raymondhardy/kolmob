@@ -495,8 +495,12 @@ object KolEngineHost {
 
     // ---- chat (see KolEngine) ----
 
+    // Not the engine executor: a running script holds that thread, and chat queued behind it would not connect
+    // or send until the script ended. KoLmafia's own chat window sends from its own thread the same way.
+    private val chatExecutor = Executors.newSingleThreadExecutor { r -> Thread(r, "kol-chat").apply { isDaemon = true } }
+
     fun chatStart(done: (Boolean) -> Unit) {
-        executor.execute { done(try { KolEngine.chatStart() } catch (t: Throwable) { false }) }
+        chatExecutor.execute { done(try { KolEngine.chatStart() } catch (t: Throwable) { false }) }
     }
 
     fun chatState(done: (String) -> Unit) {
@@ -511,7 +515,7 @@ object KolEngineHost {
         reader.execute { done(try { KolEngine.choiceList() } catch (t: Throwable) { "[]" }) }
     }
 
-    fun chatSuspend() { executor.execute { try { KolEngine.chatSuspend() } catch (_: Throwable) {} } }
+    fun chatSuspend() { chatExecutor.execute { try { KolEngine.chatSuspend() } catch (_: Throwable) {} } }
 
     fun chatPoll(done: (String) -> Unit) {
         reader.execute { done(try { KolEngine.chatPoll() } catch (t: Throwable) { "{}" }) }
@@ -532,14 +536,14 @@ object KolEngineHost {
 
     /** Leaves a channel ("/newbie") the way KoLmafia's chat window does (see KolEngine.chatLeave). */
     fun chatLeave(channel: String, done: () -> Unit = {}) {
-        executor.execute {
+        chatExecutor.execute {
             try { KolEngine.chatLeave(channel) } catch (t: Throwable) { lines.tryEmit("CHAT ERROR: $t") }
             done()
         }
     }
 
     fun chatSend(key: String, text: String, done: () -> Unit = {}) {
-        executor.execute {
+        chatExecutor.execute {
             try { KolEngine.chatSend(key, text) } catch (t: Throwable) { lines.tryEmit("CHAT ERROR: $t") }
             done()
         }

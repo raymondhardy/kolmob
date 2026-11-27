@@ -644,9 +644,11 @@ class ChatFragment : FullScreenDialog() {
 
     /** Other links: KoL pages open in the Game tab, other websites in the browser. */
     private fun linkSpan(url: String): android.text.style.ClickableSpan? {
-        val uri = android.net.Uri.parse(url.trim())
-        val host = uri.host
-        val kol = host == null || host.endsWith("kingdomofloathing.com")
+        // KoL breaks up long chat words with invisible zero-width characters, links included
+        val uri = android.net.Uri.parse(url.replace(Regex("[\\u200B-\\u200D\\u2060\\uFEFF\\s]"), ""))
+        val host = uri.host?.lowercase()
+        // only the game itself opens in the Game tab; the wiki, forums and other kingdomofloathing.com sites are web pages
+        val kol = host == null || host == "kingdomofloathing.com" || host == "www.kingdomofloathing.com"
         if (kol && uri.scheme != null && uri.scheme !in listOf("http", "https")) return null // javascript:, mailto: and the like
         if (kol && uri.path.isNullOrBlank()) return null
         return object : android.text.style.ClickableSpan() {

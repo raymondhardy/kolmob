@@ -341,9 +341,14 @@ class ScriptsFragment : FullScreenDialog() {
             .setPositiveButton("Import") { _, _ ->
                 val u = input.text.toString().trim()
                 if (!u.startsWith("https://")) Toast.makeText(requireContext(), "Use a link that starts with https://", Toast.LENGTH_SHORT).show()
-                else downloadScript(u)
+                else downloadScript(rawFileUrl(u))
             }.setNegativeButton("Cancel", null).show()
     }
+
+    /** A file's GitHub page (…/blob/branch/file.ash) shows the page, not the script: fetch the raw file instead. */
+    private fun rawFileUrl(u: String): String =
+        Regex("^https://github\\.com/([^/]+)/([^/]+)/(?:blob|raw)/(.+)$").find(u)
+            ?.let { m -> "https://raw.githubusercontent.com/${m.groupValues[1]}/${m.groupValues[2]}/${m.groupValues[3]}" } ?: u
 
     private fun downloadScript(urlString: String) {
         val into = dir ?: scriptsDir
@@ -352,6 +357,7 @@ class ScriptsFragment : FullScreenDialog() {
                 val c = URL(urlString).openConnection() as HttpURLConnection
                 c.connectTimeout = 10000; c.readTimeout = 30000; c.instanceFollowRedirects = true
                 if (c.responseCode != HttpURLConnection.HTTP_OK) throw Exception("HTTP ${c.responseCode}")
+                if (c.contentType?.startsWith("text/html") == true) throw Exception("that link is a web page, not a script file")
                 val fileName = urlString.substringAfterLast("/").substringBefore('?').takeIf {
                     it.endsWith(".ash") || it.endsWith(".txt") || it.endsWith(".js")
                 } ?: throw Exception("the link must end with .ash, .js or .txt")

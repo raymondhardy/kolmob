@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         // blank arguments mean "no arguments": answer KoLmafia's missing-parameter question without asking
         if (KolEngineHost.blankParams) {
             Regex("Please input a value for (\\w+) (\\w+)").find(text)?.let { m ->
-                KolEngineHost.answerPrompt(when (m.groupValues[1]) { "int", "float" -> "0"; "boolean" -> "false"; else -> " " })
+                KolEngineHost.answerPrompt(when (m.groupValues[1]) { "int", "float" -> "0"; "boolean" -> "false"; else -> "" })
                 return
             }
         }
@@ -149,12 +149,12 @@ class MainActivity : AppCompatActivity() {
         when (kind) {
             "confirm" -> b.setPositiveButton("Yes") { _, _ -> KolEngineHost.answerPrompt("y") }
                 .setNegativeButton("No") { _, _ -> KolEngineHost.answerPrompt("n") }
-            "alert" -> b.setPositiveButton("OK") { _, _ -> KolEngineHost.answerPrompt(" ") }
+            "alert" -> b.setPositiveButton("OK") { _, _ -> KolEngineHost.answerPrompt("") }
             else -> {
                 val input = EditText(this).apply { setPadding((24 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt()) }
                 b.setView(input)
-                    .setPositiveButton("Send") { _, _ -> KolEngineHost.answerPrompt(input.text.toString().ifEmpty { " " }) }
-                    .setNegativeButton("Skip") { _, _ -> KolEngineHost.answerPrompt(" ") }
+                    .setPositiveButton("Send") { _, _ -> KolEngineHost.answerPrompt(input.text.toString()) }
+                    .setNegativeButton("Skip") { _, _ -> KolEngineHost.answerPrompt("") }
             }
         }
         promptDialog = b.show()
@@ -167,7 +167,7 @@ class MainActivity : AppCompatActivity() {
             binding.root.postDelayed({
                 if (dlg?.isShowing == true) {
                     dlg.dismiss()
-                    KolEngineHost.answerPrompt(if (kind == "confirm") (if (dflt.startsWith("y")) "y" else "n") else " ")
+                    KolEngineHost.answerPrompt(if (kind == "confirm") (if (dflt.startsWith("y")) "y" else "n") else "")
                 }
             }, secs * 1000)
         }

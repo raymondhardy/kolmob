@@ -29,7 +29,7 @@ PATCHES = [
     # Kolmob: start only the thread that reads standard input (not the command processor that would run what is typed)
     ('net/sourceforge/kolmafia/KoLmafiaCLI.java',
      '  public void listenForCommands() {',
-     '  /** Kolmob: lets scripts that ask a question read the answer from System.in (the app feeds it). */\n  public void startInputRetriever() {\n    if (!this.retriever.isAlive()) {\n      this.retriever.setDaemon(true);\n      this.retriever.start();\n    }\n  }\n\n  public void listenForCommands() {'),
+     '  /** Kolmob: lets scripts that ask a question read the answer from System.in (the app feeds it). */\n  public void startInputRetriever() {\n    if (!this.retriever.isAlive()) {\n      this.retriever.setDaemon(true);\n      this.retriever.start();\n    }\n  }\n\n  /**\n   * Kolmob: hands a waiting script its answer as is. Typed lines go through the reader, which turns an empty\n   * line into "no input yet", so a script could never be given an empty answer that way.\n   */\n  public void queueAnswer(final String line) {\n    synchronized (this.queuedLines) {\n      this.queuedLines.addLast(line);\n    }\n  }\n\n  public void listenForCommands() {'),
     # Memory: KoLmafia caches one fully parsed interpreter per script file. Autoscend's pre/post-adventure, choice and
     # combat scripts each import all of autoscend (~140 MB parsed each), which exhausts the phone's 512 MB heap after a few
     # dozen turns. Hold the cache through soft references so the runtime drops cached parses before running out of memory

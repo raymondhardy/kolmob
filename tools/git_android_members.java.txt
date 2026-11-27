@@ -96,9 +96,40 @@
           }
         }
       }
+      fileLooseScripts(base);
     } finally {
       Files.deleteIfExists(tmp);
     }
+  }
+
+  /**
+   * Some script repos keep their scripts at the top level, where sync never looks, and tell players to copy
+   * them into scripts/ by hand. With no KoLmafia folder and no manifest, file them under scripts/ so install,
+   * update and delete handle them like any other project's scripts.
+   */
+  private static void fileLooseScripts(Path dest) throws IOException {
+    if (Files.exists(dest.resolve(MANIFEST))) return;
+    for (String p : permissibles) {
+      if (Files.isDirectory(dest.resolve(p))) return;
+    }
+    List<Path> loose;
+    try (var list = Files.list(dest)) {
+      loose =
+          list.filter(Files::isRegularFile)
+              .filter(
+                  f -> {
+                    String n = f.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+                    return n.endsWith(".ash") || n.endsWith(".js");
+                  })
+              .toList();
+    }
+    if (loose.isEmpty()) return;
+    Path scripts = Files.createDirectories(dest.resolve("scripts"));
+    for (Path f : loose) Files.move(f, scripts.resolve(f.getFileName()));
+    RequestLogger.printLine(
+        "This project keeps its scripts outside a scripts folder: installed "
+            + loose.size()
+            + " of them into scripts.");
   }
 
   private static void writeMeta(Path projectPath, String url, String branch, JSONObject commit)

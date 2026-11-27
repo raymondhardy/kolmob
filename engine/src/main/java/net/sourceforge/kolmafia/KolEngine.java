@@ -824,9 +824,9 @@ public final class KolEngine {
         };
   }
 
-  /** Answers a waiting prompt: "y"/"n" for confirmations, text for questions, " " (a space) for "no answer". */
+  /** Answers a waiting prompt: "y"/"n" for confirmations, text for questions, "" for no answer. */
   public static void answerPrompt(String line) {
-    KolStdin.INSTANCE.feed(line);
+    KoLmafiaCLI.DEFAULT_SHELL.queueAnswer(line);
   }
 
   /** Closet, storage, display case items and meat as JSON. */

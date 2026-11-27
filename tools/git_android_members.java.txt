@@ -107,10 +107,10 @@
    * them into scripts/ by hand. With no KoLmafia folder and no manifest, file them under scripts/ so install,
    * update and delete handle them like any other project's scripts.
    */
-  private static void fileLooseScripts(Path dest) throws IOException {
-    if (Files.exists(dest.resolve(MANIFEST))) return;
+  private static boolean fileLooseScripts(Path dest) throws IOException {
+    if (Files.exists(dest.resolve(MANIFEST))) return false;
     for (String p : permissibles) {
-      if (Files.isDirectory(dest.resolve(p))) return;
+      if (Files.isDirectory(dest.resolve(p))) return false;
     }
     List<Path> loose;
     try (var list = Files.list(dest)) {
@@ -123,13 +123,14 @@
                   })
               .toList();
     }
-    if (loose.isEmpty()) return;
+    if (loose.isEmpty()) return false;
     Path scripts = Files.createDirectories(dest.resolve("scripts"));
     for (Path f : loose) Files.move(f, scripts.resolve(f.getFileName()));
     RequestLogger.printLine(
         "This project keeps its scripts outside a scripts folder: installed "
             + loose.size()
             + " of them into scripts.");
+    return true;
   }
 
   private static void writeMeta(Path projectPath, String url, String branch, JSONObject commit)
@@ -240,6 +241,11 @@
       JSONObject commit = latestCommit(apiBase, branch);
       String latest = commit == null ? null : commit.getString("sha");
       if (latest != null && latest.equals(meta.get().getString("commit"))) {
+        // installed before Kolmob filed top-level scripts: file them now, the repo needn't change first
+        if (fileLooseScripts(projectPath)) {
+          invalidateProjectsSyncPaths();
+          return sync(projectPath);
+        }
         RequestLogger.printLine("No changes");
         return false;
       }

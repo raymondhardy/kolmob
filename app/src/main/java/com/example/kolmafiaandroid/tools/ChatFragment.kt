@@ -77,7 +77,6 @@ class ChatFragment : FullScreenDialog() {
     private lateinit var actionsScroll: android.widget.HorizontalScrollView
     private lateinit var jumpPill: TextView
     private lateinit var sendBtn: TextView
-    private val drafts = mutableMapOf<String, String>()
     private fun ui(block: () -> Unit) { activity?.runOnUiThread { if (isAdded && view != null) block() } }
 
 
@@ -308,7 +307,7 @@ class ChatFragment : FullScreenDialog() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val want = arguments?.getString("key")
+        val want = arguments?.getString("key") ?: lastSelected?.takeIf { !drafts[it].isNullOrBlank() }
         KolEngineHost.chatStart { running ->
             ui {
                 if (!running) {
@@ -509,6 +508,7 @@ class ChatFragment : FullScreenDialog() {
         ChatNotifier.unhide(requireContext(), key)
         if (!keys.contains(key)) keys = keys + key
         selected = key
+        lastSelected = key
         ChatNotifier.markRead(key)
         convoBox.removeAllViews()
         shown.remove(key)
@@ -518,6 +518,7 @@ class ChatFragment : FullScreenDialog() {
 
     private fun closeConvo() {
         selected = null
+        lastSelected = null // went back to the list on purpose: open the list next time too
         showMode()
         renderList()
         refresh()
@@ -837,5 +838,9 @@ class ChatFragment : FullScreenDialog() {
         var panelDialog: android.app.Dialog? = null
         /** Part of the screen (false) or the whole width (true, the bottom bar still shows). */
         var panelFull = false
+        /** Unsent text per conversation. Kept outside the panel so it survives closing it to look something up. */
+        private val drafts = mutableMapOf<String, String>()
+        /** The conversation last shown, reopened when the panel comes back with a draft still in it. */
+        private var lastSelected: String? = null
     }
 }

@@ -3,8 +3,9 @@
 
 Kolmob does not copy or patch upstream's tests: those run upstream. Our tests (tracked in git under core-tests) use
 upstream's test library (internal.helpers.Player, Cleanups, FakeHttpClientBuilder, ...), so that library and the data
-files it reads are copied here unchanged (plus the few test-support classes it uses, SUPPORT). The one helper that reaches into the desktop GUI (internal/helpers/
-Maximizer.java, which uses MaximizerFrame) is left out; our tests do not use it.
+files it reads are copied here unchanged (plus the few test-support classes it uses, SUPPORT). The parts that reach
+into the desktop GUI are left out; our tests do not use them: internal/helpers/Maximizer.java (MaximizerFrame), and
+Player.withSwingUserInterface with its import (SWING_ONLY).
 
 Usage: tools/sync-core-tests.py [path-to-kolmafia-checkout]   (run by tools/sync-upstream.sh)
 """
@@ -14,6 +15,15 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UP = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser('~/workspace/kolmafia')
 DST = os.path.join(HERE, 'core-tests')
 SKIP = {'internal/helpers/Maximizer.java'}
+# Text cut from copied helpers: (file, exact text). The sync stops if upstream changes it.
+SWING_ONLY = [
+    ('internal/helpers/Player.java', 'import net.sourceforge.kolmafia.swingui.SwingUserInterface;\n'),
+    ('internal/helpers/Player.java', '''
+  public static Cleanups withSwingUserInterface() {
+    return withUserInterface(new SwingUserInterface());
+  }
+'''),
+]
 # Test-support classes outside internal/ that the helpers use
 SUPPORT = ['net/sourceforge/kolmafia/utilities/TestStatics.java']
 
@@ -44,6 +54,14 @@ def main():
     shutil.copytree(os.path.join(src, 'internal'), os.path.join(java, 'internal'), dirs_exist_ok=True,
                     ignore=lambda d, names: [n for n in names
                                              if os.path.relpath(os.path.join(d, n), src) in SKIP])
+    for rel, text in SWING_ONLY:
+        path = os.path.join(java, rel)
+        with open(path) as f:
+            body = f.read()
+        if body.count(text) != 1:
+            sys.exit(f'{rel}: Swing-only text changed upstream, update SWING_ONLY:\n{text}')
+        with open(path, 'w') as f:
+            f.write(body.replace(text, ''))
     for rel in SUPPORT:
         os.makedirs(os.path.dirname(os.path.join(java, rel)), exist_ok=True)
         shutil.copy2(os.path.join(src, rel), os.path.join(java, rel))
@@ -53,7 +71,7 @@ def main():
             clear_untracked(os.path.join(DST, dst), keep)
             shutil.copytree(os.path.join(UP, sub), os.path.join(DST, dst), dirs_exist_ok=True)
     n = sum(len(f) for _, _, f in os.walk(os.path.join(java, 'internal')))
-    print(f'core-tests: {n} upstream helper files (unchanged); Kolmob tests: '
+    print(f'core-tests: {n} upstream helper files (Swing parts cut); Kolmob tests: '
           f'{len([k for k in keep if k.endswith(".java")])}')
 
 
